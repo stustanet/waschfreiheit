@@ -1,6 +1,6 @@
 /*
  * RFM_26.h
- * Driver for the RFM26 module (Si4463) based on the STM32 Cube HAL
+ * Driver for the RFM26 module (Si4463) based on the libopencm3 HAL
  *
  * This driver offers some basic functions to send and transmit packets with a RFM26 module
  * using the built-in packet handler of the RFM module.
@@ -24,7 +24,7 @@
 
 enum RFM_RESULT
 {
-	RFM_RES_OK,					// Operation finished successfully
+	RFM_RES_OK,                   // Operation finished successfully
 	RFM_RES_HAL_ERROR,            // HAL layer reports an error
 	RFM_RES_NOT_RESPONDING,       // No response from RFM module
 	RFM_RES_CTS_MISSING,          // Missing CTS in response
@@ -32,7 +32,7 @@ enum RFM_RESULT
 	RFM_RES_RX_WRONGSIZE,         // Wrong size of received packet
 	RFM_RES_RX_TIMEOUT,           // No packet received in given time
 	RFM_RES_TX_BUSY,              // The module is busy (currently receiving data)
-	RFM_RES_TX_TIMEOUT			// TX operation did not finish before timeout
+	RFM_RES_TX_TIMEOUT            // TX operation did not finish before timeout
 };
 
 /*
