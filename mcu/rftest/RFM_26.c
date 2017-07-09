@@ -44,7 +44,7 @@ static void slave_desel_and_wait(void)
 
 static inline void rfm_spi_write_byte(const uint8_t data)
 {
-	spi_send(RFM_SPI, data);
+	(void)spi_xfer(RFM_SPI, data);
 }
 
 
@@ -61,7 +61,7 @@ static void rfm_spi_read(uint8_t *data, uint32_t size)
 {
 	while (size--)
 	{
-		(*data++) = spi_read(RFM_SPI);
+		(*data++) = spi_xfer(RFM_SPI, 0);
 	}
 }
 
@@ -121,6 +121,9 @@ static uint8_t rfm_command(const uint8_t *cmd, uint32_t cmdsize, uint8_t *result
 	SLAVE_SEL();
 
 	rfm_spi_write(cmd, cmdsize);
+
+	// need to write an other byte her to finalize the command
+	rfm_spi_write_byte(0);
 
 	// deactivate SPI of slave
 	slave_desel_and_wait();
@@ -412,12 +415,12 @@ uint8_t RFM_driver_init(void)
 	// GPIO
 	gpio_set_mode(RFM_SPI_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, RFM_SPI_PIN_MOSI);
 	gpio_set_mode(RFM_SPI_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, RFM_SPI_PIN_SCK);
-	gpio_set_mode(RFM_SPI_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_INPUT_FLOAT, RFM_SPI_PIN_MISO);
+	gpio_set_mode(RFM_SPI_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, RFM_SPI_PIN_MISO);
 
 	gpio_set_mode(RFM_NSEL_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, RFM_NSEL_PIN);
 	gpio_set_mode(RFM_SHDN_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, RFM_SHDN_PIN);
-	gpio_set_mode(RFM_CTS_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_INPUT_FLOAT, RFM_CTS_PIN);
-	gpio_set_mode(RFM_INT_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_INPUT_FLOAT, RFM_INT_PIN);
+	gpio_set_mode(RFM_CTS_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, RFM_CTS_PIN);
+	gpio_set_mode(RFM_INT_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, RFM_INT_PIN);
 
 
 	// SPI
@@ -670,29 +673,22 @@ uint8_t RFM_raw_cmd(const void *cmd, uint32_t cmd_size, void *result, uint32_t r
 // TEST!!!
 //
 #include <string.h>
+#include <libopencm3/stm32/usart.h>
 static inline void configureUSART()
 {
-	
-	// Initialize registers with zero
-	USART1->CR1 = 0;
-	USART1->CR2 = 0;
-	USART1->CR3 = 0;
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_USART1);
 
-	// Begin configuration
-	// Enable USART
-	USART1->CR1 |= USART_CR1_UE;
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
+	usart_set_baudrate(USART1, 4500000);
+	usart_set_databits(USART1, 8);
+	usart_set_stopbits(USART1, USART_STOPBITS_1);
+	usart_set_mode(USART1, USART_MODE_TX_RX);
+	usart_set_parity(USART1, USART_PARITY_NONE);
+	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
 
-	// Configure baud rate
-	USART1->BRR = 0x0010; // 1 (4.5Mbs @ 72Mhz)
-
-	// Enable DMA
-	USART1->CR3 |= USART_CR3_DMAT;
-
-	// Enable Transmitter
-	USART1->CR1 |= USART_CR1_TE;
-
-	// Enable Receiver
-	USART1->CR1 |= USART_CR1_RE;
+	/* Finally enable the USART. */
+	usart_enable(USART1);
 }
 
 static void sendraw(const void *data, size_t len)
@@ -700,13 +696,7 @@ static void sendraw(const void *data, size_t len)
 	for(size_t i = 0; i < len; i++)
 	{
 		// Wait for TX buffer empty
-		while((USART1->SR & USART_SR_TXE) == 0)
-		{
-			continue;
-		}
-		// Write data to data register
-		// This automatically clears the TXE bit
-		USART1->DR = ((unsigned char *)data)[i];
+		usart_send_blocking(USART1, ((unsigned char *)data)[i]);
 	}
 }
 
@@ -720,11 +710,8 @@ static void rx_wait(char *buffer, uint32_t size)
 	char c;
 	while(size > 1)
 	{
-		// Wait for data
-		while((USART1->SR & USART_SR_RXNE) == 0);
-
 		// Read data, this clears the RXNE bit
-		c = USART1->DR;
+		c = usart_recv_blocking(USART1);
 
 		if(c == '\n') break;
 
@@ -770,18 +757,12 @@ void hexdump(const void *data, size_t len)
 
 uint8_t RFM_test()
 {
-	RCC->APB2ENR |= RCC_APB2ENR_USART1EN | RCC_APB2ENR_IOPAEN;
-	GPIOA->CRH &= ~(GPIO_CRH_MODE9 | GPIO_CRH_CNF9);
-	GPIOA->CRH |= GPIO_CRH_MODE9 | GPIO_CRH_CNF9_1;
 	configureUSART();
 
-	uint8_t ir = RFM_init();
+	uint8_t ir = RFM_driver_init();
 	sendstr("init: ");
 	hexdump(&ir, 1);
 	sendstr("\n");
-	
-
-
 
 	uint8_t r;
 
@@ -828,7 +809,7 @@ uint8_t RFM_test()
 		}
 		else if(buf[0] == 'i' || buf[0] == 'I')
 		{
-			if(HAL_GPIO_ReadPin(RFM_INT_PORT, RFM_INT_PIN))
+			if(IRQ_IS_HIGH())
 			{
 				sendstr("\nHIGH\n");
 			}
@@ -861,7 +842,7 @@ uint8_t RFM_test()
 		}
 		else if(buf[0] == 'r' || buf[0] == 'R')
 		{
-			while(USART1->DR != 'x')
+			while(usart_recv(USART1) != 'x')
 			{
 				uint8_t rb[RFM_PACKET_SIZE];
 				r = RFM_rx_packet(rb, 1000, buf[1] != 0);
@@ -901,6 +882,53 @@ uint8_t RFM_test()
 			sendstr("\n");
 
 			
+			continue;
+		}
+		else if(buf[0] == 'C')
+		{
+			if(CTS_IS_LOW())
+			{
+				sendstr("\nLOW\n");
+			}
+			else
+			{
+				sendstr("\nHIGH\n");
+			}
+
+			continue;
+		}
+		else if(buf[0] == 'h')
+		{
+			sendstr("\nNON_INIT_RESET\n");
+			RFM_MODULE_DISABLE();
+			delay_ticks(RFM_RESET_TIME);
+			RFM_MODULE_ENABLE();
+			delay_ticks(RFM_RESET_TIME);
+
+			continue;
+		}
+		else if(buf[0] == 'w')
+		{
+			sendstr("\nwrite 8 bytes to tx fifo\n");
+
+			uint8_t ru, tf;
+			r = rfm_get_fifo_usage(&ru, &tf);
+			sendstr("old: res / rf / tf: \n");
+			hexdump(&r, 1);
+			hexdump(&ru, 1);
+			hexdump(&tf, 1);
+
+			char tmp[8];
+			r = rfm_write_tx_fifo(sizeof(tmp), tmp);
+			sendstr("\nwrite res: \n");
+			hexdump(&r, 1);
+
+			r = rfm_get_fifo_usage(&ru, &tf);
+			sendstr("now: res / rf / tf: \n");
+			hexdump(&r, 1);
+			hexdump(&ru, 1);
+			hexdump(&tf, 1);
+
 			continue;
 		}
 		
