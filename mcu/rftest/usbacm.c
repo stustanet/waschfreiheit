@@ -17,6 +17,12 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/*
+ * Original file taken from libopencm3 example "usb_cdcacm"
+ * Modified by Daniel Frejek
+ * 2017-07-09
+ */
+
 #include "usbacm.h"
 #include <stdlib.h>
 #include <libopencm3/stm32/rcc.h>
