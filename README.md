@@ -1,6 +1,6 @@
 # Waschen in Freiheit !!!
 ## Was ist das?
-Dieses Projekt soll verhindern, dass die armen Studenten unnötig lange mit der Suche nach einer freien Waschmaschine verbringen. Dazu soll der Status aller Maschinen erfasst werden um diese dann online abfragbar zu machen. Will man dann Waschen kann man dann direkt zu einer freien Maschine laufen und muss nicht erst in jedem Waschraum vorbeischauen, nur um festzustellen, dass dieser schon belegt ist.
+Dieses Projekt soll verhindern, dass die armen Studenten unnötig lange mit der Suche nach einer freien Waschmaschine verbringen. Dazu soll der Status aller Maschinen erfasst werden um diese dann online abfragbar zu machen. Will man dann Waschen kann man direkt zu einer freien Maschine laufen und muss nicht erst in jedem Waschraum vorbeischauen, nur um festzustellen, dass dieser schon belegt ist.
 
 ## Aufbau
 Der aktuelle Plan sieh in etwa so aus:
@@ -15,7 +15,7 @@ Der aktuelle Plan sieh in etwa so aus:
 |                               |    |   |
 +-------------------------------+    |   |
                                      |   |     +--------+    +-----------+
-                                     |   |<~~~>| Brdige |--->| Webserver |
+                                     |   |<~~~>| Bridge |--->| Webserver |
 +---Raum------------------------+    |   |     +--------+    +-----------+
 |                               |    |   |
 |  WM <- Sensor  \              |    |   |
