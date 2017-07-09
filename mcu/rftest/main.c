@@ -1,6 +1,8 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/usart.h>
 #include <libopencm3/cm3/scb.h>
+#include <libopencm3/cm3/nvic.h>
 #include <string.h>
 
 #include "delay.h"
@@ -10,15 +12,23 @@
 #include "RFM_26_config.h"
 
 
+#define ENABLE_DEBUG_USART
+
+
 // command handling
 static uint8_t command_valid = 0;
 static uint32_t command_buffer_used = 0;
 static uint8_t command_buffer[128];
 
 static uint32_t get_next_comamnd_data(uint8_t *buffer);
+static void print_raw(const void *data, uint32_t len);
 static void print_str(const char *str);
 static void print_hex(const uint8_t *data, uint32_t size);
 static void print_help(void);
+
+#ifdef ENABLE_DEBUG_USART
+static void debug_usart_init(void);
+#endif
 
 int main(void)
 {
@@ -27,9 +37,7 @@ int main(void)
 	// need to manually set to usb prescaler to 1.5 (USB needs 48Mhz)
 	rcc_set_usbpre(RCC_CFGR_USBPRE_PLL_CLK_DIV1_5);
 
-	
 	delay_init();
-
 
 	rcc_periph_clock_enable(RCC_GPIOC);
 
@@ -37,12 +45,18 @@ int main(void)
 
 	usbacm_init();
 
+#ifdef ENABLE_DEBUG_USART
+	debug_usart_init();
+#endif
+
 
 	// Switch on error LED
 	// There is not actual error now, this is just to see that something
 	// happens during boot / init
 	// Also, this will stay active as long as the mudule is unitialized
 	gpio_clear(GPIOC, GPIO13);
+	
+	print_str("initializing transceiver module...\n");
 	
 	uint8_t rfm_result = RFM_driver_init();
 
@@ -55,10 +69,9 @@ int main(void)
 
 		delay_ticks(1000);
 		rfm_result = RFM_module_reset();
-
-		// test
-		break;
 	}
+
+	print_str("transceiver initialized\n");
 
 
 	while (1) 
@@ -222,9 +235,24 @@ static uint32_t get_next_comamnd_data(uint8_t *buffer)
 }
 
 
+static inline void print_raw(const void *data, uint32_t len)
+{
+	usbacm_send(data, len);
+
+#ifdef ENABLE_DEBUG_USART
+
+	const unsigned char *d = data;
+	while(len--)
+	{
+		usart_send_blocking(USART1, (d++)[0]);
+	}
+#endif
+}
+
+
 static void print_str(const char *str)
 {
-	usbacm_send(str, strlen(str));
+	print_raw(str, strlen(str));
 }
 
 
@@ -241,7 +269,7 @@ static void print_hex(const uint8_t *data, uint32_t size)
 
 		hex_encode(data, cur, tmp);
 
-		usbacm_send(tmp, cur * 2);
+		print_raw(tmp, cur * 2);
 
 		data += cur;
 		size -= cur;
@@ -265,10 +293,10 @@ x       Send a raw command to the transceiver module\n\
         The (hex encoded) command is specified as parameter\n\
         This function is intended for testing / debugging! only\n\
 R       reset\n\
-        RT resets the rf tranceiver\n\
+        RT resets the rf transceiver\n\
         RM resets the MCU (and thus also the transceiver)\n\
 ";
-	usbacm_send(help_string, sizeof(help_string));
+	print_raw(help_string, sizeof(help_string));
 }
 
 
@@ -283,7 +311,7 @@ void usbacm_recv_handler(void *data, uint32_t len)
 
 	if(command_buffer_used + len > sizeof(command_buffer))
 	{
-		len = sizeof(command_buffer);
+		len = sizeof(command_buffer) - command_buffer_used;
 	}
 
 	// bytewise copy data to command buffer
@@ -301,4 +329,35 @@ void usbacm_recv_handler(void *data, uint32_t len)
 		}
 
 		command_buffer[command_buffer_used++] = x;
-	}}
+	}
+}
+
+
+static inline void debug_usart_init(void)
+{
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_USART1);
+
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
+	usart_set_baudrate(USART1, 4500000);
+	usart_set_databits(USART1, 8);
+	usart_set_stopbits(USART1, USART_STOPBITS_1);
+	usart_set_mode(USART1, USART_MODE_TX_RX);
+	usart_set_parity(USART1, USART_PARITY_NONE);
+	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
+
+	usart_enable_rx_interrupt(USART1);
+
+	// Set USART int prio to same as USB so that they won't interrupt each other
+	nvic_set_priority(NVIC_USART1_IRQ, USBACM_INT_PRIO);
+	nvic_enable_irq(NVIC_USART1_IRQ);
+
+	usart_enable(USART1);
+}
+
+
+void usart1_isr(void)
+{
+	uint8_t d = usart_recv(USART1);
+	usbacm_recv_handler(&d, 1);
+}

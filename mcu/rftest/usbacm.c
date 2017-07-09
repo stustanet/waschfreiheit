@@ -300,9 +300,9 @@ void usbacm_init(void)
 	usbd_register_set_config_callback(usbd_dev, cdcacm_set_config);
 
 	// Medium prio for usb interrupts
-	nvic_set_priority(NVIC_USB_WAKEUP_IRQ, 0x88);
-	nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, 0x88);
-	nvic_set_priority(NVIC_USB_LP_CAN_RX0_IRQ, 0x88);
+	nvic_set_priority(NVIC_USB_WAKEUP_IRQ, USBACM_INT_PRIO);
+	nvic_set_priority(NVIC_USB_HP_CAN_TX_IRQ, USBACM_INT_PRIO);
+	nvic_set_priority(NVIC_USB_LP_CAN_RX0_IRQ, USBACM_INT_PRIO);
 
 	usb_ints_enable();
 }
