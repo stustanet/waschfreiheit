@@ -136,7 +136,6 @@ static uint8_t rfm_command(const uint8_t *cmd, uint32_t cmdsize, uint8_t *result
 		}
 	}
 
-	
 	if (ressize > 0)
 	{
 		// Need a small delay before reading the result, RMF26 is wired :(

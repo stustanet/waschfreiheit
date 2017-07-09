@@ -301,5 +301,4 @@ void usbacm_recv_handler(void *data, uint32_t len)
 		}
 
 		command_buffer[command_buffer_used++] = x;
-	}
-}
+	}}
