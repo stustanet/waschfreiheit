@@ -15,11 +15,11 @@ static inline uint8_t dehex_nibble(uint8_t n)
 	}
 	else if(n >= 'A' && n <= 'F')
 	{
-		return n - 'A';
+		return (n - 'A') + 10;
 	}
 	else if(n >= 'a' && n <= 'f')
 	{
-		return n - 'a';
+		return (n - 'a') + 10;
 	}
 
 	// no valid hex
