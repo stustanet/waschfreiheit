@@ -30,6 +30,42 @@ static void print_help(void);
 static void debug_usart_init(void);
 #endif
 
+
+static void rxtest(void)
+{
+	print_str("Start RX test\n");
+	while (!get_next_comamnd_data(NULL))
+	{
+		print_str("Requesting packet from RFM driver...\n");
+
+		uint8_t packet_buffer[RFM_PACKET_SIZE];
+
+		uint8_t rfm_result = RFM_rx_packet(packet_buffer, 3000, 0);
+		if(rfm_result == RFM_RES_OK)
+		{
+			print_str("OK, packet data:\n");
+			print_hex(packet_buffer, sizeof(packet_buffer));
+			print_str("\n");
+
+			if (packet_buffer[0])
+			{
+				gpio_clear(GPIOC, GPIO13);
+			}
+			else
+			{
+				gpio_set(GPIOC, GPIO13);
+			}
+		}
+		else
+		{
+			print_str("ERROR: ");
+			print_hex(&rfm_result, 1);
+			print_str("\n");
+		}
+	}
+}
+
+
 int main(void)
 {
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
@@ -74,6 +110,9 @@ int main(void)
 	print_str("transceiver initialized\n");
 
 
+	rxtest();
+
+
 	while (1) 
 	{
 		uint8_t cmd[sizeof(command_buffer)];
@@ -89,6 +128,7 @@ int main(void)
 					break;
 
 				case 'r':
+				{
 					print_str("Requesting packet from RFM driver...\n");
 
 					uint8_t packet_buffer[RFM_PACKET_SIZE];
@@ -107,7 +147,7 @@ int main(void)
 						print_str("\n");
 					}
 					break;
-
+				}
 				case 't':
 					if(cmd_len != RFM_PACKET_SIZE * 2 + 1)
 					{
@@ -138,6 +178,41 @@ int main(void)
 					}
 
 					break;
+
+				case 'T':
+				{
+					if(cmd_len != 2 || (cmd[1] != '0' && cmd[1] != '1'))
+					{
+						print_str("USAGE: T0 / T1\n");
+						break;
+					}
+
+
+					uint8_t packet_buffer[RFM_PACKET_SIZE];
+					memset(packet_buffer, 0, RFM_PACKET_SIZE);
+
+					if (cmd[1] == '1')
+					{
+						packet_buffer[0] = 1;
+					}
+
+					print_str("Sending packet with data: \n");
+					print_hex(packet_buffer, RFM_PACKET_SIZE);
+
+					rfm_result = RFM_tx_packet(packet_buffer);
+					if(rfm_result == RFM_RES_OK)
+					{
+						print_str("\nOK\n");
+					}
+					else
+					{
+						print_str("\nERROR: ");
+						print_hex(&rfm_result, 1);
+						print_str("\n");
+					}
+
+					break;
+				}
 
 				case 'x':
 					if(!hex_decode((const char *)(cmd + 1), cmd_len - 1, cmd + 1))
@@ -217,9 +292,14 @@ int main(void)
  */
 static uint32_t get_next_comamnd_data(uint8_t *buffer)
 {
-	if(!command_valid)
+	if (!command_valid)
 	{
 		return 0;
+	}
+
+	if (!buffer)
+	{
+		return 1;
 	}
 
 	memcpy(buffer, command_buffer, command_buffer_used);
