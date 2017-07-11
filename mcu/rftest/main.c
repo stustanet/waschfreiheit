@@ -66,6 +66,107 @@ static void rxtest(void)
 }
 
 
+static void echotest_svr(void)
+{
+	print_str("Start echo server\n");
+	while (!get_next_comamnd_data(NULL))
+	{
+		print_str("Requesting packet from RFM driver...\n");
+
+		uint8_t packet_buffer[RFM_PACKET_SIZE];
+
+		uint8_t rfm_result = RFM_rx_packet(packet_buffer, 3000, 0);
+		if(rfm_result == RFM_RES_OK)
+		{
+			print_str("OK, packet data:\n");
+			print_hex(packet_buffer, sizeof(packet_buffer));
+			print_str("\n");
+
+			rfm_result = RFM_tx_packet(packet_buffer);
+			if(rfm_result == RFM_RES_OK)
+			{
+				print_str("OK, echo sent:\n");
+			}
+			else
+			{
+				print_str("TX ERROR: ");
+				print_hex(&rfm_result, 1);
+				print_str("\n");
+			}
+		}
+		else
+		{
+			print_str("RX ERROR: ");
+			print_hex(&rfm_result, 1);
+			print_str("\n");
+		}
+	}
+}
+
+
+static void echotest_client(void)
+{
+	print_str("Start echo client\n");
+
+	int counter = 0;
+	uint8_t req_fresh = 0;
+
+	while (!get_next_comamnd_data(NULL))
+	{
+
+		uint8_t tx_buffer[RFM_PACKET_SIZE];
+
+		for (size_t i = 0; i < sizeof(tx_buffer) / sizeof(tx_buffer[0]); i++)
+		{
+			tx_buffer[i] = counter++;
+		}
+
+		print_str("Send packet:\n");
+		print_hex(tx_buffer, sizeof(tx_buffer));
+		print_str("\n");
+
+		uint8_t rfm_result = RFM_tx_packet(tx_buffer);
+		if(rfm_result == RFM_RES_OK)
+		{
+			uint8_t rx_buffer[RFM_PACKET_SIZE];
+			print_str("waiting for response...\n");
+			rfm_result = RFM_rx_packet(rx_buffer, 5000, req_fresh);
+			req_fresh = 0;
+			if(rfm_result == RFM_RES_OK)
+			{
+				print_str("OK, received:\n");
+				print_hex(rx_buffer, sizeof(rx_buffer));
+				print_str("\n");
+
+				if (memcmp(rx_buffer, tx_buffer, sizeof(rx_buffer)))
+				{
+					print_str("TX != RX!!!\n");
+					req_fresh = 1;
+				}
+				else
+				{
+					print_str("--- OK ---\n");
+				}
+			}
+			else
+			{
+				print_str("RX ERROR: ");
+				print_hex(&rfm_result, 1);
+				print_str("\n");
+
+				req_fresh = 1;
+			}
+		}
+		else
+		{
+			print_str("TX ERROR: ");
+			print_hex(&rfm_result, 1);
+			print_str("\n");
+		}
+	}
+}
+
+
 int main(void)
 {
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
@@ -110,7 +211,8 @@ int main(void)
 	print_str("transceiver initialized\n");
 
 
-	rxtest();
+	//rxtest();
+	echotest_svr();
 
 
 	while (1) 
@@ -276,6 +378,13 @@ int main(void)
 						print_str("Invalid argument for reset command\n");
 					}
 
+					break;
+
+				case 'e':
+					echotest_client();
+					break;
+				case 'E':
+					echotest_svr();
 					break;
 			}
 		}
