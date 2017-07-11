@@ -37,6 +37,7 @@ static void rfm_short_delay(void)
  */
 static void slave_desel_and_wait(void)
 {
+	rfm_short_delay();
 	SLAVE_DESEL();
 	rfm_short_delay();
 }
@@ -121,9 +122,6 @@ static uint8_t rfm_command(const uint8_t *cmd, uint32_t cmdsize, uint8_t *result
 	SLAVE_SEL();
 
 	rfm_spi_write(cmd, cmdsize);
-
-	// need to write an other byte her to finalize the command
-	rfm_spi_write_byte(0);
 
 	// deactivate SPI of slave
 	slave_desel_and_wait();
