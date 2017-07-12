@@ -121,6 +121,10 @@ static void echotest_client(void)
 			tx_buffer[i] = counter++;
 		}
 
+		gpio_clear(GPIOC, GPIO13);
+		delay_ticks(100);
+		gpio_set(GPIOC, GPIO13);
+
 		print_str("Send packet:\n");
 		print_hex(tx_buffer, sizeof(tx_buffer));
 		print_str("\n");
@@ -140,12 +144,24 @@ static void echotest_client(void)
 
 				if (memcmp(rx_buffer, tx_buffer, sizeof(rx_buffer)))
 				{
+					gpio_clear(GPIOC, GPIO13);
+					delay_ticks(3000);
+					gpio_set(GPIOC, GPIO13);
+					delay_ticks(500);
 					print_str("TX != RX!!!\n");
 					req_fresh = 1;
 				}
 				else
 				{
 					print_str("--- OK ---\n");
+
+					for (uint32_t i = 0; i < 3; i++)
+					{
+						gpio_clear(GPIOC, GPIO13);
+						delay_ticks(100);
+						gpio_set(GPIOC, GPIO13);
+						delay_ticks(100);
+					}
 				}
 			}
 			else
@@ -153,6 +169,11 @@ static void echotest_client(void)
 				print_str("RX ERROR: ");
 				print_hex(&rfm_result, 1);
 				print_str("\n");
+
+				gpio_clear(GPIOC, GPIO13);
+				delay_ticks(1000);
+				gpio_set(GPIOC, GPIO13);
+				delay_ticks(500);
 
 				req_fresh = 1;
 			}
@@ -162,6 +183,13 @@ static void echotest_client(void)
 			print_str("TX ERROR: ");
 			print_hex(&rfm_result, 1);
 			print_str("\n");
+			for (uint32_t i = 0; i < 15; i++)
+			{
+				gpio_clear(GPIOC, GPIO13);
+				delay_ticks(20);
+				gpio_set(GPIOC, GPIO13);
+				delay_ticks(20);
+			}
 		}
 	}
 }
@@ -212,7 +240,7 @@ int main(void)
 
 
 	//rxtest();
-	echotest_svr();
+	echotest_client();
 
 
 	while (1) 
