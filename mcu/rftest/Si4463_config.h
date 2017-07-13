@@ -1,5 +1,5 @@
 /*
- * RFM_config.h
+ * Si4463_config.h
  * Configuration for the RFM26 library
  */
 

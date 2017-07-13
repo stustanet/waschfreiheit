@@ -19,7 +19,7 @@
 
 BINARY = main
 
-OBJS = usbacm.o delay.o util.o RFM_26.o
+OBJS = usbacm.o delay.o util.o Si4463.o
 
 OPENCM3_DIR=../libopencm3
 

@@ -1,6 +1,6 @@
 //#include <string.h>
 
-#include "RFM_26.h"
+#include "Si4463.h"
 
 #include <libopencm3/stm32/spi.h>
 #include <libopencm3/stm32/gpio.h>
@@ -8,7 +8,7 @@
 
 #include "delay.h"
 
-#include "RFM_26_config.h"
+#include "Si4463_config.h"
 #include "si4463_cmd.h"
 #include "radio_config_Si4463_slow.h"
 
@@ -18,8 +18,8 @@
 #define CTS_IS_LOW()  (!gpio_get(RFM_CTS_PORT, RFM_CTS_PIN))
 #define IRQ_IS_HIGH()  (gpio_get(RFM_INT_PORT, RFM_INT_PIN))
 
-#define RFM_MODULE_DISABLE() gpio_set(RFM_SHDN_PORT, RFM_SHDN_PIN)
-#define RFM_MODULE_ENABLE() gpio_clear(RFM_SHDN_PORT, RFM_SHDN_PIN)
+#define RF_MODULE_DISABLE() gpio_set(RFM_SHDN_PORT, RFM_SHDN_PIN)
+#define RF_MODULE_ENABLE() gpio_clear(RFM_SHDN_PORT, RFM_SHDN_PIN)
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -33,7 +33,7 @@ static void rfm_short_delay(void)
 /*
  * This is a helper function for releasing the slave select pin
  * It releases the pin and waits for a short time.
- * This is required to ensure that the RFM module actually gets the deselect signal
+ * This is required to ensure that the RF module actually gets the deselect signal
  */
 static void slave_desel_and_wait(void)
 {
@@ -75,7 +75,7 @@ static void rfm_spi_read(uint8_t *data, uint32_t size)
  *                     If eypectCTS and the first byte is CTS, it is discarded and the normal receive begins
  *                     Otherwise, if expectCTS and the first byte is NOT CTS, the functions returns with 0
  *
- * @return A Value from RMF26_RES
+ * @return A Value from RFM_RES
  */
 static uint8_t rfm_get_data(uint8_t cmd, uint8_t *result, uint32_t ressize, uint8_t expect_cts)
 {
@@ -109,12 +109,12 @@ static uint8_t rfm_get_data(uint8_t cmd, uint8_t *result, uint32_t ressize, uint
 
 
 /**
- * Send a comamnd to the connected RFM module
+ * Send a comamnd to the connected RF module
  * @param cmd        Command data (binary)
  * @param cmdsize    Size of the command in bytes
  * @param result     Buffer for the result (this can be NULL, if ressize is 0)
  * @param ressize    Size of the result buffer in bytes (length of the expected result)
- * @return A value from RMF26_RES
+ * @return A value from RFM_RES
  */
 static uint8_t rfm_command(const uint8_t *cmd, uint32_t cmdsize, uint8_t *result, uint32_t ressize)
 {
@@ -350,7 +350,7 @@ static uint8_t rfm_init(void)
 
 static uint8_t rfm_set_antenna_switch(uint8_t tx)
 {
-	// Configure GPIOs of RFM module
+	// Configure GPIOs of RF module
 
 	uint8_t gpio_cmd[] = {RFM_CMD_GPIO_PIN_CFG,
 	                      RFM_GPIO_DONTCHANGE,  // GPIO0
@@ -434,16 +434,16 @@ uint8_t RFM_driver_init(void)
 	spi_enable(RFM_SPI);
 	
 
-	return RFM_module_reset();
+	return RFM_reset();
 }
 
 
-uint8_t RFM_module_reset(void)
+uint8_t RFM_reset(void)
 {
 	// reset the module
-	RFM_MODULE_DISABLE();
+	RF_MODULE_DISABLE();
 	delay_ticks(RFM_RESET_TIME);
-	RFM_MODULE_ENABLE();
+	RF_MODULE_ENABLE();
 	delay_ticks(RFM_RESET_TIME);
 
 	return rfm_init();
@@ -775,7 +775,7 @@ uint8_t RFM_test()
 		{
 
 			sendstr("\nRESET\n");
-			r = RFM_module_reset();
+			r = RFM_reset();
 			if(r == RFM_RES_OK)
 			{
 				sendstr("\nINIT OK\n");
@@ -898,9 +898,9 @@ uint8_t RFM_test()
 		else if(buf[0] == 'h')
 		{
 			sendstr("\nNON_INIT_RESET\n");
-			RFM_MODULE_DISABLE();
+			RF_MODULE_DISABLE();
 			delay_ticks(RFM_RESET_TIME);
-			RFM_MODULE_ENABLE();
+			RF_MODULE_ENABLE();
 			delay_ticks(RFM_RESET_TIME);
 
 			continue;

@@ -8,8 +8,8 @@
 #include "delay.h"
 #include "usbacm.h"
 #include "util.h"
-#include "RFM_26.h"
-#include "RFM_26_config.h"
+#include "Si4463.h"
+#include "Si4463_config.h"
 
 
 #define ENABLE_DEBUG_USART
@@ -228,12 +228,12 @@ int main(void)
 	while(rfm_result != RFM_RES_OK)
 	{
 
-		print_str("failed to initialize the RFM module!\nerrorcode: ");
+		print_str("failed to initialize the RF module!\nerrorcode: ");
 		print_hex(&rfm_result, 1);
 		print_str("\nretry in 1 sec...\n");
 
 		delay_ticks(1000);
-		rfm_result = RFM_module_reset();
+		rfm_result = RFM_reset();
 	}
 
 	print_str("transceiver initialized\n");
@@ -383,7 +383,7 @@ int main(void)
 					if(cmd[1] == 'T')
 					{
 						print_str("Resetting transceiver...\n");
-						rfm_result = RFM_module_reset();
+						rfm_result = RFM_reset();
 						if(rfm_result == RFM_RES_OK)
 						{
 							print_str("OK\n");
