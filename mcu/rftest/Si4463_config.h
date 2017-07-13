@@ -1,6 +1,6 @@
 /*
  * Si4463_config.h
- * Configuration for the RFM26 library
+ * Configuration for the Si4463 library
  */
 
 // SPI interface
@@ -15,23 +15,23 @@
 #define RFM_RCC_GPIO      RCC_GPIOA
 #define RFM_RCC_SPI       RCC_SPI1
 
-// Antenna switch pins (GPIOs on the RFM module)
+// Antenna switch pins (GPIOs on the RF module)
 #define RFM_ANTSW_TX 2  // GPIO needs to be connected to TX switch input
 #define RFM_ANTSW_RX 3  // GPIO needs to be connected to RX switch input
 
-// CTS of RFM module (Default GPIO 1 on the module) needs to be connected to this pin
+// CTS of RF module (Default GPIO 1 on the module) needs to be connected to this pin
 #define RFM_CTS_PORT GPIOA
 #define RFM_CTS_PIN GPIO3
 
-// Interrupt pin (XIRQ) of the RFM module needs to be connected to this pin
+// Interrupt pin (XIRQ) of the RF module needs to be connected to this pin
 #define RFM_INT_PORT GPIOA
 #define RFM_INT_PIN GPIO2
 
-// Slave select (NSEL / XSEL) pin of the RFM module needs to be connected to this pin
+// Slave select (NSEL / XSEL) pin of the RF module needs to be connected to this pin
 #define RFM_NSEL_PORT GPIOA
 #define RFM_NSEL_PIN GPIO4
 
-// Shutdown pin of the RFM module needs to be connected to this pin
+// Shutdown pin of the RF module needs to be connected to this pin
 #define RFM_SHDN_PORT GPIOA
 #define RFM_SHDN_PIN GPIO1
 
@@ -40,7 +40,7 @@
 
 // Number of idle loop cycles for the short delay.
 // This is used e.g. before deasserting the NSEL pin of the module.
-// A too small value will result in an unstable communication becuase the STM32 seems to be too fst for the RFM module
+// A too small value will result in an unstable communication becuase the STM32 seems to be too fst for the RF module
 #define RFM_SHORT_DELAY_CYCLES 100
 
 // Fixed size of a packet
