@@ -40,5 +40,9 @@ BMP_PORT	?=
 # texane/stlink specific variables
 #STLINK_PORT	?= :4242
 
+SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-include ../libopencm3.rules.mk
+TGT_CFLAGS += -I$(SELF_DIR)/lib/include
+VPATH += $(SELF_DIR)/lib/src
+
+include $(SELF_DIR)/libopencm3.rules.mk
