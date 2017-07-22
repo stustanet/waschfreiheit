@@ -8,4 +8,4 @@ Das hat den Vorteil, dass eventuelle Offsets der Sensorspannung nicht so sehr st
 Eine einfache Konstruktion, die die Differenz von der Sensorspannung und der halben Betriebsspannung verstärkt, ist allerdings nicht möglich, da die Sensoren nicht *genau* die halbe Betriebsspannung liefern, wenn kein Magnetfeld da ist.
 Diese Abweichung ist so groß, dass diese (bei dem gewünschten Verstärkungsfaktor) nicht einfach in Software korrigierbar ist.
 
-![Schaltplan](/sensor/amp.svg)
+![Schaltplan](/sensor/amp.png)
