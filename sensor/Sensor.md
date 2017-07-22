@@ -7,3 +7,5 @@ Der aktuelle Entwurf für diesen Verstärker ist ein Wechselspannungsverstärker
 Das hat den Vorteil, dass eventuelle Offsets der Sensorspannung nicht so sehr stören, leider ist diese Konstruktion jedoch sehr empfindlich gegenüber Störungen auf der Versorgungsspannung, hier besteht also noch Verbesserungspotential.
 Eine einfache Konstruktion, die die Differenz von der Sensorspannung und der halben Betriebsspannung verstärkt, ist allerdings nicht möglich, da die Sensoren nicht *genau* die halbe Betriebsspannung liefern, wenn kein Magnetfeld da ist.
 Diese Abweichung ist so groß, dass diese (bei dem gewünschten Verstärkungsfaktor) nicht einfach in Software korrigierbar ist.
+
+![Schaltplan](/amp.svg)
