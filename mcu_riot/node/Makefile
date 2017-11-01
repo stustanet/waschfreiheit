@@ -6,6 +6,7 @@ USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += xtimer
 USEMODULE += sx1276
+USEMODULE += hashes
 
 
 FEATURES_REQUIRED ?= periph_spi
