@@ -65,8 +65,8 @@ static uint16_t calc_current_window_used(const state_estimation_data_t *data)
 
 /*
  * Adjust the window size to the current window size as defined by the current state.
- * If old values that contributed to the <window_sum> falls out, it is subtracted from the sum.
- * Also this function advances the window by one so that <window_next_free> will point to the next unused element
+ * If an old value that contributed to the <window_sum> falls out, it is subtracted from the sum.
+ * Also, this function advances the window by one so that <window_next_free> will point to the next unused element
  */
 static void adjust_window_size(state_estimation_data_t *data)
 {
@@ -106,7 +106,7 @@ static void adjust_window_size(state_estimation_data_t *data)
  * Adds the <current> input value to the window at <window_next_free> and updates the <window_sum>
  * according to the reject threshold/block filter.
  *
- * NOTE: After this function <window_next_free> will point to a used element!.
+ * NOTE: After this function <window_next_free> will point to a used element!
  */
 static void update_reject_thd_filter(state_estimation_data_t *data)
 {
@@ -289,15 +289,22 @@ int stateest_init(state_estimation_data_t *data, const state_estimation_params_t
 
 state_update_result_t stateest_update(state_estimation_data_t *data, uint16_t raw_value)
 {
+	// First update the input filter
 	update_input_filter(data, raw_value);
+
 	if (data->input_filter.counter >= data->params.input_filter.num_samples)
 	{
+		// if <num_samples> valuess processed, update the state filter
+
 		data->input_filter.counter = 0;
 
+		// rememebr if the last state was an ON state
 		uint8_t was_on = (data->state_filter.current_state >= SE_STATE_ON_THRESHOLD);
 		
+		// update the state
 		update_state_filter(data);
 
+		// was_on != is_on => notify caller
 		if (was_on != (data->state_filter.current_state >= SE_STATE_ON_THRESHOLD))
 		{
 			if (was_on)
@@ -307,5 +314,7 @@ state_update_result_t stateest_update(state_estimation_data_t *data, uint16_t ra
 			return state_update_changed_to_on;
 		}
 	}
+
+	// no frame or on state unchanged
 	return state_update_unchanged;
 }
