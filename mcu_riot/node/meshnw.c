@@ -7,7 +7,6 @@
 #include "net/gnrc/netdev.h"
 #include "net/netdev.h"
 
-#include "sx127x_internal.h"
 #include "sx127x_params.h"
 #include "sx127x_netdev.h"
 
@@ -39,6 +38,7 @@ typedef struct
 	nodeid_t my_node_id;
 	uint8_t routing_table[MESHNW_MAX_NODEID + 1];
 	uint8_t recv_buffer[MESHNW_MAX_OTA_PACKET_SIZE];
+	uint8_t enable_forwarding;
 } meshnw_context_data_t;
 
 static meshnw_context_data_t context = { 0 };
@@ -150,7 +150,7 @@ static void handle_rx_cplt(void)
 		uint8_t pld_len = len - sizeof(layer3_packet_header_t);
 		(*context.recv_callback)(hdr->src, pld, pld_len);
 	}
-	else
+	else if(context.enable_forwarding)
 	{
 		// IV (need to forward) -> forward
 		int res = forward_packet(context.recv_buffer, len);
@@ -303,11 +303,18 @@ int meshnw_init(nodeid_t id, mesh_nw_message_cb_t cb)
 
 	context.my_node_id = id;
 	context.recv_callback = cb;
+	context.enable_forwarding = 0;
 
 	meshnw_clear_routes();
 
 	return setup();
 
+}
+
+
+void meshnw_enable_forwarding(void)
+{
+	context.enable_forwarding = 1;
 }
 
 
@@ -360,4 +367,15 @@ int meshnw_send(nodeid_t dst, void *data, uint8_t len)
 	memcpy(data_ptr, data, len);
 
 	return forward_packet(tx_buffer, sizeof(layer3_packet_header_t) + len);
+}
+
+
+uint64_t meshnw_get_random(void)
+{
+	uint32_t rnd1 = sx127x_random(&context.sx127x);
+	uint32_t rnd2 = sx127x_random(&context.sx127x);
+
+	sx127x_set_rx(&context.sx127x);
+
+	return (((uint64_t)rnd1) << 32) | rnd2;
 }
