@@ -59,7 +59,7 @@ int sensor_config_set_cmd(int argc, char **argv)
 		return 1;
 	}
 
-	if (strlen(argv[2]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[2], AUTH_KEY_LEN * 2, config_buffer.cfg.data.key_config))
+	if (strlen(argv[2]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[2], AUTH_KEY_LEN * 2, config_buffer.cfg.data.key_status))
 	{
 		puts("Invalid status key, expected status key to be 32 hex chars (128 bit)!\n");
 		return 1;
@@ -67,7 +67,7 @@ int sensor_config_set_cmd(int argc, char **argv)
 
 	if (strlen(argv[3]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[3], AUTH_KEY_LEN * 2, config_buffer.cfg.data.key_config))
 	{
-		puts("Invalid status key, expected status key to be 32 hex chars (128 bit)!\n");
+		puts("Invalid config key, expected status key to be 32 hex chars (128 bit)!\n");
 		return 1;
 	}
 
