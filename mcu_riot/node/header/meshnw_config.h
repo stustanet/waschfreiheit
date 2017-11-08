@@ -1,3 +1,5 @@
+#pragma once
+
 #define SX127X_PARAM_SPI                    (SPI_DEV(0))
 #define SX127X_PARAM_SPI_SPEED              (SPI_CLK_1MHZ)
 #define SX127X_PARAM_SPI_MODE               (SPI_MODE_0)

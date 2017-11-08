@@ -8,6 +8,8 @@
  *
  */
 
+#pragma once
+
 #include <stdint.h>
 
 // 128 bit key
