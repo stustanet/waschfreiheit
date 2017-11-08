@@ -18,25 +18,21 @@ int se_init()
 	se_params.state_filter.window_sizes[2] = 1500;
 	se_params.state_filter.window_sizes[3] = 1500;
 
-	se_params.state_filter.transition_matrix[0 + 0 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[1 + 0 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[2 + 0 * SE_STATECOUNT] = 80;
-	se_params.state_filter.transition_matrix[3 + 0 * SE_STATECOUNT] = 0;
+	se_params.state_filter.transition_matrix[0 + 0 * (SE_STATECOUNT - 1)] = 0;
+	se_params.state_filter.transition_matrix[1 + 0 * (SE_STATECOUNT - 1)] = 80;
+	se_params.state_filter.transition_matrix[2 + 0 * (SE_STATECOUNT - 1)] = 0;
 
-	se_params.state_filter.transition_matrix[0 + 1 * SE_STATECOUNT] = -24;
-	se_params.state_filter.transition_matrix[1 + 1 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[2 + 1 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[3 + 1 * SE_STATECOUNT] = 160;
+	se_params.state_filter.transition_matrix[0 + 1 * (SE_STATECOUNT - 1)] = -24;
+	se_params.state_filter.transition_matrix[1 + 1 * (SE_STATECOUNT - 1)] = 0;
+	se_params.state_filter.transition_matrix[2 + 1 * (SE_STATECOUNT - 1)] = 160;
 
-	se_params.state_filter.transition_matrix[0 + 2 * SE_STATECOUNT] = -48;
-	se_params.state_filter.transition_matrix[1 + 2 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[2 + 2 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[3 + 2 * SE_STATECOUNT] = 160;
+	se_params.state_filter.transition_matrix[0 + 2 * (SE_STATECOUNT - 1)] = -48;
+	se_params.state_filter.transition_matrix[1 + 2 * (SE_STATECOUNT - 1)] = 0;
+	se_params.state_filter.transition_matrix[2 + 2 * (SE_STATECOUNT - 1)] = 160;
 
-	se_params.state_filter.transition_matrix[0 + 3 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[1 + 3 * SE_STATECOUNT] = -80;
-	se_params.state_filter.transition_matrix[2 + 3 * SE_STATECOUNT] = 0;
-	se_params.state_filter.transition_matrix[3 + 3 * SE_STATECOUNT] = 0;
+	se_params.state_filter.transition_matrix[0 + 3 * (SE_STATECOUNT - 1)] = 0;
+	se_params.state_filter.transition_matrix[1 + 3 * (SE_STATECOUNT - 1)] = -80;
+	se_params.state_filter.transition_matrix[2 + 3 * (SE_STATECOUNT - 1)] = 0;
 
 	return stateest_init(&se_data, &se_params, 500);
 }
