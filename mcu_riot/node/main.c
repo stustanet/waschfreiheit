@@ -10,42 +10,21 @@
 #include "board.h"
 #include "periph/rtc.h"
 
-#include "meshnw.h"
-
-
-static void mesh_message_reveived(void *data, uint8_t len)
-{
-	
-}
-
-
-static int send_cmd(int argc, char **argv)
-{
-    if (argc <= 1)
-	{
-        puts("usage: send <payload>");
-        return -1;
-    }
-
-    printf("sending \"%s\" payload (%d bytes)\n",
-           argv[1], strlen(argv[1]) + 1);
-
-
-	meshnw_send(0, argv[1], strlen(argv[1]));
-
-    return 0;
-}
-
+#include "sensor_node.h"
+#include "sensor_config.h"
 
 static const shell_command_t shell_commands[] = {
-    { "send",     "Send raw payload string",                 send_cmd },
+    { "cfg",     "Node configuration",                 sensor_config_set_cmd },
     { NULL, NULL, NULL }
 };
 
-
 int main(void)
 {
-	meshnw_init(0, &mesh_message_reveived);
+	int sni = sensor_node_init();
+	if (sni != 0)
+	{
+		printf("Sensor ndoe initialization failed with error %i\n", sni);
+	}
 
     /* start the shell */
     puts("Initialization successful - starting the shell now");
