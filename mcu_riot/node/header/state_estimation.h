@@ -4,6 +4,8 @@
  * This processes the raw ADC values and estimates the current machine state from it.
  */
 
+#pragma once
+
 #include <stdint.h>
 
 // These two must be defines because they are used as array size
@@ -48,7 +50,7 @@ struct state_estimation_params
 		 * Every num_samples the state filter is updated.
 		 */
 		uint16_t num_samples;
-	} input_filter;
+	} __attribute__((packed)) input_filter;
 
 	/*
 	 * Configuration of the state filter.
@@ -58,12 +60,13 @@ struct state_estimation_params
 	{
 		/*
 		 * State transition matrix.
-		 * The entry c * SE_STATECOUNT + n describes the transition condition from c to n.
+		 * The entry c * SE_STATECOUNT + n describes the transition condition from c to n (or n + 1, if c >= n).
+		 * The matrix is stored in a compressed form, without the diagonal as this is always 0.
 		 *  > 0  transition if the current value is above the transition value
 		 *  < 0  transition if the current value is below the transition value * -1
 		 *    0  no transition possible
 		 */
-		int16_t transition_matrix[SE_STATECOUNT * SE_STATECOUNT];
+		int16_t transition_matrix[(SE_STATECOUNT - 1) * SE_STATECOUNT];
 
 		/*
 		 * Window sizes for every state.
@@ -79,8 +82,8 @@ struct state_estimation_params
 		 */
 		uint16_t reject_threshold;
 		uint16_t reject_consec_count;
-	} state_filter;
-};
+	} __attribute__((packed)) state_filter;
+} __attribute__((packed));
 
 typedef struct state_estimation_params state_estimation_params_t;
 
@@ -172,7 +175,17 @@ typedef enum state_update_result state_update_result_t;
 int stateest_init(state_estimation_data_t *data, const state_estimation_params_t *params, uint16_t adc_samples_per_sec);
 
 /*
+ * Changes the current samples per second, must be called after stateest_init()
+ */
+void stateest_set_adc_sps(state_estimation_data_t *data, uint16_t adc_samples_per_sec);
+
+/*
  * Updates the state engine with new adc data.
  */
 state_update_result_t stateest_update(state_estimation_data_t *data, uint16_t raw_value);
 
+/*
+ * If the last update was a frame update, the last frame value (sacled ro 16 bit) is returned,
+ * otherwise 0xffffffff is returned.
+ */
+uint32_t stateest_get_frame(const state_estimation_data_t *data);

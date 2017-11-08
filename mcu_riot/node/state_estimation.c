@@ -197,7 +197,7 @@ static void do_state_transition(state_estimation_data_t *data)
 	/*
 	 * This is the offset of the state transition values for the current state
 	 */
-	uint8_t row_offset = data->state_filter.current_state * SE_STATECOUNT;
+	uint8_t row_offset = data->state_filter.current_state * (SE_STATECOUNT - 1);
 
 	int16_t average = data->state_filter.window_sum / calc_current_window_used(data);
 
@@ -206,7 +206,25 @@ static void do_state_transition(state_estimation_data_t *data)
 
 	for (uint8_t i = 0; i < SE_STATECOUNT; i++)
 	{
-		int16_t v = data->params.state_filter.transition_matrix[row_offset + i];
+		uint16_t lookup_idx;
+
+		if (i < data->state_filter.current_state)
+		{
+			// Index < current -> lookup at i
+			lookup_idx = i;
+		}
+		else if(data->state_filter.current_state == i)
+		{
+			// i is current state -> skip this, this column does not exist in the matrix
+			continue;
+		}
+		else
+		{
+			// after the current state, look up at i - 1
+			lookup_idx = i - 1;
+		}
+
+		int16_t v = data->params.state_filter.transition_matrix[row_offset + lookup_idx];
 
 		if (v < 0)
 		{
@@ -268,8 +286,14 @@ int stateest_init(state_estimation_data_t *data, const state_estimation_params_t
 		}
 	}
 
+	if (params->input_filter.num_samples == 0)
+	{
+		printf("Number of lowpass samples must not be zero!\n");
+		return 1;
+	}
+
 	// init data
-	data->params = *params;
+	memcpy(&(data->params), params, sizeof(data->params));
 	data->input_filter.mid = SE_INITIAL_MID_VALUE;
 	data->input_filter.current = 0;
 	data->input_filter.counter = 0;
@@ -283,7 +307,22 @@ int stateest_init(state_estimation_data_t *data, const state_estimation_params_t
 	data->state_filter.window_sum = 0;
 	data->state_filter.current_state = SE_STATE_OFF;
 
+	stateest_set_adc_sps(data, adc_samples_per_sec);
+
 	return 0;
+}
+
+
+void stateest_set_adc_sps(state_estimation_data_t *data, uint16_t adc_samples_per_sec)
+{
+	if (data->params.input_filter.num_samples == 0)
+	{
+		// not initialized
+		return;
+	}
+
+	data->state_filter.end_state_timer = 0;
+	data->state_filter.max_end_state_time = (uint16_t)(((uint32_t)SE_MAX_END_STATE_TIME) * adc_samples_per_sec / data->params.input_filter.num_samples);
 }
 
 
@@ -317,4 +356,17 @@ state_update_result_t stateest_update(state_estimation_data_t *data, uint16_t ra
 
 	// no frame or on state unchanged
 	return state_update_unchanged;
+}
+
+
+uint32_t stateest_get_frame(const state_estimation_data_t *data)
+{
+	if (data->input_filter.counter == 0)
+	{
+		return data->input_filter.current >> 2;
+	}
+	else
+	{
+		return 0xffffffff;
+	}
 }
