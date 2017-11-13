@@ -30,7 +30,7 @@ typedef struct
 
 typedef struct
 {
-	char recv_thd_stack[THREAD_STACKSIZE_DEFAULT];
+	char recv_thd_stack[2048];
 	kernel_pid_t recv_thd_pid;
 	mesh_nw_message_cb_t recv_callback;
 	netdev_t *netdev;
@@ -266,6 +266,8 @@ static int setup(void)
 
 	uint32_t chan = SX127X_CONFIG_LORA_FREQUENCY;
 	netdev->driver->set(netdev, NETOPT_CHANNEL, &chan, sizeof(uint32_t));
+
+	sx127x_set_tx_power(&context.sx127x, SX127X_CONFIG_LORA_POWER);
 
 	start_listen();
 
