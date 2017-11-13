@@ -13,8 +13,12 @@ FEATURES_REQUIRED ?= periph_spi
 FEATURES_REQUIRED ?= periph_gpio
 FEATURES_REQUIRED ?= periph_adc
 
+node := $(strip $(NODE))
+ifeq ($(node),MASTER)
+	CFLAGS += -DMASTER
+endif
+
 CFLAGS += -DDEVELHELP
-QUIET = 1
 
 INCLUDES += -I$(CURDIR)/header
 
