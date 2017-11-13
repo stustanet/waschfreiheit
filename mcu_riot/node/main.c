@@ -63,7 +63,7 @@ static void init(void)
 #include "sensor_config.h"
 
 static const shell_command_t shell_commands[] = {
-    { "cfg",     "Node configuration",                 sensor_config_set_cmd },
+    { "config",     "Node configuration",                 sensor_config_set_cmd },
     { NULL, NULL, NULL }
 };
 
