@@ -7,6 +7,23 @@
 
 #include <stdint.h>
 
+/*
+ * Convenience macro to get the number of elements in an array.
+ */
+#define ARRAYSIZE(x) (sizeof((x)) / sizeof((x)[0]))
+
+#ifndef offsetof
+/*
+ * Gets the offset of member v in struct S
+ */
+#define offsetof(S, v) ((size_t) &(((S *)0)->v))
+#endif
+
+/*
+ * Checks if the value is aligned wrt. to the structs start.
+ */
+#define ASSERT_ALIGNED(S, v) _Static_assert(((offsetof(S, v) % sizeof(((S *)0)->v)) == 0), "Member " #v " of struct " #S " is not aligned!");
+
 /**
  * Convert hexadecimal data to binary data
  *
