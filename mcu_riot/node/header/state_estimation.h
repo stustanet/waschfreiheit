@@ -9,7 +9,7 @@
 #include <stdint.h>
 
 // These two must be defines because they are used as array size
-#define SE_MAX_WINDOW_SIZE                    2048
+#define SE_MAX_WINDOW_SIZE                (512 * 3)
 #define SE_STATECOUNT                            4
 static const uint8_t SE_STATE_OFF =              0;
 static const uint8_t SE_STATE_END =              1;
