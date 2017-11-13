@@ -1,6 +1,7 @@
 #include "auth.h"
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 #include <hashes/sha256.h>
 
 #define AUTH_MASTER         1
@@ -142,6 +143,9 @@ int check_message_tag(const auth_context_t *ctx, auth_number_t nonce, const void
 void auth_master_init(auth_context_t *ctx, const uint8_t *key, uint64_t challenge)
 {
 	memcpy(ctx->key, key, sizeof(ctx->key));
+
+	printf("Init auth in master mode with k=%x and challenge=%08lx%08lx\n", key[0], (uint32_t)(challenge >> 32), (uint32_t)challenge);
+
 	ctx->nonce = challenge;
 	ctx->status = AUTH_MASTER;
 }
@@ -149,7 +153,7 @@ void auth_master_init(auth_context_t *ctx, const uint8_t *key, uint64_t challeng
 
 int auth_master_make_handshake(auth_context_t *ctx, void *data, uint32_t offset, uint32_t *result_len)
 {
-	if (!is_master(ctx) || handshake_cplt(ctx))
+	if (!is_master(ctx))
 	{
 		return AUTH_WRONG_STATE;
 	}
@@ -192,7 +196,7 @@ int auth_master_process_handshake(auth_context_t *ctx, const void *data, uint32_
 	auth_footer_t *footer =(auth_footer_t *)(((uint8_t *)data) + offset + sizeof(ctx->nonce));
 	
 	auth_number_t tag = generate_tag(ctx, footer->nonce, data, offset + sizeof(ctx->nonce), NULL, 0);
-	
+
 	if (!timesafe_memeq(&tag, &footer->tag, sizeof(tag)))
 	{
 		return AUTH_WRONG_MAC;
@@ -261,14 +265,16 @@ int auth_master_check_ack(auth_context_t *ctx, const void *data, uint32_t offset
 void auth_slave_init(auth_context_t *ctx, const uint8_t *key, uint64_t nonce)
 {
 	memcpy(ctx->key, key, sizeof(ctx->key));
+	printf("Init auth in slave mode with k=%x and nonce=%08lx%08lx\n", key[0], (uint32_t)(nonce >> 32), (uint32_t)nonce);
 	ctx->nonce = nonce;
 	ctx->status = AUTH_SLAVE;
+
 }
 
 
 int auth_slave_handshake(auth_context_t *ctx, const void *inmsg, uint32_t inofs, uint32_t inlen, void *outmsg, uint32_t outofs, uint32_t *outlen)
 {
-	if (is_master(ctx) || handshake_cplt(ctx))
+	if (is_master(ctx))
 	{
 		return AUTH_WRONG_STATE;
 	}
@@ -282,6 +288,8 @@ int auth_slave_handshake(auth_context_t *ctx, const void *inmsg, uint32_t inofs,
 	{
 		return AUTH_WRONG_SIZE;
 	}
+
+	printf("Make has2 with nonce=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
 
 	// reply with my nonce and the challenge as data
 	memcpy(((uint8_t*)outmsg) + outofs, ((uint8_t*)inmsg) + inofs, sizeof(auth_number_t));
