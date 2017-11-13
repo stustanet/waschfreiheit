@@ -15,4 +15,3 @@
  * This starts the thread for ADC measuring and initializes the mesh network
  */
 int sensor_node_init(void);
-

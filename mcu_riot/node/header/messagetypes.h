@@ -48,8 +48,9 @@ typedef struct
 
 
 /*
- * Clear all current routes
- * Message can contain new routes to set
+ * Clear all current routes and resets the node's state.
+ * This is the first message expected by a node after the handshake.
+ * This message must at least contain a route to the master.
  */
 #define MSG_TYPE_ROUTE_RESET                4
 typedef struct
@@ -96,9 +97,9 @@ typedef struct
 typedef struct
 {
 	msg_type_t type;
+	uint8_t status_retransmission_delay;
 	uint16_t active_sensors;
 	uint16_t adc_samples_per_sec;
-	uint8_t status_retransmission_delay;
 } __attribute__((packed)) msg_start_sensor_t;
 
 
@@ -174,9 +175,13 @@ typedef union
 	msg_type_t type;
 	msg_auth_hs_1_t hs1;
 	msg_auth_hs_2_t hs2;
+	msg_auth_ack_t ack;
 	msg_route_data_t route;
 	msg_configure_sensor_t scfg;
+	msg_start_sensor_t ssta;
 	msg_begin_send_raw_frames_t srf;
+	msg_nop_t nop;
+	msg_status_update_t su;
 	msg_echo_request_t echo_rq;
 	msg_echo_reply_t echo_rp;
 	msg_raw_frame_data_t frames;

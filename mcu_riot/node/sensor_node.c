@@ -1,7 +1,10 @@
+#ifndef MASTER
+
 #include "sensor_node.h"
 #include <string.h>
 #include <stdio.h>
 #include <xtimer.h>
+#include <thread.h>
 #include <periph/pm.h>
 #include <periph/adc.h>
 
@@ -17,6 +20,8 @@
  * Max number of retransmissions before the node declaers the network dead and shuts down.
  */
 #define MAX_STATUS_RETRANSMISSIONS 100
+
+#define CON_RETRANSMISSION_BASE_DELAY      6
 
 /*
  * Actual retransmission delay is
@@ -112,10 +117,10 @@ struct
 	
 } ctx;
 
-static char adc_thd_stack[THREAD_STACKSIZE_DEFAULT];
+static char adc_thd_stack[512 * 3];
 static kernel_pid_t adc_thd_pid;
 
-static char message_thd_stack[THREAD_STACKSIZE_DEFAULT];
+static char message_thd_stack[512 * 3];
 static kernel_pid_t message_thd_pid;
 
 
@@ -152,11 +157,44 @@ static kernel_pid_t message_thd_pid;
  * |------------- ACK ----------->|
  */
 
+
+/*
+ * Resets the sensor node to initial state. Everything except the config auth is reset.
+ */
+static void reset(void)
+{
+	// Clear all bits except for INIT_CPLT and INIT_AUTH_CFG
+	ctx.status &= STATUS_INIT_CPLT | STATUS_INIT_AUTH_CFG;
+
+	// Clear routes
+	meshnw_clear_routes();
+
+	// reset ack outstanding status
+	ctx.last_status_msg_was_acked = 1;
+
+	// disable raw frame transmission
+	ctx.debug_raw_frame_transmission_counter = 0;
+
+	// disable all sensor channels
+	ctx.active_sensor_channels = 0;
+
+	// reset sensor loop delay to 1s
+	ctx.sensor_loop_delay_us = 1000000;
+}
+
+
 /*
  * Handles the incoming hs1 from the master to open the config channel.
  */
 static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 {
+	printf("Dump hs1: ");
+	for (uint32_t i = 0; i < len; i++)
+	{
+		printf("%02x", ((uint8_t *)data)[i]);
+	}
+	puts("");
+
 	uint8_t out_buffer[MESHNW_MAX_PACKET_SIZE];
 	uint32_t rep_msg_len = sizeof(out_buffer);
 
@@ -168,17 +206,19 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 	// this also does length checking
 	int res = auth_slave_handshake(&ctx.auth_config, data, sizeof(*hs1), len, out_buffer, sizeof(*hs2), &rep_msg_len);
 
-	if ((ctx.status & STATUS_INIT_AUTH_STA_PEND) == 0)
-	{
-		puts("Received hs2 but handshake is not pending");
-		return;
-	}
-
 	if (res != 0)
 	{
 		printf("Slave handshake failed with error %i\n", res);
 		return;
 	}
+
+	printf("Dump hs2: ");
+	for (uint32_t i = 0; i < rep_msg_len; i++)
+	{
+		printf("%02x", out_buffer[i]);
+	}
+	puts("");
+
 
 	// handshake ok
 	
@@ -186,6 +226,8 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 	{
 		// no routes yet -> set temp route
 		meshnw_set_route(src, hs1->reply_route);
+
+		printf("Add temp route %u:%u\n", src, hs1->reply_route);
 
 		// also, store the source address as master address, the route request is expected from the same address.
 		ctx.master_node = src;
@@ -398,7 +440,7 @@ static void handle_route_request(nodeid_t src, void *data, uint8_t len)
 	}
 
 	msg_route_data_t *route_msg = (msg_route_data_t *)data;
-	if (msglen < sizeof(route_msg))
+	if (msglen < sizeof(*route_msg))
 	{
 		// too small
 		printf("Received too small route message with size %lu\n", msglen);
@@ -410,7 +452,7 @@ static void handle_route_request(nodeid_t src, void *data, uint8_t len)
 
 	if (route_msg->type == MSG_TYPE_ROUTE_RESET)
 	{
-		meshnw_clear_routes();
+		reset();
 	}
 
 	uint32_t num_routes = (msglen - sizeof(*route_msg)) / sizeof(route_msg->r) + 1;
@@ -439,7 +481,7 @@ static void handle_sensor_cfg_request(nodeid_t src, void *data, uint8_t len)
 	}
 
 	msg_configure_sensor_t *cfg_msg = (msg_configure_sensor_t *)data;
-	if (msglen != sizeof(cfg_msg))
+	if (msglen != sizeof(*cfg_msg))
 	{
 		// too small
 		printf("Received sensor config message with wrong size %lu\n", msglen);
@@ -493,7 +535,7 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 	}
 
 	msg_start_sensor_t *start_msg = (msg_start_sensor_t *)data;
-	if (msglen != sizeof(start_msg))
+	if (msglen != sizeof*(start_msg))
 	{
 		// too small
 		printf("Received sensor start message with wrong size %lu\n", msglen);
@@ -513,6 +555,26 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 		ctx.sensor_loop_delay_us = 1000000 / start_msg->adc_samples_per_sec;
 	}
 
+	uint16_t sps;
+	if (ctx.sensor_loop_delay_us == 0)
+	{
+		sps = 1;
+	}
+	else
+	{
+		sps = 1000000 / ctx.sensor_loop_delay_us;
+	}
+
+	if (sps == 0)
+	{
+		sps = 1;
+	}
+
+	// set sps for all channels
+	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	{
+		stateest_set_adc_sps(&ctx.sensors[i], sps);
+	}
 
 	// The thread is already running at 1 sec delay per sample with no configured channels,
 	// so just changing the values here is enough.
@@ -534,7 +596,7 @@ static void handle_raw_value_request(nodeid_t src, void *data, uint8_t len)
 	}
 
 	msg_begin_send_raw_frames_t *rf_msg = (msg_begin_send_raw_frames_t *)data;
-	if (msglen != sizeof(rf_msg))
+	if (msglen != sizeof(*rf_msg))
 	{
 		// too small
 		printf("Received rew value request message with wrong size %lu\n", msglen);
@@ -599,6 +661,7 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 		return;
 	}
 
+	printf("Handle message with type %u\n", msg->type);
 	switch (msg->type)
 	{
 		case MSG_TYPE_AUTH_HS_1:
@@ -635,6 +698,7 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 		default:
 			printf("Received message with unexpected type %u\n", msg->type);
 	}
+	puts("Message handled");
 }
 
 
@@ -649,6 +713,7 @@ static void *adc_thread(void *arg)
 	// buffer for sending raw frame values
 	uint8_t rf_buffer[MESHNW_MAX_PACKET_SIZE];
 	msg_raw_frame_data_t *raw_frame_vals = (msg_raw_frame_data_t*)rf_buffer;
+	raw_frame_vals->type = MSG_TYPE_RAW_FRAME_VALUES;
 	static const uint8_t VALUES_PER_MESSAGE = (sizeof(rf_buffer) - sizeof(*raw_frame_vals)) / sizeof(raw_frame_vals->values[0]);
 	uint8_t raw_values_in_msg = 0;
 	
@@ -696,9 +761,11 @@ static void *adc_thread(void *arg)
 					if (raw_values_in_msg >= VALUES_PER_MESSAGE || ctx.debug_raw_frame_transmission_counter == 0)
 					{
 						// send message
+						uint8_t len = raw_values_in_msg * sizeof(raw_frame_vals->values[0]) + sizeof(*raw_frame_vals);
 						int res = meshnw_send(ctx.master_node,
 						                      rf_buffer,
-						                      raw_values_in_msg * sizeof(raw_frame_vals->values) + sizeof(*raw_frame_vals));
+											  len);
+
 						if (res != 0)
 						{
 							printf("Failed to send raw frame values with error %i\n", res);
@@ -793,7 +860,6 @@ static void *message_thread(void *arg)
 		 *      -> There is nothing to do, no unacked message and no status change
 		 */
 
-
         xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY_US);
 
 		if (retransmission_counter > MAX_STATUS_RETRANSMISSIONS)
@@ -805,7 +871,8 @@ static void *message_thread(void *arg)
 		if ((ctx.status & STATUS_INIT_AUTH_STA) == 0)
 		{
 			// Status chanel not built -> check if sensors are active (if so, i'm supposed to build the channel)
-			
+		
+
 			if ((ctx.status & STATUS_SENSORS_ACTIVE) != 0)
 			{
 				// OK, time to build the status channel
@@ -819,6 +886,7 @@ static void *message_thread(void *arg)
 					// calculate / update rt timer / counter
 					retransmission_timer = ((uint32_t)ctx.status_retransmission_base_delay) *
 						(1 + retransmission_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER);
+					retransmission_timer += CON_RETRANSMISSION_BASE_DELAY;
 					retransmission_counter++;
 				}
 			}
@@ -868,12 +936,13 @@ static void *message_thread(void *arg)
 			send_status_update_message(last_sent_sensor_status);
 
 			// finally calculate the new retransmission timer
-			retransmission_timer = ((uint32_t)ctx.status_retransmission_base_delay) *
+			retransmission_timer = CON_RETRANSMISSION_BASE_DELAY + ((uint32_t)ctx.status_retransmission_base_delay) *
 				(1 + retransmission_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER);
 			retransmission_counter++;
 		}
 	}
 
+	puts("exited thread");
 	return NULL;
 }
 
@@ -896,11 +965,11 @@ int sensor_node_init(void)
 	uint64_t cha = meshnw_get_random();
 	uint64_t nonce = meshnw_get_random();
 
-	printf("Random numbers for auth: cha=%llu, nonce=%llu\n", cha, nonce);
+	printf("Random numbers for auth: cha=%08lx%08lx nonce=%08lx%08lx\n", (uint32_t)(cha >> 32), (uint32_t)cha, (uint32_t)(nonce>>32), (uint32_t)nonce);
 
 	// init crypto context
 	auth_master_init(&ctx.auth_status, cfg->key_status, cha);
-	auth_slave_init(&ctx.auth_status, cfg->key_config, nonce);
+	auth_slave_init(&ctx.auth_config, cfg->key_config, nonce);
 
 	// start sample loop at 1 per sec
 	// at initial state this loop will do nothing, the channels are configured later
@@ -930,10 +999,11 @@ int sensor_node_init(void)
 		puts("Creation of mssage thread failed");
 		return SN_ERROR_THREAD_START;
 	}
-
 	// state estimation is initialized later
 	
 	ctx.status |= STATUS_INIT_CPLT;
 
 	return 0;
 }
+
+#endif
