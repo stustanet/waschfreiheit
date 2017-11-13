@@ -1,3 +1,4 @@
+#ifndef MASTER
 
 // For now, hard-code the sued page, this is the last one (one page is 1kb)
 // Obviously, this block MUST NOT CONTAIN any program data
@@ -85,3 +86,5 @@ int sensor_config_set_cmd(int argc, char **argv)
 	return 0;
 
 }
+
+#endif
