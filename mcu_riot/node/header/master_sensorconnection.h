@@ -93,9 +93,3 @@ uint16_t sensor_connection_get_sensor_status(const sensor_connection_t *con);
  * The id should only be read by calling this function and not by reading it directly from the context struct.
  */
 nodeid_t sensor_connection_node(const sensor_connection_t *con);
-
-/*
- * Parses a route from a string like 12:34,56:78, ...
- * the route pointer is set to the next element behind the next hop
- */
-int sensor_connection_util_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop);

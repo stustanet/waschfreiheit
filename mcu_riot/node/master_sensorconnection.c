@@ -434,7 +434,7 @@ int sensor_connection_set_routes(sensor_connection_t *con, uint8_t reset, const 
 			return 1;
 		}
 
-		if (sensor_connection_util_parse_route(&routes, &routemsg->r[current].dst, &routemsg->r[current].next) != 0)
+		if (utils_parse_route(&routes, &routemsg->r[current].dst, &routemsg->r[current].next) != 0)
 		{
 			return 1;
 		}
@@ -650,30 +650,4 @@ nodeid_t sensor_connection_node(const sensor_connection_t *con)
 {
 	return con->node_id;
 }
-
-
-int sensor_connection_util_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop)
-{
-	unsigned long d = strtoul(*route, (char **)route, 10);
-	if (*route[0] != ':')
-	{
-		printf("Unexpected char in route: %i(%c)\n", *route[0], *route[0]);
-		return 1;
-	}
-
-	(*route)++;
-
-	unsigned long h = strtoul(*route, (char **)route, 10);
-
-	if (d > MESHNW_MAX_NODEID || h > MESHNW_MAX_NODEID)
-	{
-		printf("Invalid route, node id out of range, dst=%lu hop=%lu\n", d, h);
-		return 1;
-	}
-
-	(*dst) = d;
-	(*hop) = h;
-	return 0;
-}
-
 #endif

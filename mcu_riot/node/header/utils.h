@@ -6,6 +6,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <meshnw.h>
 
 /*
  * Convenience macro to get the number of elements in an array.
@@ -43,3 +44,9 @@
  *         On Error: 0
  */
 uint8_t utils_hex_decode(const char *hex_buffer, uint32_t hex_len, uint8_t *bin_buffer);
+
+/*
+ * Parses a route from a string like 12:34,56:78, ...
+ * the route pointer is set to the next element behind the next hop
+ */
+int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop);

@@ -1,6 +1,8 @@
 #include "utils.h"
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 /*
  * Parses a single hex char and returs the number value
@@ -52,4 +54,29 @@ uint8_t utils_hex_decode(const char *hex_buffer, uint32_t hex_len, uint8_t *bin_
 	}
 
 	return 1;
+}
+
+
+int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop)
+{
+	unsigned long d = strtoul(*route, (char **)route, 10);
+	if (*route[0] != ':')
+	{
+		printf("Unexpected char in route: %i(%c)\n", *route[0], *route[0]);
+		return 1;
+	}
+
+	(*route)++;
+
+	unsigned long h = strtoul(*route, (char **)route, 10);
+
+	if (d > MESHNW_MAX_NODEID || h > MESHNW_MAX_NODEID)
+	{
+		printf("Invalid route, node id out of range, dst=%lu hop=%lu\n", d, h);
+		return 1;
+	}
+
+	(*dst) = d;
+	(*hop) = h;
+	return 0;
 }
