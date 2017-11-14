@@ -23,6 +23,7 @@ Je nach Payload-Typ unterschiedliche Daten.
 ## Aufbau des Netzwerks
 ### Master node
 Der Koordinator (Master) hat die Aufgabe das Netzwerk aufzubauen und zu verwalten und dient gleichzeitig als Gateway zwischen dem Funk-Netz und dem Internet.
+Der Master besitzt normalerweise die Adresse 0, da diese für einen Sensor ungültig ist.
 Das Routing ist (vorest) statisch, aber zentral verwaltet, d.h. der Master kennt alle Knoten (diese sind in seiner config festgelegt) und alle Routing-Tabelle der Knoten (ebenfalls aus config).
 Zum Initialisieren des Netzes werden nacheinander die Knoten vom Master aus angesprochen und die Routing-Tabellen der Knoten konfiguriert. Diese Verbinung wird ggf. über bereits konfigurierte Knoten (wenn das Ziel weiter weg ist) geroutet.
 Nach dieser Initialisierung hat jeder Knoten eine (hoffentlich gültige und sinvolle) Routing-Tabelle und weis somit wohin er eine Nachricht die bei ihn ankommt weiterleiten soll.

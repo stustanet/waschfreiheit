@@ -29,7 +29,7 @@ Setzt / Ändert die Routen eines Knotens. reset\_routes setzt dabei zuerst den K
 Die Route die bei connect angegeben wurde muss hier erneut spezifiziert werden.
 
 #### configure\_sensor NODE\_ID CHANNEL INPUT\_FILTER ST\_MATRIX WND\_SIZES REJECT\_FILTER
-Ändert die Konfiguration eines Sensors. Genauere Informationen zu den Parametern finden sich im state_estimation haeder.
+Ändert die Konfiguration eines Sensors. Genauere Informationen zu den Parametern finden sich im state\_estimation haeder.
 * NODE\_ID Adresse des Knotens der Konfiguriert wird.
 * CHANNEL Nummer des Sensor-Kanals der Konfiguriert wrid.
 * INPUT\_FILTER 3 Werte (uint16): MID\_ADJUSTMENT,LOWPASS\_WEIGHT,NUM\_SAMPLES
