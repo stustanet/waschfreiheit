@@ -59,12 +59,12 @@ NODE\_ID Adresse des Knotens.
 
 ### Updates
 Updates haben das Prefix ### um diese leicht zu parsen.
-#### ACK<ID>-<CODE>
+#### ACK\<ID\>-\<CODE\>
 Eine Netzwerk-Anfrage an Knoten ID wurde bestätigt. CODE ist der ACK-Code, dieser ist Abhängig vom Request. 0 oder 128 bedeuten, dass die Anfrage erfolgreich war.
 Nach einem ACK kann an den Node ID der nächste Befehl gesendet werden.
 #### ERR
 Der letzte Befehl war ungültig. Es braucht nicht auf ein ACK gewartet werden.
-#### TIMEOUT<ID>
+#### TIMEOUT\<ID\>
 Maximale Anzahl an Retries erreicht. Der Knoten wird als tot angenommen.
-#### STATUS<ID>-<STATUS>
+#### STATUS\<ID\>-\<STATUS\>
 Statusupdate von Knoten ID. Status ist ein Bitfeld, ein gesetztes Bit steht für eine Aktive Maschine.
