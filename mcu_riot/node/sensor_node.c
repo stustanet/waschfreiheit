@@ -544,6 +544,7 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 	}
 
 	ctx.active_sensor_channels = start_msg->active_sensors;
+	ctx.status_retransmission_base_delay = start_msg->status_retransmission_delay;
 	
 	if (start_msg->adc_samples_per_sec == 0)
 	{
