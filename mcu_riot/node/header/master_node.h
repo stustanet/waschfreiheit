@@ -18,5 +18,4 @@ int master_node_cmd_enable_sensor(int argc, char **argv);
 int master_node_cmd_raw_frames(int argc, char **argv);
 int master_node_cmd_ping(int argc, char **argv);
 int master_node_cmd_authping(int argc, char **argv);
-int master_node_cmd_master_routes(int argc, char **argv);
 

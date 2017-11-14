@@ -50,3 +50,8 @@ uint8_t utils_hex_decode(const char *hex_buffer, uint32_t hex_len, uint8_t *bin_
  * the route pointer is set to the next element behind the next hop
  */
 int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop);
+
+/*
+ * Parses a node id and does sanity checks.
+ */
+nodeid_t utils_parse_nodeid(const char *str);
