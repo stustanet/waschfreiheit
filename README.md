@@ -51,8 +51,7 @@ Der Webserver bekommt die Daten von der Bridge und zeigt den aktuellen Status an
 
 ## TODO
 * Sensorhalterung (3D Druck Teil um den Hall Sensor mit dem Ferritkern am Kabel zu halten)
-* Software + Hardware für Knoten
-* Protokolldesign (für Funkschnittstelle)
+* Gehäuse for Node
 * Software für Funk <-> Lan Bridge (Raspi)
 * Webserver
 
