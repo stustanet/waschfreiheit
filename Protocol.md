@@ -1,21 +1,28 @@
 # Nachrichten und Routing
 ## Übersicht
 Die Schichten sind an das OSI Modell angelehnt.
+
 ### Physical Layer (Layer 1)
 Für den Datentransport wird 433MHz Funk mit LoRa Modulation verwednet. Alle Knoten senden und empfangen auf der selben Frequenz.
+
 ### Data Link Layer (Layer 2)
 Die Verwendeten Funkmdule (Sx127x) kümmern sich bereits um das Verpacken der Daten in Pakete. Jedes Paket besitzt eine CRC Prüfsumme und eine Längenangabe (unterschiedlich lange Pakete sind also möglich),
+
 ### Network / Routing Layer (Layer 3)
+
 Jeder Knoten hat eine eindeutige Adresse, alle Pakete haben folgende drei Knoten-Adressen:
 * Quelle
 * Ziel
 * Next-Hop
+
 Die Quelladresse ist dabei die Adresse des ursprünglichen Senders, die Zieladresse die des finalen Ziels. Next-Hop ist die Adresse des Knotens, der dieses Paket empfangen soll um es dann entweder zu verarbeiten (Next-Hop == Ziel) oder weiterzuleiten (Ziel in der Routing-Tabelle suchen und mit dem / an den entsprechendem Next-Hop weitersenden).
 Eine Adressse ist eine 8-bit Zahl.
+
 ### Payload type (Layer 4)
 (Jetzt nicht mehr OSI)
 Typ-ID der Payload.
 Je nach Typ wird auch ein MAC über den Layer4 (type + data) + Source und Destiantion Adresse gebiltet.
+
 ### Payload data (Layer 5)
 (optional)
 Je nach Payload-Typ unterschiedliche Daten.

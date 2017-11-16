@@ -1,4 +1,4 @@
-#Serielles Interface
+# Serielles Interface
 ## Sensor
 Der Sensor kennt aktuell nur einen Befehl:
 #### config NODE\_ID KEY\_STATUS KEY\_CONFIG
