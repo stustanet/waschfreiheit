@@ -38,12 +38,12 @@ Der aktuelle Plan sieh in etwa so aus:
 Ein Sensor misst den Stromverbrauch einer Maschine. Dies soll mit einem Hallsensor am Stromkabel gemacht werden.
 
 ### Knoten
-Ein Knoten besteht aus einem Mikroprozessor (Aktuell geplant STM32F103C8T6) und einem 433Mhz Funkchip (aktuell Si4463 / RFM26).
+Ein Knoten besteht aus einem Mikroprozessor (STM32F103C8T6, Kleiner 32bit ARM) und einem 433Mhz Funkchip (Sx1276, LoRa Modulation).
 An einen Knoten sind ein oder mehrere Sensoren angeschlossen. Die Sensordaten werden dann ausgewertet und bei einer Statusänderung wird ein Signal über die Funkschnittstelle gesendet.
 Außerdem ist es die Aufgabe eines Knotens Nachrichten anderer Knoten weiterzuleiten, diese bilden quasi ein Mesh Netzwerk.
 
 ### Bridge
-Es gibt im ganzen System genau eine Bridge, dies besteht aus einem Funkteil und einem Raspi. Die Aufgabe der Bridge ist es die Statusänderungen vom Mesh Netzwerk zu empfangen und diese dann per IP an einen Webserver weiterzuleiten, der diese dann anzeigt.
+Es gibt im ganzen System genau eine Bridge (Gateway, Master Node), diese besteht aus einem Funkteil und einem Raspi. Die Aufgabe der Bridge ist es die Statusänderungen vom Mesh Netzwerk zu empfangen und diese dann per IP an einen Webserver weiterzuleiten, der diese dann anzeigt. Zusätzlich verwaltet die Bridge das Netzwerk und die Sensorparameter.
 
 ### Webserver
 Der Webserver bekommt die Daten von der Bridge und zeigt den aktuellen Status an.
