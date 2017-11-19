@@ -1,4 +1,18 @@
 # Serielles Interface
+
+## Allgemeine Befehle
+
+#### routes DST1:HOP1,DST2:HOP2,...
+Setzt die routen die vom Aktuellen Knoten verwendet werden.
+* DSTn:HOPn Pakete für DSTn werden an HOPn weitergeleitet.
+Dieser Befehl ist auf den Sensorknoten nur zu testzwecken verfügbar. Diese Knoten bekonnen ihre Routen normalerweie über das Netzwerk vom Master.
+
+#### ping NODE\_ID
+Sendet einen Echo-Request an einen Knoten.
+* NODE\_ID Adresse des Knotens.
+Damit der Reply auch ankommt, muss eine aus beiden Richtungen gültige Route existieren.
+
+
 ## Sensor
 Der Sensor kennt aktuell nur einen Befehl:
 #### config NODE\_ID KEY\_STATUS KEY\_CONFIG
@@ -16,9 +30,6 @@ Es darf immer nur einen Ausstehenden Befehl pro Node geben, dieser muss erst ACK
 Die einzigen Ausnahmen sind master\_routes, ping und connect.
 
 ### Befehle
-#### master\_routes DST1:HOP1,DST2:HOP2,...
-Setzt die routen die vom Master verwendet werden.
-* DSTn:HOPn Pakete für DSTn werden an HOPn weitergeleitet.
 
 #### connect NODE\_ID RETURN\_HOP
 Stellt eine Verbindung zu einem Knoten her.
@@ -60,10 +71,6 @@ Fragt Sensordaten von einem Knoten an. Das ist nur zum Kalibrieren des Sensors g
 
 #### authping NODE\_ID
 Fragt an ob ein Knoten noch aktiv ist.
-* NODE\_ID Adresse des Knotens.
-
-#### ping NODE\_ID
-Sendet einen Echo-Request an einen Knoten.
 * NODE\_ID Adresse des Knotens.
 
 ### Updates
