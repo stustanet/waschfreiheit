@@ -276,6 +276,21 @@ static int setup(void)
 
 
 /*
+ * Util function to prevent "weak" random numbers
+ * Sometimes the driver just returns 0 or ~0, dunno why
+ */
+static uint32_t get_random_checked(void)
+{
+	uint32_t rnd;
+	do
+	{
+		rnd = sx127x_random(&context.sx127x);
+	} while(rnd == 0 || rnd == 0xffffffff);
+	return rnd;
+}
+
+
+/*
  * Initializes the LoRa driver and internal data.
  */
 int meshnw_init(nodeid_t id, mesh_nw_message_cb_t cb)
@@ -374,10 +389,15 @@ int meshnw_send(nodeid_t dst, void *data, uint8_t len)
 
 uint64_t meshnw_get_random(void)
 {
-	uint32_t rnd1 = sx127x_random(&context.sx127x);
-	uint32_t rnd2 = sx127x_random(&context.sx127x);
+	uint64_t rand = 0;
+
+	for (uint8_t i = 0; i < 8; i++)
+	{
+		uint32_t rnd = get_random_checked();
+		rand = (rand << 2) + rnd;
+	}
 
 	sx127x_set_rx(&context.sx127x);
 
-	return (((uint64_t)rnd1) << 32) | rnd2;
+	return rand;
 }
