@@ -5,11 +5,13 @@
 #### routes DST1:HOP1,DST2:HOP2,...
 Setzt die routen die vom Aktuellen Knoten verwendet werden.
 * DSTn:HOPn Pakete für DSTn werden an HOPn weitergeleitet.
+
 Dieser Befehl ist auf den Sensorknoten nur zu testzwecken verfügbar. Diese Knoten bekonnen ihre Routen normalerweie über das Netzwerk vom Master.
 
 #### ping NODE\_ID
 Sendet einen Echo-Request an einen Knoten.
 * NODE\_ID Adresse des Knotens.
+
 Damit der Reply auch ankommt, muss eine aus beiden Richtungen gültige Route existieren.
 
 
@@ -39,6 +41,7 @@ Stellt eine Verbindung zu einem Knoten her.
 #### retransmit NODE\_ID
 Sendet das letzte Paket für einen Knoten erneut.
 * NODE\_ID Adresse des Knotens
+
 Dies darf nur aufgerufen erden, nachdem ein Knoten einen TIMEOUT gemeldet hat.
 
 #### reset\_routes NODE\_ID DST1:HOP1,DST2,HOP2,...
@@ -46,6 +49,7 @@ Dies darf nur aufgerufen erden, nachdem ein Knoten einen TIMEOUT gemeldet hat.
 Setzt / Ändert die Routen eines Knotens. reset\_routes setzt dabei zuerst den Knoten (incl. aller Routen und Sensoreinstellungen) zurück. add\_routes ändert nur die bestehenden Routen.
 * NODE\_ID Adresse des Knotens der Konfiguriert wird. Bevor ein Knoten konfiguriert wird, muss eine Verbindung (connect) aufgebaut werden.
 * DSTn:HOPn Pakete für DSTn werden an HOPn weitergeleitet. Es können pro Aufruf maximal 20 Routen angegeben werden.
+
 Die Route die bei connect angegeben wurde muss hier erneut spezifiziert werden.
 
 #### configure\_sensor NODE\_ID CHANNEL INPUT\_FILTER ST\_MATRIX WND\_SIZES REJECT\_FILTER
