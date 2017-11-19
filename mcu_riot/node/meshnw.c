@@ -70,6 +70,7 @@ static int forward_packet(void *packet, uint8_t len)
 	if (hdr->next_hop > MESHNW_MAX_NODEID)
 	{
 		// no route found
+		printf("Can't forward packet, no route to %u!\n", hdr->dst);
 		return -ENOENT;
 	}
 
