@@ -25,9 +25,12 @@
 
 /*
  * Actual retransmission delay is
- * (CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER) + base delay
+ * (CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER) + base delay + random
  */
 #define RETRANSMISSION_LINEAR_BACKOFF_DIVIDER 3
+
+// random part in retransmission timer in sec
+#define RETRANSMISSION_DELAY_RANDOM_FACTOR 10
 
 // Basic initialization complete, node is now active and can process messages
 #define STATUS_INIT_CPLT           1
@@ -67,6 +70,8 @@ struct
 	 * Delay in us for the adc loop.
 	 */
 	uint32_t sensor_loop_delay_us;
+
+	uint32_t random_current;
 
 	/*
 	 * The bits specify the active / enabled sensor channels.
@@ -157,10 +162,20 @@ static kernel_pid_t message_thd_pid;
  * |------------- ACK ----------->|
  */
 
+
+static uint32_t get_random_delay(void)
+{
+	// make next rand
+	ctx.random_current = ctx.random_current * 1103515245 + 12345;
+	return ctx.random_current % RETRANSMISSION_DELAY_RANDOM_FACTOR;
+}
+
+
 static uint32_t calculate_retransmission_delay(uint32_t rt_counter)
 {
 	return CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + rt_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER)
-			+ ctx.status_retransmission_base_delay;
+			+ ctx.status_retransmission_base_delay
+			+ get_random_delay();
 }
 
 /*
@@ -973,6 +988,9 @@ int sensor_node_init(void)
 	// init crypto context
 	auth_master_init(&ctx.auth_status, cfg->key_status, cha);
 	auth_slave_init(&ctx.auth_config, cfg->key_config, nonce);
+
+	// initialize random value with (part of) nonce;
+	ctx.random_current = (uint32_t)nonce;
 
 	// start sample loop at 1 per sec
 	// at initial state this loop will do nothing, the channels are configured later
