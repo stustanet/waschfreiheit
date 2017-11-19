@@ -33,10 +33,11 @@ Die einzigen Ausnahmen sind master\_routes, ping und connect.
 
 ### Befehle
 
-#### connect NODE\_ID RETURN\_HOP
+#### connect NODE\_ID RETURN\_HOP TIMEOUT
 Stellt eine Verbindung zu einem Knoten her.
 * NODE\_ID Adresse des Knotens zu dem die Verbindung aufgebaut werden soll.
 * RETURN\_HOP Erster Knoten auf dem Rückweg (Pfad von NODE\_ID zum Master). Dies wird als temporäre Route verwendet bis die vollständigen Routen gesetzt wurden.
+* TIMEOUT Ist die länge des timeouts. Nach der angegebenen Zeit wird ds TIMEOUT Update gesendet und retransmit darf aufgerufen werden.
 
 #### retransmit NODE\_ID
 Sendet das letzte Paket für einen Knoten erneut.
