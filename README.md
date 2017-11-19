@@ -62,6 +62,7 @@ Der Webserver bekommt die Daten von der Bridge und zeigt den aktuellen Status an
 * Das Hauptprojekt liegt in mcu\_riot / node
   * make NODE=MASTER erstellt die Firmware für den Master-Knoten 
   * make NODE=SENSOR erstellt die Firmware für einen Sensor-Knoten 
+* Zum flashen (bei angeschlossenem ST-LINK) make flash NODE=...
 
 ## WTF???
 Das ist jetzt erstmal nur eine ganz kurze übersicht, aber wenn du fragen hast, dann frag!
