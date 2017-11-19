@@ -273,7 +273,7 @@ static int sign_and_send_msg(sensor_connection_t *con, uint32_t len)
 }
 
 
-int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master, uint16_t timeout)
+int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master, uint8_t timeout)
 {
 	// the message buffer needs to be 16 bit aligned,
 	// this way i can directly access 16 bit values within this buffer (as long as they are aligned)
@@ -379,7 +379,7 @@ void sensor_connection_update(sensor_connection_t *con)
 		return;
 	}
 
-	if (con->timeout_counter == 0xffff)
+	if (con->timeout_counter == 0xff)
 	{
 		// already timeouted
 		return;
@@ -393,8 +393,8 @@ void sensor_connection_update(sensor_connection_t *con)
 		return;
 	}
 
-	// Set timeout counter to 0xffff to mark that i already sent the TIMEOUT notification
-	con->timeout_counter = 0xffff;
+	// Set timeout counter to 0xff to mark that i already sent the TIMEOUT notification
+	con->timeout_counter = 0xff;
 	printf("###TIMEOUT%u\n", con->node_id);
 
 }
@@ -580,7 +580,7 @@ int sensor_connection_enable_sensors(sensor_connection_t *con, uint16_t mask, ui
 	msg_start_sensor_t *startmsg = (msg_start_sensor_t *)con->last_sent_message;
 
 	startmsg->type = MSG_TYPE_START_SENSOR;
-	startmsg->status_retransmission_delay = con->node_id + 1;
+	startmsg->status_retransmission_delay = con->timeout;
 
 	ASSERT_ALIGNED(msg_start_sensor_t, active_sensors)
 	ASSERT_ALIGNED(msg_start_sensor_t, adc_samples_per_sec)

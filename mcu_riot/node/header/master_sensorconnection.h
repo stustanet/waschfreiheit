@@ -16,8 +16,8 @@ typedef struct
 	// The current status of the node's sensors
 	uint16_t current_status;
 
-	uint16_t timeout;
-	uint16_t timeout_counter;
+	uint8_t timeout;
+	uint8_t timeout_counter;
 
 	// Contents of the last sent message
 	uint8_t last_sent_message[MESHNW_MAX_PACKET_SIZE];
@@ -37,7 +37,7 @@ typedef struct
 
 // Initializes the connection data structure and starts the connection attempt
 // node_reply_hop is the next hop where the node sends the hs2
-int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master, uint16_t timeout);
+int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master, uint8_t timeout);
 
 // Handles retransmissions, should be called once per second
 void sensor_connection_update(sensor_connection_t *con);

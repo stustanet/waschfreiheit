@@ -21,11 +21,11 @@
  */
 #define MAX_STATUS_RETRANSMISSIONS 100
 
-#define CON_RETRANSMISSION_BASE_DELAY      6
+#define CON_RETRANSMISSION_LINEAR_BACKOFF      10
 
 /*
  * Actual retransmission delay is
- * (retransmission_delay * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER)
+ * (CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER) + base delay
  */
 #define RETRANSMISSION_LINEAR_BACKOFF_DIVIDER 3
 
@@ -157,6 +157,11 @@ static kernel_pid_t message_thd_pid;
  * |------------- ACK ----------->|
  */
 
+static uint32_t calculate_retransmission_delay(uint32_t rt_counter)
+{
+	return CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + rt_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER)
+			+ ctx.status_retransmission_base_delay;
+}
 
 /*
  * Resets the sensor node to initial state. Everything except the config auth is reset.
@@ -885,9 +890,7 @@ static void *message_thread(void *arg)
 				{
 					init_status_auth();
 					// calculate / update rt timer / counter
-					retransmission_timer = ((uint32_t)ctx.status_retransmission_base_delay) *
-						(1 + retransmission_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER);
-					retransmission_timer += CON_RETRANSMISSION_BASE_DELAY;
+					retransmission_timer = calculate_retransmission_delay(retransmission_counter);
 					retransmission_counter++;
 				}
 			}
@@ -937,8 +940,7 @@ static void *message_thread(void *arg)
 			send_status_update_message(last_sent_sensor_status);
 
 			// finally calculate the new retransmission timer
-			retransmission_timer = CON_RETRANSMISSION_BASE_DELAY + ((uint32_t)ctx.status_retransmission_base_delay) *
-				(1 + retransmission_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER);
+			retransmission_timer = calculate_retransmission_delay(retransmission_counter);
 			retransmission_counter++;
 		}
 	}
