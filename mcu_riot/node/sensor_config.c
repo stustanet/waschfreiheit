@@ -53,22 +53,22 @@ int sensor_config_set_cmd(int argc, char **argv)
 	if (argc != 4)
 	{
 		puts("USAGE: config <node_id> <key_status> <key_config>\n");
-		puts("node_id     The id of this node (decimal)\n");
-		puts("key_status  Key used for status messages (outgoing traffic)\n");
-		puts("key_config  Key used for config messages (incoming traffic)\n");
-		puts("Both keys must be exactly 128 bit long and encoded in hex format.\n");
+		puts("node_id     The id of this node (decimal)");
+		puts("key_status  Key used for status messages (outgoing traffic)");
+		puts("key_config  Key used for config messages (incoming traffic)");
+		puts("Both keys must be exactly 128 bit long and encoded in hex format.");
 		return 1;
 	}
 
 	if (strlen(argv[2]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[2], AUTH_KEY_LEN * 2, config_buffer.cfg.data.key_status))
 	{
-		puts("Invalid status key, expected status key to be 32 hex chars (128 bit)!\n");
+		puts("Invalid status key, expected status key to be 32 hex chars (128 bit)!");
 		return 1;
 	}
 
 	if (strlen(argv[3]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[3], AUTH_KEY_LEN * 2, config_buffer.cfg.data.key_config))
 	{
-		puts("Invalid config key, expected status key to be 32 hex chars (128 bit)!\n");
+		puts("Invalid config key, expected status key to be 32 hex chars (128 bit)!");
 		return 1;
 	}
 
@@ -78,7 +78,7 @@ int sensor_config_set_cmd(int argc, char **argv)
 
 	if (flashpage_write_and_verify(CONFIG_FLASH_PAGE, &config_buffer) != FLASHPAGE_OK)
 	{
-		puts("Flash verification failed!\n");
+		puts("Flash verification failed!");
 		return 1;
 	}
 

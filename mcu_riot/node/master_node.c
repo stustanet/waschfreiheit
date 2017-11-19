@@ -128,9 +128,9 @@ int master_node_cmd_connect(int argc, char **argv)
 	if (argc != 4)
 	{
 		puts("USAGE: connect <NODE> <FIRST_HOP> <TIMEOUT>\n");
-		puts("NODE      The address of the node\n");
-		puts("FIRST_HOP First hop in the answer path of the node\n");
-		puts("TIMEOUT   Timeout for this connection\n");
+		puts("NODE      The address of the node");
+		puts("FIRST_HOP First hop in the answer path of the node");
+		puts("TIMEOUT   Timeout for this connection");
 		return 1;
 	}
 
@@ -145,8 +145,8 @@ int master_node_cmd_connect(int argc, char **argv)
 	sensor_connection_t *con = find_or_init_node(dst);
 	if (!con)
 	{
-		puts("Connection limit reached!\n");
-		puts("###ERR\n");
+		puts("Connection limit reached!");
+		puts("###ERR");
 		return 1;
 	}
 
@@ -156,7 +156,7 @@ int master_node_cmd_connect(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Connection init for node %u failed with error %i\n", dst, res);
-		puts("###ERR\n");
+		puts("###ERR");
 		return 1;
 	}
 	return 0;
@@ -172,7 +172,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	if (argc != 2)
 	{
 		puts("USAGE: retransmit <NODE>\n");
-		puts("NODE      The address of the node\n");
+		puts("NODE      The address of the node");
 		puts("This command can only be used if a TIMEOUT occured for this node!");
 		return 1;
 	}
@@ -186,8 +186,8 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!\n");
-		puts("###ERR\n");
+		puts("Not connected!");
+		puts("###ERR");
 		return 1;
 	}
 
@@ -195,7 +195,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Retransmission to node %u failed with error %i\n", dst, res);
-		puts("###ERR\n");
+		puts("###ERR");
 		return 1;
 	}
 	return 0;
@@ -263,12 +263,12 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	{
 		puts("USAGE: configure_sensor <NODE> <CHANNEL> <IF> <MAT> <WND> <RF>\n");
 
-		puts("NODE      Address of the node\n");
-		puts("CHANNEL   Channel index\n");
-		puts("IF        Input filter parameters\n");
-		puts("MAT       State transition matrix\n");
-		puts("WND       Window sizes in different states\n");
-		puts("RF        Reject filter parameters\n");
+		puts("NODE      Address of the node");
+		puts("CHANNEL   Channel index");
+		puts("IF        Input filter parameters");
+		puts("MAT       State transition matrix");
+		puts("WND       Window sizes in different states");
+		puts("RF        Reject filter parameters");
 
 		// TODO: Explain
 		return 1;
@@ -283,8 +283,8 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!\n");
-		puts("###ERR\n");
+		puts("Not connected!");
+		puts("###ERR");
 		return 1;
 	}
 
@@ -294,7 +294,7 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Sensor config request for node %u (channel %u) failed with error %i\n", dst, channel_id, res);
-		puts("###ERR\n");
+		puts("###ERR");
 		return 1;
 	}
 	return 0;
@@ -311,9 +311,9 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	{
 		puts("USAGE: enable_sensor <NODE> <CHANNELS> <SPS>\n");
 
-		puts("NODE      Address of the node\n");
-		puts("CHANNELS  Active channels\n");
-		puts("SPS       Samples per second\n");
+		puts("NODE      Address of the node");
+		puts("CHANNELS  Active channels");
+		puts("SPS       Samples per second");
 
 		return 1;
 	}
@@ -327,8 +327,8 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!\n");
-		puts("###ERR\n");
+		puts("Not connected!");
+		puts("###ERR");
 		return 1;
 	}
 
@@ -343,7 +343,7 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Sensor enable request for node %u failed with error %i\n", dst, res);
-		puts("###ERR\n");
+		puts("###ERR");
 		return 1;
 	}
 	return 0;
@@ -361,9 +361,9 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	{
 		puts("USAGE: raw_frames <NODE> <CHANNEL> <COUNT>\n");
 
-		puts("NODE      Address of the node\n");
-		puts("CHANNEL   Channel to measure\n");
-		puts("COUNT     Number of frames to send\n");
+		puts("NODE      Address of the node");
+		puts("CHANNEL   Channel to measure");
+		puts("COUNT     Number of frames to send");
 
 		return 1;
 	}
@@ -377,8 +377,8 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!\n");
-		puts("###ERR\n");
+		puts("Not connected!");
+		puts("###ERR");
 		return 1;
 	}
 
@@ -389,7 +389,7 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Raw data request for node %u failed with error %i\n", dst, res);
-		puts("###ERR\n");
+		puts("###ERR");
 		return 1;
 	}
 	return 0;
@@ -405,7 +405,7 @@ int master_node_cmd_authping(int argc, char **argv)
 	if (argc != 2)
 	{
 		puts("USAGE: authping <NODE>\n");
-		puts("NODE      Address of the destination node\n");
+		puts("NODE      Address of the destination node");
 		return 1;
 	}
 
@@ -418,8 +418,8 @@ int master_node_cmd_authping(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!\n");
-		puts("###ERR\n");
+		puts("Not connected!");
+		puts("###ERR");
 		return 1;
 	}
 
@@ -427,7 +427,7 @@ int master_node_cmd_authping(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Send authping to node %u failed with error %i\n", dst, res);
-		puts("###ERR\n");
+		puts("###ERR");
 		return 1;
 	}
 	return 0;

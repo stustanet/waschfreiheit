@@ -658,7 +658,7 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 
 	if (len < sizeof(msg->type))
 	{
-		puts("received too small message in layer 4\n");
+		puts("received too small message in layer 4");
 		return;
 	}
 

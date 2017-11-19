@@ -61,7 +61,7 @@ static void handle_hs2(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
 	if (!con->ack_outstanding)
 	{
-		puts("Received unexpected hs2\n");
+		puts("Received unexpected hs2");
 		return;
 	}
 
@@ -84,7 +84,7 @@ static void handle_ack(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
 	if (!con->ack_outstanding)
 	{
-		puts("Received unexpected ack\n");
+		puts("Received unexpected ack");
 		return;
 	}
 
@@ -471,7 +471,7 @@ int sensor_connection_set_routes(sensor_connection_t *con, uint8_t reset, const 
 
 	if (current == 0)
 	{
-		puts("No routes specified!\n");
+		puts("No routes specified!");
 		return 1;
 	}
 
