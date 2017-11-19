@@ -118,6 +118,7 @@ int cmd_ping(int argc, char **argv)
 static const shell_command_t shell_commands[] = {
     { "config",        "Node configuration",                   master_config_set_cmd },
     { "connect",       "Connect to a node",                    master_node_cmd_connect },
+    { "retransmit",    "Re-sent timeouted packet",             master_node_cmd_retransmit },
     { "reset_routes",  "Reset node and set routes",            master_node_cmd_node_routes },
     { "set_routes",    "Set routes on a node",                 master_node_cmd_node_routes },
     { "cfg_sensor",    "Sets the sensor configuration",        master_node_cmd_configure_sensor },

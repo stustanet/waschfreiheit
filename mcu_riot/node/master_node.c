@@ -24,8 +24,10 @@
  * Commands can be sent by the user or automatically.
  *
  * Defined commands:
- * connect <NODE> <FIRST_HOP>
+ * connect <NODE> <FIRST_HOP> <TIMEOUT>
  *   Connect to a node
+ * retransmit <NODE>
+ *   Re-send last packet
  * reset_routes <NODE> <DST1>,<HOP1> <DST2,HOP2> ...
  *   Reset node and push new routes
  * set_routes <NODE> <DST1>,<HOP1> <DST2,HOP2> ...
@@ -118,16 +120,17 @@ static void dispatch_packet(nodeid_t src, uint8_t *data, uint32_t len)
 
 
 /*
- * connect <NODE> <FIRST_HOP>
+ * connect <NODE> <FIRST_HOP> <TIMEOUT>
  *   Connect to a node
  */
 int master_node_cmd_connect(int argc, char **argv)
 {
-	if (argc != 3)
+	if (argc != 4)
 	{
-		puts("USAGE: connect <NODE> <FIRST_HOP>\n");
-		puts("NODE   The address of the node\n");
+		puts("USAGE: connect <NODE> <FIRST_HOP> <TIMEOUT>\n");
+		puts("NODE      The address of the node\n");
 		puts("FIRST_HOP First hop in the answer path of the node\n");
+		puts("TIMEOUT   Timeout for this connection\n");
 		return 1;
 	}
 
@@ -147,10 +150,51 @@ int master_node_cmd_connect(int argc, char **argv)
 		return 1;
 	}
 
-	int res = sensor_connection_init(con, dst, hop, MASTER_NODE);
+	uint16_t timeout = atoi(argv[3]);
+
+	int res = sensor_connection_init(con, dst, hop, MASTER_NODE, timeout);
 	if (res != 0)
 	{
 		printf("Connection init for node %u failed with error %i\n", dst, res);
+		puts("###ERR\n");
+		return 1;
+	}
+	return 0;
+}
+
+
+/*
+ * retransmit <NODE>
+ *   Re-send last packet
+ */
+int master_node_cmd_retransmit(int argc, char **argv)
+{
+	if (argc != 2)
+	{
+		puts("USAGE: retransmit <NODE>\n");
+		puts("NODE      The address of the node\n");
+		puts("This command can only be used if a TIMEOUT occured for this node!");
+		return 1;
+	}
+
+	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	if (dst == MESHNW_INVALID_NODE)
+	{
+		return 1;
+	}
+
+	sensor_connection_t *con = find_node(dst);
+	if (!con)
+	{
+		puts("Not connected!\n");
+		puts("###ERR\n");
+		return 1;
+	}
+
+	int res = sensor_connection_retransmit(con);
+	if (res != 0)
+	{
+		printf("Retransmission to node %u failed with error %i\n", dst, res);
 		puts("###ERR\n");
 		return 1;
 	}

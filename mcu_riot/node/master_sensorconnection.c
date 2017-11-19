@@ -24,9 +24,7 @@ static int send_last_packet(sensor_connection_t *con)
 		printf("Failed to send message to node %u with error %i\n", con->node_id, res);
 	}
 
-	con->retransmission_timer = con->node_id * (1 + (con->retransmission_counter / SENSOR_CON_RETRANSMISSION_LIN_BACKOFF_DIV));
-	con->retransmission_timer += SENSOR_CON_RETRANSMISSION_BASE_DELAY;
-	con->retransmission_counter++;
+	con->timeout_counter= 0;
 
 	return res;
 }
@@ -275,7 +273,7 @@ static int sign_and_send_msg(sensor_connection_t *con, uint32_t len)
 }
 
 
-int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master)
+int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master, uint16_t timeout)
 {
 	// the message buffer needs to be 16 bit aligned,
 	// this way i can directly access 16 bit values within this buffer (as long as they are aligned)
@@ -298,6 +296,8 @@ int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t nod
 		printf("Failed to get keys for node %u\n", node);
 		return -EINVAL;
 	}
+
+	con->timeout = timeout;
 
 	auth_master_init(&con->auth_config, keys->key_config, rand_cha);
 	auth_slave_init(&con->auth_status, keys->key_status, rand_nonce);
@@ -379,24 +379,40 @@ void sensor_connection_update(sensor_connection_t *con)
 		return;
 	}
 
-	// check the retransmission timer
-	if (con->retransmission_timer > 0)
+	if (con->timeout_counter == 0xffff)
 	{
-		// > 0 => Decrement it
-		con->retransmission_timer--;
+		// already timeouted
 		return;
 	}
 
-	if (con->retransmission_counter > SENSOR_CON_MAX_RETRANSMISSIONS)
+	// check the timeout counter
+	if (con->timeout_counter < con->timeout)
 	{
-		printf("###TIMEOUT%u\n", con->node_id);
-		con->ack_outstanding = 0;
+		// Not yet reached limit -> Increment it
+		con->timeout_counter++;
 		return;
 	}
 
-	// Timer is 0 -> re-send the message
-	printf("Do retransmission to node %u, num: %u\n", con->node_id, con->retransmission_counter);
+	// Set timeout counter to 0xffff to mark that i already sent the TIMEOUT notification
+	con->timeout_counter = 0xffff;
+	printf("###TIMEOUT%u\n", con->node_id);
+
+}
+
+
+int sensor_connection_retransmit(sensor_connection_t *con)
+{
+	if (!con->ack_outstanding || con->timeout_counter <= con->timeout)
+	{
+		// should not be called in this case
+		puts("Illegal call to sensor_connection_retransmit!");
+		return 1;
+	}
+
+	// re-send the message, this also resets the timer
+	printf("Do retransmission to node %u\n", con->node_id);
 	send_last_packet(con);
+	return 0;
 }
 
 

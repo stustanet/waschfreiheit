@@ -5,10 +5,6 @@
 #include "auth.h"
 #include "meshnw.h"
 
-#define SENSOR_CON_MAX_RETRANSMISSIONS 100
-#define SENSOR_CON_RETRANSMISSION_LIN_BACKOFF_DIV 3
-#define SENSOR_CON_RETRANSMISSION_BASE_DELAY      5
-
 typedef struct
 {
 	// auth context for receiving status information
@@ -17,10 +13,11 @@ typedef struct
 	// auth context for sending config commands
 	auth_context_t auth_config;
 
-	uint32_t retransmission_timer;
-
 	// The current status of the node's sensors
 	uint16_t current_status;
+
+	uint16_t timeout;
+	uint16_t timeout_counter;
 
 	// Contents of the last sent message
 	uint8_t last_sent_message[MESHNW_MAX_PACKET_SIZE];
@@ -31,8 +28,6 @@ typedef struct
 	// set to nonzero, if a packet has been sent that has not yet ack'ed
 	uint8_t ack_outstanding;
 
-	uint8_t retransmission_counter;
-
 	nodeid_t auth_add_data_cfg[2];
 	nodeid_t auth_add_data_sta[2];
 
@@ -42,10 +37,14 @@ typedef struct
 
 // Initializes the connection data structure and starts the connection attempt
 // node_reply_hop is the next hop where the node sends the hs2
-int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master);
+int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t node_reply_hop, nodeid_t master, uint16_t timeout);
 
 // Handles retransmissions, should be called once per second
 void sensor_connection_update(sensor_connection_t *con);
+
+// Re-transmits the last packet.
+// Can only be called if the last packet timeouted.
+int sensor_connection_retransmit(sensor_connection_t *con);
 
 // Processes a packet.
 void sensor_connection_handle_packet(sensor_connection_t *con, uint8_t *data, uint32_t len);
