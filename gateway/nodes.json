@@ -1,0 +1,32 @@
+{
+	"nodes": [
+		{
+			"id": 1,
+			"channels": [
+				{
+					"number": 1,
+					"config": "sensor_normal.json"
+				},
+				{
+					"number": 2,
+					"config": "sensor_normal.json"
+				}
+			],
+			"reachable":[
+				2
+			]
+		},
+		{
+			"id": 2,
+			"channels": [
+				{
+					"number": 2,
+					"config": "sensor_normal.json"
+				}
+			],
+			"reachable":[
+				0,1
+			]
+		}
+	]
+}
