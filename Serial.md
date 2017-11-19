@@ -9,7 +9,11 @@ Der Sensor kennt aktuell nur einen Befehl:
 * Beide Schlüssel sind 16 Byte lang und werden als Hex angegeben.
 
 ## Master
-Der Master spricht ein gemischtes (Mensch- und Maschinenlesbares) Protokoll. Dazu gibt es zusätzlich zu den "normalen" Befehlen spezielle Nachrichten die vom Knoten gesendet werden um den Host über Statusänderungen und Ergebnisse von Befehlen zu informieren. Diese werden im folgenden Updates genannt. Es darf immer nur einen Ausstehenden Befehl pro Node geben, dieser muss erst ACK'ed werden (ACK update) bevor der Nächste gesendet wird. Die einzigen Ausnahmen sind master\_routes und ping.
+Der Master spricht ein gemischtes (Mensch- und Maschinenlesbares) Protokoll.
+Dazu gibt es zusätzlich zu den "normalen" Befehlen spezielle Nachrichten die vom Knoten gesendet werden um den Host über Statusänderungen und Ergebnisse von Befehlen zu informieren.
+Diese werden im folgenden Updates genannt.
+Es darf immer nur einen Ausstehenden Befehl pro Node geben, dieser muss erst ACK'ed werden (ACK update) bevor der Nächste gesendet wird.
+Die einzigen Ausnahmen sind master\_routes, ping und connect.
 
 ### Befehle
 #### master\_routes DST1:HOP1,DST2:HOP2,...
@@ -20,6 +24,11 @@ Setzt die routen die vom Master verwendet werden.
 Stellt eine Verbindung zu einem Knoten her.
 * NODE\_ID Adresse des Knotens zu dem die Verbindung aufgebaut werden soll.
 * RETURN\_HOP Erster Knoten auf dem Rückweg (Pfad von NODE\_ID zum Master). Dies wird als temporäre Route verwendet bis die vollständigen Routen gesetzt wurden.
+
+#### retransmit NODE\_ID
+Sendet das letzte Paket für einen Knoten erneut.
+* NODE\_ID Adresse des Knotens
+Dies darf nur aufgerufen erden, nachdem ein Knoten einen TIMEOUT gemeldet hat.
 
 #### reset\_routes NODE\_ID DST1:HOP1,DST2,HOP2,...
 #### set\_routes NODE\_ID DST1:HOP1,DST2,HOP2,...
@@ -65,6 +74,6 @@ Nach einem ACK kann an den Node ID der nächste Befehl gesendet werden.
 #### ERR
 Der letzte Befehl war ungültig. Es braucht nicht auf ein ACK gewartet werden.
 #### TIMEOUT\<ID\>
-Maximale Anzahl an Retries erreicht. Der Knoten wird als tot angenommen.
+Es ist ein Timeout aufgetreten. Es sollte deshalb bei Zeiten für diesen Knoten einen retransmit Aufruf geben. Dieser kann entweder direkt nach dem Timeout kommen oder zwischen durch kann auch noch anderes gemacht werden.
 #### STATUS\<ID\>-\<STATUS\>
 Statusupdate von Knoten ID. Status ist ein Bitfeld, ein gesetztes Bit steht für eine Aktive Maschine.
