@@ -55,5 +55,13 @@ Der Webserver bekommt die Daten von der Bridge und zeigt den aktuellen Status an
 * Software für Funk <-> Lan Bridge (Raspi)
 * Webserver
 
+## Ich will das complien!
+* RIOT-OS nach Anleitung herunterladen / installieren.
+* Dieses Repo klonen.
+* "bluepill" Board-Definition (mcu\_riot / boards) in "boards" Ordner von RIOT kopieren
+* Das Hauptprojekt liegt in mcu\_riot / node
+  * make NODE=MASTER erstellt die Firmware für den Master-Knoten 
+  * make NODE=SENSOR erstellt die Firmware für einen Sensor-Knoten 
+
 ## WTF???
 Das ist jetzt erstmal nur eine ganz kurze übersicht, aber wenn du fragen hast, dann frag!
