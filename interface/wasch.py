@@ -70,7 +70,7 @@ class WaschInterface:
             self.buffer = []
 
         def connection_made(self, transport):
-            transport.serial.rts = False
+            #transport.serial.rts = False
             self.master.transport = transport
 
         def data_received(self, data):
@@ -86,7 +86,8 @@ class WaschInterface:
             asyncio.get_event_loop().stop()
 
 
-    def __init__(self, serial_port, baudrate=9600, loop=None, timeoutstrategy=TimeoutStrategy.Retransmit):
+    def __init__(self, serial_port, baudrate=9600, loop=None,
+            timeoutstrategy=TimeoutStrategy.Retransmit):
         if loop == None:
             loop = asyncio.get_event_loop()
         self._sensors = {}
@@ -94,6 +95,9 @@ class WaschInterface:
         self.baudrate = baudrate
         self.timeoutstrategy = timeoutstrategy
         self.transport = None
+        self.response_pending = False
+        self._queue = []
+        self.response_event = asyncio.Event(loop=loop)
 
         coro = serial_asyncio.create_serial_connection(loop,
                 (lambda: WaschInterface.SerialProtocol(self)),
@@ -163,28 +167,62 @@ class WaschInterface:
         else:
             self.send_raw("set_routes {}".format(routestring))
 
-    async def send_raw(self, msg):
+    async def send_raw(self, msg, expect_response=True):
         """
         Send the raw line to the serial stream
+
+        This will wait, until the preceding message has been processed.
         """
-        self.transport.write(msg.encode('ascii'))
-        if msg[-1] != '\n':
-            self.transport.write(b'\n')
-        pass
+        # The queue is the message stack that has to be processed
+        self._queue.append(msg)
+        while self._queue:
+            # Await, if there was another message in the pipeline that has not
+            # yet been processed
+            while self.response_pending:
+                await self.response_event.wait()
+                self.response_event.clear()
+            # If the queue has been processed by somebody else in the meantime
+            if not self._queue:
+                break
+            self.response_pending = True
+            next_msg = self._queue.pop(0)
+
+            # Now actually send the data
+            self.transport.write(next_msg.encode('ascii'))
+            #append a newline if the sender hasnt already
+            if next_msg[-1] != '\n':
+                self.transport.write(b'\n')
+
+            if not expect_response:
+                self.response_pending = False
+
+    def allow_next_message(self):
+        """
+        Allow the next message to be sent
+        """
+        self.response_pending = False
+        self.response_event.set()
+
+    def err(self):
+        raise WaschException()
 
     def received(self, msg):
         msg = ''.join(msg).strip()
+        if not msg:
+            return
+
         if str.startswith(msg, "###"):
             msg = msg[3:].strip()
-
             commands = {
                     # The `2:` hack works because the ID is single letter!
-                    "ACK": (lambda s: self.get_node(msg[3:])._ack(s[2:])),
-                    "ERR": (lambda s: self.err()),
-                    "TIMEOUT": (lambda s: self.timeoutstrategy.timeout(self,
-                    self.get_node(msg[7:]))),
+                    "ACK": (lambda s:
+                        self.get_node(msg[3:])._ack(msg[5:])),
+                    "ERR": (lambda s:
+                        self.err()),
+                    "TIMEOUT": (lambda s:
+                        self.timeoutstrategy.timeout(self, self.get_node(msg[7:]))),
                     # The `2:` hack works because the ID is single letter!
-                    "STATUS": (lambda s: self.get_node(msg[6:])._status(s[2:])),
+                    "STATUS": (lambda s: self.get_node(msg[6:])._status(msg[8:])),
             }
 
             has_run = False
@@ -194,6 +232,11 @@ class WaschInterface:
                         commands[c](msg[len(c):])
                     except:
                         raise
+                    finally:
+                        if c != "STATUS":
+                            # Trigger the sending system to send the next
+                            # message
+                            self.allow_next_message(),
                     has_run = True
                     break
 
