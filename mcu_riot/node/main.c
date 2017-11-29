@@ -70,7 +70,7 @@ int cmd_ping(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 0);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;

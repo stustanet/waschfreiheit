@@ -134,7 +134,7 @@ int master_node_cmd_connect(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[2], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;
@@ -177,7 +177,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;
@@ -222,7 +222,7 @@ int master_node_cmd_node_routes(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;
@@ -274,7 +274,7 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;
@@ -318,7 +318,7 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;
@@ -368,7 +368,7 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;
@@ -409,7 +409,7 @@ int master_node_cmd_authping(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[1]);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;

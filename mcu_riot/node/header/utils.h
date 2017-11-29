@@ -54,4 +54,4 @@ int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop);
 /*
  * Parses a node id and does sanity checks.
  */
-nodeid_t utils_parse_nodeid(const char *str);
+nodeid_t utils_parse_nodeid(const char *str, nodeid_t min);
