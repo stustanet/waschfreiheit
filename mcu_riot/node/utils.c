@@ -82,13 +82,13 @@ int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop)
 }
 
 
-nodeid_t utils_parse_nodeid(const char *str)
+nodeid_t utils_parse_nodeid(const char *str, nodeid_t min)
 {
 	char *end;
 	unsigned long l = strtoul(str, &end, 10);
-	if (end[0] != 0 || l < 1 || l > MESHNW_MAX_NODEID)
+	if (end[0] != 0 || l < min || l > MESHNW_MAX_NODEID)
 	{
-		printf("Invalid node id \"%s\"!. Expected decimal number bewteen 1 and %u\n", str, MESHNW_MAX_NODEID);
+		printf("Invalid node id \"%s\"!. Expected decimal number bewteen %u and %u\n", str, min, MESHNW_MAX_NODEID);
 		return MESHNW_INVALID_NODE;
 	}
 
