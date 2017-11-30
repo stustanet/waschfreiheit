@@ -13,7 +13,8 @@
 
 
 /*
- * Sends the packet in the last packet buffer to the node and sets / updates the retransmission data
+ * -- Config channel --
+ * Sends the packet in the last packet buffer to the node and resets the timeout
  */
 static int send_last_packet(sensor_connection_t *con)
 {
@@ -30,15 +31,21 @@ static int send_last_packet(sensor_connection_t *con)
 }
 
 
+/*
+ * -- Status channel --
+ * Handles incoming hs1 requests from the sensor node.
+ * This is the initial packet on the status channel, sent by the sensor as soon as the the sensor is activated.
+ */
 static void handle_hs1(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
-
+	// Need to use my own buffer here to not interfere with the config channels retransmission buffer
 	uint8_t rep_buffer[sizeof(msg_auth_hs_2_t) + 24];
 	uint32_t rep_len = sizeof(rep_buffer);
 
 	msg_auth_hs_2_t *rep_hs = (msg_auth_hs_2_t*)rep_buffer;
 	rep_hs->type = MSG_TYPE_AUTH_HS_2;
 
+	// Process hs1 form sensor to generate hs2 from it.
 	int res = auth_slave_handshake(&con->auth_status, message, sizeof(msg_auth_hs_1_t), len, rep_buffer, sizeof(*rep_hs), &rep_len);
 	if (res != 0)
 	{
@@ -57,15 +64,23 @@ static void handle_hs1(sensor_connection_t *con, uint8_t *message, uint8_t len)
 }
 
 
+/*
+ * -- Config channel --
+ * Handles incoming hs2 messages.
+ * A hs2 is sent by the sensor as soon as it receives the hs1 from the master.
+ */
 static void handle_hs2(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
 	if (!con->ack_outstanding)
 	{
+		// The hs2 is treated like an ack, so ack_outstanding must be set.
+		// Otherwise this means we got a hs2 without asking for it.
 		puts("Received unexpected hs2");
 		return;
 	}
 
 
+	// Process hs2 from sensor to finalize config channel buildup
 	int res = auth_master_process_handshake(&con->auth_config, message, sizeof(msg_auth_hs_2_t), len);
 
 	if (res != 0)
@@ -74,22 +89,31 @@ static void handle_hs2(sensor_connection_t *con, uint8_t *message, uint8_t len)
 		return;
 	}
 
+	// Handsahke OK => Channel built!
 	con->ack_outstanding = 0;
 	printf("###ACK%u-0\n", con->node_id);
 	printf("Auth handshake complete for %u\n", con->node_id);
 }
 
 
+/*
+ * -- Config channel --
+ * Handles acks from the sensor.
+ * An ack confirms that the last command was received by the sensor.
+ */
 static void handle_ack(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
 	if (!con->ack_outstanding)
 	{
+		// Was not waiting for an ACK
 		puts("Received unexpected ack");
 		return;
 	}
 
 	msg_auth_ack_t *ack = (msg_auth_ack_t *)message;
 
+	// Give the ACK to the auth module.
+	// If it accepts the ack, it will update its internal state.
 	int res = auth_master_check_ack(&con->auth_config, message, sizeof(*ack), len);
 
 	if (res != 0)
@@ -98,22 +122,31 @@ static void handle_ack(sensor_connection_t *con, uint8_t *message, uint8_t len)
 		return;
 	}
 
+	// ACK ok -> notify the interface
 	con->ack_outstanding = 0;
 	printf("###ACK%u-%u\n", con->node_id, ack->result_code);
 }
 
 
+/*
+ * -- Status channel --
+ * This function generates and sends an ACK packet on the status channel.
+ * This is used to notify the sensor, that the status update has been received.
+ */
 static void ack_status_message(sensor_connection_t *con)
 {
+	// Need to use my own buffer here to not interfere with the config channels retransmission buffer
 	uint8_t ack_buffer[sizeof(msg_auth_ack_t) + 16];
 	uint32_t ack_len = sizeof(ack_buffer);
 
 	msg_auth_ack_t *ack = (msg_auth_ack_t*)ack_buffer;
 	ack->type = MSG_TYPE_AUTH_ACK;
 
-	// can't fail on this side
+
+	// Can't fail on this side so the ack code is always 0
 	ack->result_code = 0;
 
+	// Request ack packet from auth...
 	int res = auth_slave_make_ack(&con->auth_status, ack_buffer, sizeof(*ack), &ack_len);
 	if (res != 0)
 	{
@@ -121,7 +154,7 @@ static void ack_status_message(sensor_connection_t *con)
 		return;
 	}
 
-	// send directly
+	// ... and send it directly.
 	res = meshnw_send(con->node_id, ack_buffer, ack_len);
 
 	if (res != 0)
@@ -131,18 +164,33 @@ static void ack_status_message(sensor_connection_t *con)
 }
 
 
+/*
+ * -- Status channel --
+ * Handles the status update message sent from the sensor through the status channel
+ * and notifies the interface about status changes.
+ */
 static void handle_status_update(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
 	uint32_t contents_len = len;
 
+	// Check the MAC
 	int res = auth_slave_verify(&con->auth_status, message, &contents_len, con->auth_add_data_sta, sizeof(con->auth_add_data_sta));
 
 	if (res != 0)
 	{
+		// Something is wrong
+
 		if (res == AUTH_OLD_NONCE)
 		{
+			// Received an old MAC -> This is a retransmission
+			// => Res-send the ack.
+			printf("Re-send status ack for: %u\n", con->node_id);
 			ack_status_message(con);
+			return;
 		}
+
+		// Something else went wrong, can't do much about it.
+		printf("Status message auth fail: %i (node: %u)\n", res, con->nodeid_t);
 		return;
 	}
 
@@ -157,16 +205,24 @@ static void handle_status_update(sensor_connection_t *con, uint8_t *message, uin
 	
 	memcpy(&con->current_status, &su->status, sizeof(con->current_status));
 
+	// Notify interface about status change
 	printf("###STATUS%u-%u\n", con->node_id, con->current_status);
 
+	// Send ACK
 	ack_status_message(con);
 	return;
 }
 
 
+/*
+ * -- Un-authenticated data --
+ *  Processes a raw data sent be the sensor.
+ */
 static void handle_raw_frames(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
 	msg_raw_frame_data_t *raw = (msg_raw_frame_data_t *)message;
+
+	// Number of values is defined by the message size
 	uint8_t count = (len - sizeof(*raw)) / sizeof(raw->values[0]);
 
 	if (count == 0)
@@ -177,6 +233,7 @@ static void handle_raw_frames(sensor_connection_t *con, uint8_t *message, uint8_
 	printf("RAW%u-%u\n", con->node_id, count);
 	for (uint8_t i = 1; i < count; i++)
 	{
+		// Need to be carefull about the alignment, so i just memcopy it
 		uint16_t tmp;
 		memcpy(&tmp, &raw->values[i], sizeof(tmp));
 		printf("*%u\n", tmp);
@@ -196,15 +253,20 @@ static int parse_int16_list(const char *str, int16_t *out_signed, uint16_t *out_
 	while(count)
 	{
 		const char *next;
+
+		// Always interpret the number as signed 32 bit first
 		long v = strtol(str, (char **)&next, 10);
 
 		if (next == str)
 		{
+			// Start == end => No char consumed
 			printf("Unexpected char in number: %i(%c)\n", str[0], str[0]);
+			retrun 1;
 		}
 
 		if (out_signed)
 		{
+			// signed values must be between int16 min and max
 			if (v > INT16_MAX || v < INT16_MIN)
 			{
 				printf("Signed value out of range: %ld\n", v);
@@ -216,6 +278,7 @@ static int parse_int16_list(const char *str, int16_t *out_signed, uint16_t *out_
 
 		if (out_unsigned)
 		{
+			// unsigned -> must be >= 0 and below uint16_max
 			if (v > UINT16_MAX || v < 0)
 			{
 				printf("Unsigned value out of range: %ld\n", v);
@@ -228,6 +291,7 @@ static int parse_int16_list(const char *str, int16_t *out_signed, uint16_t *out_
 		count--;
 		str = next;
 
+		// end of string
 		if (str[0] == 0)
 		{
 			break;
@@ -235,6 +299,7 @@ static int parse_int16_list(const char *str, int16_t *out_signed, uint16_t *out_
 
 		if (str[0] != ',')
 		{
+			// no ',' after number
 			printf("Unexpected delimiter in number sequence expected \',\', is: %i(%c)\n", str[0], str[0]);
 			return 1;
 		}
@@ -244,6 +309,7 @@ static int parse_int16_list(const char *str, int16_t *out_signed, uint16_t *out_
 
 	if (str[0] || count)
 	{
+		// expect end of string and count==0
 		printf("Wrong parameter length, expected %lu\n", expected);
 		return 1;
 	}
@@ -252,7 +318,8 @@ static int parse_int16_list(const char *str, int16_t *out_signed, uint16_t *out_
 
 
 /*
- * Signs and sends the message in the transmission buffer
+ * Signs and sends the message in the transmission buffer.
+ * A message sent this was must be ack'ed.
  */
 static int sign_and_send_msg(sensor_connection_t *con, uint32_t len)
 {
@@ -303,13 +370,14 @@ int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t nod
 	auth_slave_init(&con->auth_status, keys->key_status, rand_nonce);
 	con->node_id = node;
 
+	// The add data contains source and destination (in this order)
 	con->auth_add_data_cfg[0] = master;
 	con->auth_add_data_cfg[1] = node;
 
 	con->auth_add_data_sta[0] = node;
 	con->auth_add_data_sta[1] = master;
 
-	// now send the hs1, the data is written directly into the last message buffer
+	// Now send the hs1, the data is written directly into the last message buffer
 	
 	uint32_t msg_len = sizeof(con->last_sent_message);
 
@@ -343,6 +411,9 @@ void sensor_connection_handle_packet(sensor_connection_t *con, uint8_t *data, ui
 		return;
 	}
 
+	/*
+	 * Call the handler function for the message type
+	 */
 	msg_union_t *msg = (msg_union_t *)data;
 	switch(msg->type)
 	{
@@ -442,6 +513,8 @@ int sensor_connection_set_routes(sensor_connection_t *con, uint8_t reset, const 
 	}
 
 	uint8_t current = 0;
+
+	// parse the routes
 	while(routes[0] != 0)
 	{
 		if (current >= MAX_ROUTES)
@@ -513,15 +586,18 @@ int sensor_connection_configure_sensor(sensor_connection_t *con, uint8_t channel
 		return 1;
 	}
 
+	// Check alignment to ensure that i can access the variables without causing a hardfault
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.input_filter.mid_value_adjustment_speed);
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.input_filter.lowpass_weight);
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.input_filter.num_samples);
 	
+	// Input filter
 	msg->params.input_filter.mid_value_adjustment_speed = tmp[0];
 	msg->params.input_filter.lowpass_weight = tmp[1];
 	msg->params.input_filter.num_samples = tmp[2];
 
 
+	// State matrix
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.state_filter.transition_matrix[0]);
 	if (parse_int16_list(st_matrix,
 		msg->params.state_filter.transition_matrix,
@@ -532,6 +608,7 @@ int sensor_connection_configure_sensor(sensor_connection_t *con, uint8_t channel
 		return 1;
 	}
 
+	// Window sizes
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.state_filter.window_sizes[0]);
 	if (parse_int16_list(st_window,
 		NULL,
@@ -542,13 +619,12 @@ int sensor_connection_configure_sensor(sensor_connection_t *con, uint8_t channel
 		return 1;
 	}
 
-
+	// Reject filter
 	if (parse_int16_list(reject_filter, NULL, tmp, 2) != 0)
 	{
 		printf("Invalid reject filter parameters!");
 		return 1;
 	}
-
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.state_filter.reject_threshold);
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.state_filter.reject_consec_count);
 
