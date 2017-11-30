@@ -1,5 +1,8 @@
 /*
  * This is an interface for managing a single master <-> sensor connection.
+ *
+ * The connection can only have one outstanding packet.
+ * This is a limitation by the auth protocol because it can only verify the single next packet.
  */
 
 #include "auth.h"
@@ -16,7 +19,14 @@ typedef struct
 	// The current status of the node's sensors
 	uint16_t current_status;
 
+	// Timeout in seconds before a TIMEOUT notification is sent.
 	uint8_t timeout;
+
+	/*
+	 * Counter for the timeout.
+	 * If an ACK is outstanding, this is incremented in every update.
+	 * When this reaches <timeout> the timeout notification is sent and the retransmit is allowed.
+	 */
 	uint8_t timeout_counter;
 
 	// Contents of the last sent message
@@ -25,9 +35,13 @@ typedef struct
 	// Length of the last sent message
 	uint8_t last_sent_message_len;
 
-	// set to nonzero, if a packet has been sent that has not yet ack'ed
+	/*
+	 * Set to nonzero, if a packet has been sent that has not yet been ack'ed.
+	 * If this is nonzero, no new packets (except for connect (init) and retransmissions) can be sent.
+	 */
 	uint8_t ack_outstanding;
 
+	// The "add data" as used in the config and status channel.
 	nodeid_t auth_add_data_cfg[2];
 	nodeid_t auth_add_data_sta[2];
 

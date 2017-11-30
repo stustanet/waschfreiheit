@@ -7,10 +7,21 @@
 #include <stdlib.h>
 #include "utils.h"
 
-#define CONFIG_ENTRIES_PER_PAGE (FLASHPAGE_SIZE / sizeof(node_auth_keys_t))
-#define CONFIG_FLASH_PAGES ((((MASTER_CONFIG_NUM_NODES) - 1) / CONFIG_ENTRIES_PER_PAGE) + 1)
-#define CONFIG_FLASH_PAGE_START (64 - (CONFIG_FLASH_PAGES))
 
+// Number of node entries in a flash page
+#define CONFIG_ENTRIES_PER_PAGE (FLASHPAGE_SIZE / sizeof(node_auth_keys_t))
+
+// Total number of flash pages useb dy the config
+#define CONFIG_FLASH_PAGES ((((MASTER_CONFIG_NUM_NODES) - 1) / CONFIG_ENTRIES_PER_PAGE) + 1)
+
+// The config is written to the end of the flash.
+// Obviously, this space must not be used by program code!
+#define CONFIG_FLASH_PAGE_START (FLASHPAGE_NUMOF - (CONFIG_FLASH_PAGES))
+
+/*
+ * Layout of a flash page.
+ * NOTE: This must be exactly as large as a flash page.
+ */
 typedef struct
 {
 	node_auth_keys_t keys[CONFIG_ENTRIES_PER_PAGE];
@@ -33,8 +44,11 @@ static config_page_t *get_config_entry(uint8_t id, uint8_t *entry)
 #endif
 
 	(*entry) = id % CONFIG_ENTRIES_PER_PAGE;
+
+	// Because the flash is memory-mapped, i can simply return a pointer to the page.
 	return flashpage_addr(CONFIG_FLASH_PAGE_START + id / CONFIG_ENTRIES_PER_PAGE);
 }
+
 
 const node_auth_keys_t *master_config_get_keys(uint8_t id)
 {
@@ -42,9 +56,11 @@ const node_auth_keys_t *master_config_get_keys(uint8_t id)
 	config_page_t *page = get_config_entry(id, &entry_idx);
 	if (!page)
 	{
+		// Invalid id
 		return NULL;
 	}
 
+	// return the pointer to the entry
 	return &page->keys[entry_idx];
 }
 
@@ -52,6 +68,7 @@ const node_auth_keys_t *master_config_get_keys(uint8_t id)
 int master_config_set_cmd(int argc, char **argv)
 {
 	// Buffer for read-modify-write the config entries
+	// This is 1k, so I definitely don't want this on the stack!
 	static config_page_t config_buffer;
 	_Static_assert(sizeof(config_buffer) == FLASHPAGE_SIZE, "Config buffer must have flash page size");
 
@@ -100,12 +117,14 @@ int master_config_set_cmd(int argc, char **argv)
 		return 1;
 	}
 
+	// Finally write it back.
 	if (flashpage_write_and_verify(flashpage_page(current) , &config_buffer) != FLASHPAGE_OK)
 	{
 		puts("Flash verification failed!");
 		return 1;
 	}
 
+	// Everything done
 	printf("OK, updated config for node %u\n", node_id);
 	return 0;
 
