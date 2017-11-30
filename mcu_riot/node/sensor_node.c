@@ -24,6 +24,13 @@
 #define CON_RETRANSMISSION_LINEAR_BACKOFF      10
 
 /*
+ * Timeout for the config channel in seconds
+ * If no authenticated message is received for more than the specified time, the node reboots.
+ * This is primary intended to avoid the network getting stuck if the routes are invalid.
+ */
+#define CONFIG_CHANNEL_TIMEOUT 1800
+
+/*
  * Actual retransmission delay is
  * (CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER) + base delay + random
  */
@@ -70,6 +77,12 @@ struct
 	 * Delay in us for the adc loop.
 	 */
 	uint32_t sensor_loop_delay_us;
+
+	/*
+	 * Incremented every second in the mesage thread, reset when an authenticated message is received.
+	 * If this value exceeds CONFIG_CHANNEL_TIMEOUT, the CPU is reset.
+	 */
+	uint32_t config_channel_timeout_timer;
 
 	uint32_t random_current;
 
@@ -445,7 +458,9 @@ static int check_auth_message(nodeid_t src, void *data, uint32_t *len)
 		return res;
 	}
 
-	return res;
+	// reset timeout
+	ctx.config_channel_timeout_timer = 0;
+	return 0;
 }
 
 
@@ -883,9 +898,12 @@ static void *message_thread(void *arg)
 
         xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY_US);
 
-		if (retransmission_counter > MAX_STATUS_RETRANSMISSIONS)
+		ctx.config_channel_timeout_timer++;
+
+		if (retransmission_counter > MAX_STATUS_RETRANSMISSIONS ||
+			ctx.config_channel_timeout_timer > CONFIG_CHANNEL_TIMEOUT)
 		{
-			puts("MESH NETWORK IS NOT RESPONDING! Rebooting...");
+			puts("NETWORK TIMEOUT! Rebooting...");
 			pm_reboot();
 		}
 
