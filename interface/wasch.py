@@ -13,19 +13,19 @@ class TimeoutStrategy:
     """ Different events happening on timeout. """
     class Retransmit:
         """ If a timeout happened - try to retransmit """
-        def timeout(self, master, node):
-            node.retransmit()
+        async def timeout(self, master, node):
+            await node.retransmit()
 
     class Ignore:
         """ If a timeout happened - just ignore it """
-        def timeout(self, master, node):
+        async def timeout(self, master, node):
             pass
 
     class Exception:
         """
         If a timeout happened - raise an exception and start panic and mayham
         """
-        def timeout(self, master, node):
+        async def timeout(self, master, node):
             raise WaschException()
 
 class WaschInterface:
@@ -86,8 +86,8 @@ class WaschInterface:
             asyncio.get_event_loop().stop()
 
 
-    def __init__(self, serial_port, baudrate=9600, loop=None,
-            timeoutstrategy=TimeoutStrategy.Retransmit):
+    def __init__(self, serial_port, baudrate=115200, loop=None,
+                 timeoutstrategy=TimeoutStrategy.Retransmit()):
         if loop == None:
             loop = asyncio.get_event_loop()
         self._sensors = {}
@@ -104,12 +104,15 @@ class WaschInterface:
                 serial_port, baudrate=baudrate)
         loop.run_until_complete(coro)
 
-    def node(self, nodeid):
+    async def node(self, nodeid, nexthop=0, timeout=5):
         """
         Register a new sensor node
         """
         newsensor = sensor.Sensor(self, nodeid)
         self._sensors[nodeid] = newsensor
+
+        await newsensor.connect(nexthop, timeout)
+
         return newsensor
 
     def get_node(self, stringwithnode):
@@ -137,12 +140,12 @@ class WaschInterface:
 
     async def sensor_routes(self, routes):
         """
-        DEBUG ONLY: Set the routes of a sensor node
+        MASTER ONLY: Set the routes of a sensor node
 
         Routes in the format : {dst1: hop1, dst2: hop2}
         """
         routestring = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
-        await self.send_raw("routes {}".format(routestring))
+        await self.send_raw("routes {}".format(routestring), expect_response=False)
 
     async def sensor_config(self, node, key_status, key_config):
         """
@@ -167,7 +170,7 @@ class WaschInterface:
         else:
             self.send_raw("set_routes {}".format(routestring))
 
-    async def send_raw(self, msg, expect_response=True):
+    async def send_raw(self, msg, expect_response=True, force=False):
         """
         Send the raw line to the serial stream
 
@@ -178,9 +181,12 @@ class WaschInterface:
         while self._queue:
             # Await, if there was another message in the pipeline that has not
             # yet been processed
-            while self.response_pending:
-                await self.response_event.wait()
-                self.response_event.clear()
+            if not force:
+                while self.response_pending:
+                    print("Awaiting response")
+                    await self.response_event.wait()
+                    self.response_event.clear()
+            print("Sending", msg)
             # If the queue has been processed by somebody else in the meantime
             if not self._queue:
                 break
@@ -210,25 +216,23 @@ class WaschInterface:
         msg = ''.join(msg).strip()
         if not msg:
             return
+        #print("received", msg)
 
-        if str.startswith(msg, "###"):
-            msg = msg[3:].strip()
+        match = re.match(r".*###(.*)", msg)
+        if match:
+            msg, = match.groups(1)
             commands = {
-                    # The `2:` hack works because the ID is single letter!
-                    "ACK": (lambda s:
-                        self.get_node(msg[3:])._ack(msg[5:])),
-                    "ERR": (lambda s:
-                        self.err()),
-                    "TIMEOUT": (lambda s:
-                        self.timeoutstrategy.timeout(self, self.get_node(msg[7:]))),
-                    # The `2:` hack works because the ID is single letter!
-                    "STATUS": (lambda s: self.get_node(msg[6:])._status(msg[8:])),
+                    "ACK": (lambda s: self.__ack(msg[3:])),
+                    "ERR": (lambda s: self.__err(msg[3:])),
+                    "TIMEOUT": (lambda s: self.__timeout(msg[7:])),
+                    "STATUS": (lambda s: self.__status(msg[6:])),
             }
 
             has_run = False
             for c in commands:
                 if str.startswith(msg.lower(), c.lower()):
                     try:
+                        print("CMD", msg)
                         commands[c](msg[len(c):])
                     except:
                         raise
@@ -243,4 +247,20 @@ class WaschInterface:
             if not has_run:
                 print("Unknown command ", msg)
         else:
-            print("Unknown instruction received \"{}\"".format(msg))
+            print("RAW: \"{}\"".format(msg))
+
+    def __ack(self, msg):
+        # The `2:` hack works because the ID is single letter!
+        self.get_node(msg)._ack(msg[2:])
+
+    def __err(self, msg):
+        self.err()
+
+    @asyncio.coroutine
+    def __timeout(self, msg):
+        node = self.get_node(msg)
+        self.timeoutstrategy.timeout(self, node)
+
+    def __status(self, msg):
+        # The `2:` hack works because the ID is single letter!
+        self.get_node(msg)._status(msg[2:])
