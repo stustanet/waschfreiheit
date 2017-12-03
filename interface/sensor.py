@@ -15,7 +15,7 @@ class Sensor:
         """
         Ping the node to test if the path is valid
         """
-        await self.master.send_raw("ping {}".format(self.nodeid))
+        await self.master.send_raw("ping {}".format(self.nodeid), expect_response=False)
 
     async def authping(self):
         """
@@ -23,7 +23,7 @@ class Sensor:
         """
         await self.master.send_raw("authping {}".format(self.nodeid))
 
-    async def connect(self, return_hop, timeout):
+    async def connect(self, return_hop, timeout, force=False):
         """
         Opens a connection to a hope
 
@@ -32,8 +32,10 @@ class Sensor:
         timeout: time to wait in seconds until a package needs to be
                 retransmitted
         """
-        await self.master.send_raw("connect {} {} {}".format(self.nodeid, return_hop,
-            timeout))
+        await self.master.send_raw("connect {} {} {}".format(self.nodeid,
+                                                             return_hop,
+                                                             timeout,
+                                                             force=force))
 
     async def retransmit(self):
         """
