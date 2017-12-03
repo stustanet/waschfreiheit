@@ -134,13 +134,18 @@ int master_node_cmd_connect(int argc, char **argv)
 		return 1;
 	}
 
-	nodeid_t dst = utils_parse_nodeid(argv[2], 1);
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
 		return 1;
 	}
 
-	nodeid_t hop = (nodeid_t)atoi(argv[2]);
+	nodeid_t hop = utils_parse_nodeid(argv[2], 0);
+	if (hop == MESHNW_INVALID_NODE)
+	{
+		return 1;
+	}
+
 	
 	sensor_connection_t *con = find_or_init_node(dst);
 	if (!con)
