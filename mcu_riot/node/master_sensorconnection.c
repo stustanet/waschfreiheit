@@ -190,7 +190,7 @@ static void handle_status_update(sensor_connection_t *con, uint8_t *message, uin
 		}
 
 		// Something else went wrong, can't do much about it.
-		printf("Status message auth fail: %i (node: %u)\n", res, con->nodeid_t);
+		printf("Status message auth fail: %i (node: %u)\n", res, con->node_id);
 		return;
 	}
 
@@ -202,8 +202,8 @@ static void handle_status_update(sensor_connection_t *con, uint8_t *message, uin
 	}
 
 	// copy status to my local variable and ack the message
-	
-	memcpy(&con->current_status, &su->status, sizeof(con->current_status));
+
+	con->current_status = u16_from_unaligned(&su->status);
 
 	// Notify interface about status change
 	printf("###STATUS%u-%u\n", con->node_id, con->current_status);
@@ -233,10 +233,8 @@ static void handle_raw_frames(sensor_connection_t *con, uint8_t *message, uint8_
 	printf("RAW%u-%u\n", con->node_id, count);
 	for (uint8_t i = 1; i < count; i++)
 	{
-		// Need to be carefull about the alignment, so i just memcopy it
-		uint16_t tmp;
-		memcpy(&tmp, &raw->values[i], sizeof(tmp));
-		printf("*%u\n", tmp);
+		// Need to be carefull about the alignment
+		printf("*%u\n", u16_from_unaligned(&raw->values[i]));
 	}
 }
 
@@ -261,7 +259,7 @@ static int parse_int16_list(const char *str, int16_t *out_signed, uint16_t *out_
 		{
 			// Start == end => No char consumed
 			printf("Unexpected char in number: %i(%c)\n", str[0], str[0]);
-			retrun 1;
+			return 1;
 		}
 
 		if (out_signed)
