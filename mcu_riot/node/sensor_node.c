@@ -831,10 +831,7 @@ static void handle_raw_value_request(nodeid_t src, void *data, uint8_t len)
 
 	// set values in ctx
 	ctx.debug_raw_frame_channel = rf_msg->channel;
-
-	// Use memcpy to avoid alignment problems
-	// TODO: don't memcpy
-	memcpy(&ctx.debug_raw_frame_transmission_counter, &rf_msg->num_of_frames, sizeof(ctx.debug_raw_frame_transmission_counter));
+	ctx.debug_raw_frame_transmission_counter = u16_from_unaligned(&rf_msg->num_of_frames);
 
 	// finally ack it
 	send_ack(0);
@@ -1015,9 +1012,7 @@ static void *adc_thread(void *arg)
 					uint16_t val = (uint16_t) stateest_get_frame(&ctx.sensors[adc]);
 					printf("Raw value: %u\n", val);
 
-					// Memcpy to avoid alignment problems
-					// FIXME: no memcpy
-					memcpy(&raw_frame_vals->values[raw_values_in_msg], &val, sizeof(val));
+					u16_to_unaligned(&raw_frame_vals->values[raw_values_in_msg], val);
 
 					raw_values_in_msg++;
 					ctx.debug_raw_frame_transmission_counter--;
@@ -1073,8 +1068,7 @@ static void send_status_update_message(uint16_t status)
 	 */
 	sta->type = MSG_TYPE_STATUS_UPDATE;
 
-	// FIXME: no memcpy
-	memcpy(&sta->status, &status, sizeof(sta->status));
+	u16_to_unaligned(&sta->status, status);
 
 	/*
 	 * This data is included in the MAC but is not sent over the network.
