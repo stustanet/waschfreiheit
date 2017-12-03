@@ -358,6 +358,7 @@ void meshnw_clear_routes(void)
 	{
 		context.routing_table[i] = MESHNW_INVALID_NODE;
 	}
+	context.enable_forwarding = 0;
 }
 
 
