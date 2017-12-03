@@ -11,13 +11,21 @@
 // These two must be defines because they are used as array size
 #define SE_MAX_WINDOW_SIZE                (512 * 3)
 #define SE_STATECOUNT                            4
+
+// Supply volatge of the sensor in mV
+// This is used to calculate the initial mid value
+#define SENSOR_VCC_MV                         4250
+
+// Reference voltage of the ADC in mV
+#define ADC_REFERENCE_MV                      3300
+
 static const uint8_t SE_STATE_OFF =              0;
 static const uint8_t SE_STATE_END =              1;
 static const uint8_t SE_STATE_ON_THRESHOLD =     2; // >= 2 => ON
 static const uint16_t SE_MAX_END_STATE_TIME = 1900; // 1900 sec
 
-// Half the adc value (0x0800) shifted 20 bit to the left to get 32 bit scale
-static const uint32_t SE_INITIAL_MID_VALUE = (0x800 << 20);
+// Half the sensor voltage shifted 20 bit to the left to get 32 bit scale
+static const uint32_t SE_INITIAL_MID_VALUE = ((((SENSOR_VCC_MV * (1 << 12)) / ADC_REFERENCE_MV) / 2) << 20);
 
 struct state_estimation_params
 {
