@@ -55,3 +55,14 @@ int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop);
  * Parses a node id and does sanity checks.
  */
 nodeid_t utils_parse_nodeid(const char *str, nodeid_t min);
+
+inline void u16_to_unaligned(uint16_t *dst, uint16_t src)
+{
+	(*((uint8_t *)dst)) = (uint8_t)src;
+	(*(((uint8_t *)dst) + 1)) = (uint8_t)(src >> 8);
+}
+
+inline uint16_t u16_from_unaligned(const uint16_t *src)
+{
+	return (*((uint8_t *)src)) + ((*(((uint8_t *)src) + 1)) << 8);
+}
