@@ -67,6 +67,20 @@ class Sensor:
         await self.master.send_raw("get_raw {} {} {}", self.nodeid, channel,
                 num_frames)
 
+    async def routes(self, routes, reset=False):
+        """
+        Set the routes in the network.
+
+        routes in the format : {dst1: hop1, dst2: hop2}
+        reset: indicate, if the node should be reset before adding routes
+        """
+        # TODO Check what does the doku mean with "add_routes"?
+        routestring = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
+        if reset:
+            await self.master.send_raw("reset_routes {} {}".format(self.nodeid, routestring))
+        else:
+            await self.master.send_raw("set_routes {} {}".format(self.nodeid, routestring))
+
     def _ack(self, code):
         """
         An "ack" has been received with the given code
