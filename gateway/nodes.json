@@ -1,32 +1,119 @@
 {
-	"nodes": [
-		{
-			"id": 1,
-			"channels": [
-				{
-					"number": 1,
-					"config": "sensor_normal.json"
-				},
-				{
-					"number": 2,
-					"config": "sensor_normal.json"
-				}
-			],
-			"reachable":[
-				2
-			]
-		},
-		{
-			"id": 2,
-			"channels": [
-				{
-					"number": 2,
-					"config": "sensor_normal.json"
-				}
-			],
-			"reachable":[
-				0,1
-			]
-		}
-	]
+  "nodes": [
+    {
+      "id": 0,
+      "name":"MASTER",
+      "channels": [],
+      "routes":{
+        "HSH2":"HSH16",
+        "HSH7":"HSH16",
+        "HSH10":"HSH16",
+        "HSH16":"HSH16"
+      }
+    },
+    {
+      "id_comment":"Hardwired ID for the node",
+      "id": 1,
+      "name_comment":"Internal config name for the node",
+      "name":"HSH2",
+      "channels": [
+        {
+          "number_comment":"left plug on the sensor",
+          "number": 0,
+          "name":"left",
+          "model":"A",
+          "config_comment":"additional sensor data for configuring the sensor",
+          "config": "sensor_normal.json"
+        },
+        {
+          "number": 1,
+          "name":"rechts",
+          "model":"B",
+          "config": "sensor_normal.json"
+        }
+      ],
+      "routes_comment":"How can i contact the target nodes",
+      "routes":{
+        "MASTER":"HSH16",
+        "HSH2":"HSH2",
+        "HSH7":"HSH7",
+        "HSH10":"HSH10",
+        "HSH16":"HSH16"
+      }
+    },
+    {
+      "id": 2,
+      "name":"HSH7",
+      "channels": [
+        {
+          "number": 0,
+          "name":"links",
+          "model":"C",
+          "config": "sensor_normal.json"
+        },
+        {
+          "number": 1,
+          "name":"links",
+          "model":"C",
+          "config": "sensor_normal.json"
+        }
+      ],
+      "routes":{
+        "MASTER":"HSH16",
+        "HSH2":"HSH2",
+        "HSH7":"HSH7",
+        "HSH10":"HSH10",
+        "HSH16":"HSH16"
+      }
+    },
+    {
+      "id": 3,
+      "name":"HSH10",
+      "channels": [
+        {
+          "number": 0,
+          "name":"links",
+          "model":"C",
+          "config": "sensor_normal.json"
+        },
+        {
+          "number": 1,
+          "name":"links",
+          "model":"C",
+          "config": "sensor_normal.json"
+        }
+      ],
+      "routes":{
+        "MASTER":"HSH16",
+        "HSH2":"HSH2",
+        "HSH7":"HSH7",
+        "HSH10":"HSH10",
+        "HSH16":"HSH16"
+      }
+    },
+    {
+      "id": 4,
+      "name":"HSH16",
+      "channels": [
+        {
+          "number": 0,
+          "name":"links",
+          "model":"C",
+          "config": "sensor_normal.json"
+        },
+        {
+          "number": 1,
+          "name":"links",
+          "model":"C",
+          "config": "sensor_normal.json"
+        }
+      ],
+      "routes":{
+        "MASTER":"MASTER",
+        "HSH2":"HSH2",
+        "HSH7":"HSH7",
+        "HSH10":"HSH10",
+      }
+    }
+  ]
 }
