@@ -6,27 +6,67 @@ import re
 
 import sensor
 
-class WaschException(Exception):
+class WaschError(Exception):
     pass
+class WaschCommandError(WaschError):
+    def __init__(self, command):
+        self.command = command
+
+    def __repr__(self):
+        return "WaschCommandError: {}".format(self.command)
+
+class WaschTimeoutError(WaschError):
+    def __init__(self):
+        pass
+    def __repr__(self):
+        return "WaschTimeoutError"
+
+class WaschAckError(WaschError):
+    def __init__(self, ackcode):
+        self.ackcode = ackcode
+
+    def __repr__(self):
+        return "WaschAckError: Ack returned {}".format(self.ackcode)
 
 class TimeoutStrategy:
     """ Different events happening on timeout. """
     class Retransmit:
         """ If a timeout happened - try to retransmit """
-        async def timeout(self, master, node):
+        async def timeout(self, master, node, command):
             await node.retransmit()
 
     class Ignore:
         """ If a timeout happened - just ignore it """
-        async def timeout(self, master, node):
+        async def timeout(self, master, node, command):
             pass
 
     class Exception:
         """
         If a timeout happened - raise an exception and start panic and mayham
         """
-        async def timeout(self, master, node):
-            raise WaschException()
+        async def timeout(self, master, node, command):
+            raise WaschTimeoutError()
+
+    class NRetransmit:
+        """
+        If a timeout happened - raise an exception and start panic and mayham
+        """
+        def __init__(self, max_retransmit):
+            self.max_retransmit = max_retransmit
+            self.last_failed = ""
+            self.last_count = 0
+
+        async def timeout(self, master, node, command):
+            if command != self.last_failed and not "retransmit" in command:
+                self.last_count = 0
+                self.last_failed = command
+
+            self.last_count += 1
+            print("Received timeout for command", command, "count is", self.last_count)
+            if self.last_count > self.max_retransmit:
+                raise WaschTimeoutError()
+
+            await node.retransmit()
 
 class WaschInterface:
     """
@@ -98,6 +138,7 @@ class WaschInterface:
         self.response_pending = False
         self._queue = []
         self.response_event = asyncio.Event(loop=loop)
+        self.last_command = ""
 
         coro = serial_asyncio.create_serial_connection(loop,
                 (lambda: WaschInterface.SerialProtocol(self)),
@@ -120,8 +161,10 @@ class WaschInterface:
         Get node with the ID
         """
         match = re.findall(r'^\d+', str(stringwithnode))
-
-        return self._sensors[int(match[0])]
+        if match:
+            return self._sensors[int(match[0])]
+        else:
+            raise KeyError()
 
     def status_subscribe(self, callback, nodeid=None):
         """
@@ -138,38 +181,6 @@ class WaschInterface:
         else:
             get_node(nodeid).status_callback(lambda s: callback(nodeid, s))
 
-    async def sensor_routes(self, routes):
-        """
-        MASTER ONLY: Set the routes of a sensor node
-
-        Routes in the format : {dst1: hop1, dst2: hop2}
-        """
-        routestring = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
-        await self.send_raw("routes {}".format(routestring), expect_response=False)
-
-    async def sensor_config(self, node, key_status, key_config):
-        """
-        node: id of the node to configure
-        key_status: common key for the status channel
-        key_config: common key for the configuration channel
-        both keys have to be 16 bytes long.
-        """
-        await self.send_raw("config {} {} {}".format(node, key_status, key_config))
-
-    async def routes(self, routes, reset=False):
-        """
-        Set the routes in the network.
-
-        routes in the format : {dst1: hop1, dst2: hop2}
-        reset: indicate, if the node should be reset before adding routes
-        """
-        # TODO Check what does the doku mean with "add_routes"?
-        routestring = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
-        if reset:
-            self.send_raw("reset_routes {}".format(routestring))
-        else:
-            self.send_raw("set_routes {}".format(routestring))
-
     async def send_raw(self, msg, expect_response=True, force=False):
         """
         Send the raw line to the serial stream
@@ -177,7 +188,10 @@ class WaschInterface:
         This will wait, until the preceding message has been processed.
         """
         # The queue is the message stack that has to be processed
-        self._queue.append(msg)
+        if "retransmit" in msg:
+            self._queue.insert(0, msg)
+        else:
+            self._queue.append(msg)
         while self._queue:
             # Await, if there was another message in the pipeline that has not
             # yet been processed
@@ -194,6 +208,7 @@ class WaschInterface:
             next_msg = self._queue.pop(0)
 
             # Now actually send the data
+            self.last_command = next_msg
             self.transport.write(next_msg.encode('ascii'))
             #append a newline if the sender hasnt already
             if next_msg[-1] != '\n':
@@ -201,6 +216,43 @@ class WaschInterface:
 
             if not expect_response:
                 self.response_pending = False
+            else:
+                await self.response_event.wait()
+                self.response_event.clear()
+                if self.last_result[0:3] == "ERR":
+                    raise WaschCommandError(msg)
+                elif self.last_result[0:3] == "ACK":
+                    match = re.findall(r"ACK\d*-(\d*)", self.last_result)
+                    if not match:
+                        raise WaschCommandError("Unknown ACK result {}".format(self.last_result))
+                    code = match[0]
+                    if code != "128" and code != "0":
+                        raise WaschAckError(code)
+                elif self.last_result[0:7] == "TIMEOUT":
+                    node = self.get_node(self.last_result[7:])
+                    await self.timeoutstrategy.timeout(self, node, next_msg)
+                else:
+                    raise WaschCommandError("Unknown result code: {}".format(self.last_result))
+
+
+    async def sensor_config(self, node, key_status, key_config):
+        """
+        node: id of the node to configure
+        key_status: common key for the status channel
+        key_config: common key for the configuration channel
+        both keys have to be 16 bytes long.
+        """
+        await self.send_raw("config {} {} {}".format(node, key_status, key_config))
+
+    async def sensor_routes(self, routes):
+        """
+        MASTER ONLY: Set the routes of a sensor node
+
+        Routes in the format : {dst1: hop1, dst2: hop2}
+        """
+        routestring = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
+        await self.send_raw("routes {}".format(routestring),
+                            expect_response=False)
 
     def allow_next_message(self):
         """
@@ -208,9 +260,6 @@ class WaschInterface:
         """
         self.response_pending = False
         self.response_event.set()
-
-    def err(self):
-        raise WaschException()
 
     def received(self, msg):
         msg = ''.join(msg).strip()
@@ -221,45 +270,14 @@ class WaschInterface:
         match = re.match(r".*###(.*)", msg)
         if match:
             msg, = match.groups(1)
-            commands = {
-                    "ACK": (lambda s: self.__ack(msg[3:])),
-                    "ERR": (lambda s: self.__err(msg[3:])),
-                    "TIMEOUT": (lambda s: self.__timeout(msg[7:])),
-                    "STATUS": (lambda s: self.__status(msg[6:])),
-            }
 
-            has_run = False
-            for c in commands:
-                if str.startswith(msg.lower(), c.lower()):
-                    try:
-                        print("CMD", msg)
-                        commands[c](msg[len(c):])
-                    except:
-                        raise
-                    finally:
-                        if c != "STATUS":
-                            # Trigger the sending system to send the next
-                            # message
-                            self.allow_next_message(),
-                    has_run = True
-                    break
-
-            if not has_run:
-                print("Unknown command ", msg)
+            if str.startswith(msg.lower(), "STATUS"):
+                __status(msg[len("STATUS"):])
+            else:
+                self.last_result = msg
+                self.allow_next_message(),
         else:
             print("RAW: \"{}\"".format(msg))
-
-    def __ack(self, msg):
-        # The `2:` hack works because the ID is single letter!
-        self.get_node(msg)._ack(msg[2:])
-
-    def __err(self, msg):
-        self.err()
-
-    @asyncio.coroutine
-    def __timeout(self, msg):
-        node = self.get_node(msg)
-        self.timeoutstrategy.timeout(self, node)
 
     def __status(self, msg):
         # The `2:` hack works because the ID is single letter!
