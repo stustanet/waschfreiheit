@@ -12,12 +12,21 @@
 #include <stdlib.h>
 #include "utils.h"
 
+/*
+ * The config data as stored in the flash.
+ * This contains a magic number, if the config is read and the magic number does not match,
+ * the node is unconfigured.
+ */
 typedef struct
 {
 	uint32_t magic;
 	sensor_configuration_t data;
 } config_with_magic_t;
 
+/*
+ * The data needs to be padded so that is fills an entire flash page.
+ * Otherwise i can't write the flash because the write funtion expects full pages.
+ */
 typedef struct
 {
 	config_with_magic_t cfg;

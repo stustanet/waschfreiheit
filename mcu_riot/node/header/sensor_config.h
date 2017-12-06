@@ -15,5 +15,14 @@ typedef struct
 	
 } sensor_configuration_t;
 
+/*
+ * Gets the current configuration of this node.
+ * If the node is not yet configured, NULL is returned.
+ */
 const sensor_configuration_t *sensor_config_get(void);
+
+/*
+ * Command function for an interactive command to set the config.
+ * Add this as the "config" command to the serial console.
+ */
 int sensor_config_set_cmd(int argc, char **argv);
