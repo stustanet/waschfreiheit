@@ -438,7 +438,7 @@ uint64_t meshnw_get_random(void)
 {
 	uint64_t rand = 0;
 
-	for (uint8_t i = 0; i < 12; i++)
+	for (uint8_t i = 0; i < 16; i++)
 	{
 		uint32_t rnd = get_random_checked();
 		rand = (rand << 2) + rnd;
