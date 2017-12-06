@@ -90,10 +90,16 @@ int sensor_connection_enable_sensors(sensor_connection_t *con, uint16_t mask, ui
 int sensor_connection_authping(sensor_connection_t *con);
 
 /*
- * Reuests raw data from the sensor.
+ * Request raw data from the sensor.
  * Raw data is printed on the console (Prefix: *** followed by comma seperated values (16bit, hex encoded))
  */
 int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, uint16_t num_frames);
+
+/*
+ * Request raw status information from a node.
+ * The result is sent in a spearate message. IF status data arrives, this is printed to the console.
+ */
+int sensor_connection_get_raw_status(sensor_connection_t *con);
 
 /*
  * Gets the current status.

@@ -117,11 +117,23 @@ typedef struct
 
 
 /*
+ * Requests the raw status values from a sensor.
+ * This is intended for debug only as the result
+ * is sent unauthenticated.
+ */
+#define MSG_TYPE_GET_RAW_STATUS                   9
+typedef struct
+{
+	msg_type_t type;
+} __attribute__((packed)) msg_get_raw_status_t;
+
+
+/*
  * No operation, this is used by the master to check if a node is still alive
  * NOTE: Unlike the echo request, this packet is sent trough the authenticated channel,
  *       so that no one can fake the reply.
  */
-#define MSG_TYPE_NOP                        9
+#define MSG_TYPE_NOP                        10
 typedef struct
 {
 	msg_type_t type;
@@ -131,7 +143,7 @@ typedef struct
 /*
  * Status update message sent by the node through the status channel to the master.
  */
-#define MSG_TYPE_STATUS_UPDATE             10
+#define MSG_TYPE_STATUS_UPDATE             11
 typedef struct
 {
 	msg_type_t type;
@@ -170,6 +182,32 @@ typedef struct
 	uint16_t values[0];
 } __attribute__((packed)) msg_raw_frame_data_t;
 
+/*
+ * Packet containing raw status information
+ */
+#define MSG_TYPE_RAW_STATUS               131
+typedef struct
+{
+	msg_type_t type;
+
+	// Global data
+	uint32_t node_status;
+	uint32_t sensor_loop_delay;
+	uint32_t retransmission_counter;
+	uint32_t uptime;
+	uint16_t channel_status;
+	uint16_t channel_enabled;
+	uint8_t rt_base_delay;
+
+	struct
+	{
+		uint16_t if_current;
+		uint16_t rf_current;
+		uint8_t current_status;
+	} __attribute__((packed)) channels[0];
+
+} __attribute__((packed)) msg_raw_status_t;
+
 typedef union
 {
 	msg_type_t type;
@@ -180,10 +218,13 @@ typedef union
 	msg_configure_sensor_t scfg;
 	msg_start_sensor_t ssta;
 	msg_begin_send_raw_frames_t srf;
+	msg_get_raw_status_t grs;
 	msg_nop_t nop;
 	msg_status_update_t su;
 	msg_echo_request_t echo_rq;
 	msg_echo_reply_t echo_rp;
 	msg_raw_frame_data_t frames;
+	msg_raw_status_t rs;
+
 
 } __attribute__((packed)) msg_union_t;

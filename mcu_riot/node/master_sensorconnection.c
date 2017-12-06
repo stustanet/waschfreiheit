@@ -216,7 +216,7 @@ static void handle_status_update(sensor_connection_t *con, uint8_t *message, uin
 
 /*
  * -- Un-authenticated data --
- *  Processes a raw data sent be the sensor.
+ *  Processes raw sensor data sent be the sensor.
  */
 static void handle_raw_frames(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
@@ -231,10 +231,43 @@ static void handle_raw_frames(sensor_connection_t *con, uint8_t *message, uint8_
 	}
 
 	printf("RAW%u-%u\n", con->node_id, count);
-	for (uint8_t i = 1; i < count; i++)
+	for (uint8_t i = 0; i < count; i++)
 	{
 		// Need to be carefull about the alignment
 		printf("*%u\n", u16_from_unaligned(&raw->values[i]));
+	}
+}
+
+
+/*
+ * -- Un-authenticated data --
+ *  Processes raw status data sent be the sensor.
+ */
+static void handle_raw_status(sensor_connection_t *con, uint8_t *message, uint8_t len)
+{
+	msg_raw_status_t *raw = (msg_raw_status_t *)message;
+
+	// Number of channels is defined by the message size
+	uint8_t channels = (len - sizeof(*raw)) / sizeof(raw->channels[0]);
+
+	// print global data
+	printf("Raw status data for node %u\n", con->node_id);
+	printf("  Node status:      %08lX\n", u32_from_unaligned(&raw->node_status));
+	printf("  Channel status:       %04X\n", u16_from_unaligned(&raw->channel_status));
+	printf("  Status at master:     %04X\n", con->current_status);
+	printf("  Channel enabled:      %04X\n", u16_from_unaligned(&raw->channel_enabled));
+	printf("  Retransmissions:  %8lu\n", u32_from_unaligned(&raw->retransmission_counter));
+	printf("  Uptime:           %8lu\n", u32_from_unaligned(&raw->uptime));
+	printf("  ADC loop delay:   %8lu\n", u32_from_unaligned(&raw->sensor_loop_delay));
+	printf("  RT delay:         %8u\n", raw->rt_base_delay);
+
+	for (uint8_t i = 0; i < channels; i++)
+	{
+		printf("  Channel %u\n", i);
+		printf("    Input:    %5u\n", u16_from_unaligned(&raw->channels[i].if_current));
+		// Print this scaled to 15 bit to avoid confusion (state values are also 15 bit)
+		printf("    Filtered: %5u\n", u16_from_unaligned(&raw->channels[i].rf_current) >> 1);
+		printf("    Status:   %5u\n", raw->channels[i].current_status);
 	}
 }
 
@@ -433,6 +466,10 @@ void sensor_connection_handle_packet(sensor_connection_t *con, uint8_t *data, ui
 
 		case MSG_TYPE_RAW_FRAME_VALUES:
 			handle_raw_frames(con, data, len);
+			break;
+
+		case MSG_TYPE_RAW_STATUS:
+			handle_raw_status(con, data, len);
 			break;
 		default:
 			printf("Got message with unexpected code %u from %u\n", msg->type, con->node_id);
@@ -723,6 +760,31 @@ int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, ui
 	if (res != 0)
 	{
 		printf("Failed to sign raw frames request for node %u with error %i\n", con->node_id, res);
+		return 1;
+	}
+
+	return 0;
+}
+
+
+int sensor_connection_get_raw_status(sensor_connection_t *con)
+{
+	if (con->ack_outstanding)
+	{
+		printf("Can't send raw status request, channel still busy for node %u\n", con->node_id);
+		return -EBUSY;
+	}
+
+	msg_get_raw_status_t *rsmsg = (msg_get_raw_status_t *)con->last_sent_message;
+
+	rsmsg->type = MSG_TYPE_GET_RAW_STATUS;
+
+	// sign and send
+	int res = sign_and_send_msg(con, sizeof(*rsmsg));
+
+	if (res != 0)
+	{
+		printf("Failed to sign raw status request for node %u with error %i\n", con->node_id, res);
 		return 1;
 	}
 

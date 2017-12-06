@@ -402,6 +402,46 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 
 
 /*
+ * raw_status <node_id>
+ *   Gets the raw status of the node including sensor and stateestimation values
+ *   This command works in a similar way as raw_frames, meaning that the actual
+ *   requested data is sent independent of the command without auth.
+ */
+int master_node_cmd_raw_status(int argc, char **argv)
+{
+	if (argc != 2)
+	{
+		puts("USAGE: raw_status <NODE>\n");
+		puts("NODE      Address of the destination node");
+		return 1;
+	}
+
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
+	if (dst == MESHNW_INVALID_NODE)
+	{
+		return 1;
+	}
+
+	sensor_connection_t *con = find_node(dst);
+	if (!con)
+	{
+		puts("Not connected!");
+		puts("###ERR");
+		return 1;
+	}
+
+	int res = sensor_connection_get_raw_status(con);
+	if (res != 0)
+	{
+		printf("Send raw status request to node %u failed with error %i\n", dst, res);
+		puts("###ERR");
+		return 1;
+	}
+	return 0;
+}
+
+
+/*
  * authping <node_id>
  *   Check if connected node is still alive
  */
