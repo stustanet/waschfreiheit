@@ -5,6 +5,7 @@
 #include "sensor_node.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <xtimer.h>
 #include <thread.h>
 #include <periph/pm.h>
@@ -70,6 +71,9 @@
 // Sensors have been started
 #define STATUS_SENSORS_ACTIVE     32
 
+// Serial debugging active (raw data dump)
+#define STATUS_SERIALDEBUG        64
+
 /*
  * This struct contains all the runtime-data for the node logic
  */
@@ -108,6 +112,12 @@ struct
 	 * Current value of the random number generator for backoff times.
 	 */
 	uint32_t random_current;
+
+	/*
+	 * Delay value for the raw mode.
+	 * Set this to 0 for normal operation.
+	 */
+	uint32_t debug_raw_mode_delay_us;
 
 	/*
 	 * The bits specify the active / enabled sensor channels.
@@ -999,6 +1009,14 @@ static void *adc_thread(void *arg)
 		// Loop over all channels
 		for (uint8_t adc = 0; adc < NUM_OF_SENSORS; adc++)
 		{
+			if (ctx.debug_raw_mode_delay_us != 0)
+			{
+				// raw mode: print data for all channels
+				uint16_t val = adc_sample(adc, ADC_RES_12BIT);
+				printf("*%u=%u ", adc, val);
+				continue;
+			}
+
 			if ((ctx.active_sensor_channels & (1 << adc)) == 0)
 			{
 				// this channel is not enabled
@@ -1063,7 +1081,18 @@ static void *adc_thread(void *arg)
 		}
 
 		// Wait for next cycle
-        xtimer_periodic_wakeup(&last, ctx.sensor_loop_delay_us);
+		if (ctx.debug_raw_mode_delay_us != 0)
+		{
+			// Line feed at end of row
+			puts("");
+			// Use raw mode delay
+			xtimer_periodic_wakeup(&last, ctx.debug_raw_mode_delay_us);
+		}
+		else
+		{
+			// Use normal delay
+			xtimer_periodic_wakeup(&last, ctx.sensor_loop_delay_us);
+		}
     }
 
 	return NULL;
@@ -1394,6 +1423,35 @@ int sensor_node_init(void)
 	
 	ctx.status |= STATUS_INIT_CPLT;
 
+	return 0;
+}
+
+
+int sensor_node_cmd_raw(int argc, char **argv)
+{
+	if (argc != 2)
+	{
+		puts("USAGE: raw <delay>");
+		puts("       Enables / disables raw value printing on the serial terminal.");
+		puts("       Raw values for all channels are printed every <delay> us.");
+		puts("       Set <delay> to zero to disbale raw mode.");
+		puts("       While the node is in raw mode all status updates are disabled.");
+		puts("       NOTE: If the delay is too small the data can't be processed fast");
+		puts("             enough and the serial terminal gets stuck.");
+		return 1;
+	}
+
+	ctx.debug_raw_mode_delay_us = strtoul(argv[1], NULL, 10);
+	if (ctx.debug_raw_mode_delay_us != 0)
+	{
+		ctx.status |= STATUS_SERIALDEBUG;
+		printf("Enter raw mode with delay: %lu\n", ctx.debug_raw_mode_delay_us);
+	}
+	else
+	{
+		ctx.status &= ~STATUS_SERIALDEBUG;
+		puts("Raw mode disabled");
+	}
 	return 0;
 }
 

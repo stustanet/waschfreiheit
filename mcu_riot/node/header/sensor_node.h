@@ -15,3 +15,8 @@
  * This starts the thread for ADC measuring and initializes the mesh network
  */
 int sensor_node_init(void);
+
+/*
+ * Test command to read / print raw adc values
+ */
+int sensor_node_cmd_raw(int argc, char **argv);
