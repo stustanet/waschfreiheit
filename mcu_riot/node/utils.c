@@ -94,3 +94,19 @@ nodeid_t utils_parse_nodeid(const char *str, nodeid_t min)
 
 	return (nodeid_t)l;
 }
+
+void u32_to_unaligned(uint32_t *dst, uint32_t src)
+{
+	(*((uint8_t *)dst)) = (uint8_t)src;
+	(*(((uint8_t *)dst) + 1)) = (uint8_t)(src >>  8);
+	(*(((uint8_t *)dst) + 2)) = (uint8_t)(src >> 16);
+	(*(((uint8_t *)dst) + 3)) = (uint8_t)(src >> 24);
+}
+
+uint32_t u32_from_unaligned(const uint32_t *src)
+{
+	return (*((uint8_t *)src)) +
+		((*(((uint8_t *)src) + 1)) <<  8) +
+		((*(((uint8_t *)src) + 2)) << 16) +
+		((*(((uint8_t *)src) + 3)) << 24);
+}

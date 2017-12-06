@@ -152,7 +152,7 @@ struct state_estimation_data
 
 		/*
 		 * The current sum of all values that passed the threshold/block filter in the window
-		 * Scale 15 bit
+		 * window_sum / current_window_size is the current avgerage scaled to 15 bit
 		 */
 		uint32_t window_sum;
 
@@ -197,3 +197,9 @@ state_update_result_t stateest_update(state_estimation_data_t *data, uint16_t ra
  * otherwise 0xffffffff is returned.
  */
 uint32_t stateest_get_frame(const state_estimation_data_t *data);
+
+/*
+ * Gets the current reject filter value.
+ * This is the value used as condition for the state transitions.
+ */
+int16_t stateest_get_current_rf_value(const state_estimation_data_t *data);

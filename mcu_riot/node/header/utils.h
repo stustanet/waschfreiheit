@@ -56,6 +56,8 @@ int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop);
  */
 nodeid_t utils_parse_nodeid(const char *str, nodeid_t min);
 
+
+// Helper functions for unaligned access to 16 and 32 bit numbers
 inline void u16_to_unaligned(uint16_t *dst, uint16_t src)
 {
 	(*((uint8_t *)dst)) = (uint8_t)src;
@@ -66,3 +68,7 @@ inline uint16_t u16_from_unaligned(const uint16_t *src)
 {
 	return (*((uint8_t *)src)) + ((*(((uint8_t *)src) + 1)) << 8);
 }
+
+
+void u32_to_unaligned(uint32_t *dst, uint32_t src);
+uint32_t u32_from_unaligned(const uint32_t *src);

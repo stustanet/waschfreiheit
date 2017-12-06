@@ -199,7 +199,7 @@ static void do_state_transition(state_estimation_data_t *data)
 	 */
 	uint8_t row_offset = data->state_filter.current_state * (SE_STATECOUNT - 1);
 
-	int16_t average = data->state_filter.window_sum / calc_current_window_used(data);
+	int16_t average = stateest_get_current_rf_value(data);
 
 	ASSERT(average >= 0);
 	
@@ -369,4 +369,11 @@ uint32_t stateest_get_frame(const state_estimation_data_t *data)
 	{
 		return 0xffffffff;
 	}
+}
+
+
+int16_t stateest_get_current_rf_value(const state_estimation_data_t *data)
+{
+	ASSERT(data->state_filter.current_state < SE_STATECOUNT);
+	return data->state_filter.window_sum / calc_current_window_used(data);
 }

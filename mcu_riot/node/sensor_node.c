@@ -132,6 +132,12 @@ struct
 	uint8_t debug_raw_frame_channel;
 
 	/*
+	 * Set to base_delay when the raw status has been requested by the master.
+	 * The status is sent in the message thread. (this is also reset there)
+	 */
+	uint8_t debug_raw_status_requested;
+
+	/*
 	 * Set to nonzero if a valid ack message was receiced on the status channel,
 	 * Reset to 0 again when a new status message is sent.
 	 */
@@ -824,7 +830,7 @@ static void handle_raw_value_request(nodeid_t src, void *data, uint8_t len)
 	if (msglen != sizeof(*rf_msg))
 	{
 		// Wrong size
-		printf("Received rew value request message with wrong size %lu\n", msglen);
+		printf("Received raw value request message with wrong size %lu\n", msglen);
 		send_ack(1);
 		return;
 	}
@@ -832,6 +838,27 @@ static void handle_raw_value_request(nodeid_t src, void *data, uint8_t len)
 	// set values in ctx
 	ctx.debug_raw_frame_channel = rf_msg->channel;
 	ctx.debug_raw_frame_transmission_counter = u16_from_unaligned(&rf_msg->num_of_frames);
+
+	// finally ack it
+	send_ack(0);
+}
+
+
+/*
+ * -- Config channel --
+ * Proceses a raw status (debug) request.
+ */
+static void handle_raw_status_request(nodeid_t src, void *data, uint8_t len)
+{
+	uint32_t msglen = len;
+	if (check_auth_message(src, data, &msglen) != 0)
+	{
+		// something is wrong with the auth, can't proceed
+		return;
+	}
+
+	// The status message is sent later by the message thread.
+	ctx.debug_raw_status_requested = ctx.status_retransmission_base_delay + 1;
 
 	// finally ack it
 	send_ack(0);
@@ -925,6 +952,9 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 			break;
 		case MSG_TYPE_BEGIN_SEND_RAW_FRAMES:
 			handle_raw_value_request(id, data, len);
+			break;
+		case MSG_TYPE_GET_RAW_STATUS:
+			handle_raw_status_request(id, data, len);
 			break;
 		case MSG_TYPE_NOP:
 			handle_nop_request(id, data, len);
@@ -1102,6 +1132,46 @@ static void send_status_update_message(uint16_t status)
 
 
 /*
+ * Sends a message containing the raw status of the node.
+ */
+void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
+{
+	msg_raw_status_t *rs;
+
+	// Buffer for the message
+	uint8_t out_buffer[(sizeof(*rs) + sizeof(rs->channels[0]) * NUM_OF_SENSORS)];
+	_Static_assert(MESHNW_MAX_PACKET_SIZE > sizeof(out_buffer), "Too much sensors to fit into one message");
+
+	rs = (msg_raw_status_t *)out_buffer;
+
+	rs->type = MSG_TYPE_RAW_STATUS;
+
+	u32_to_unaligned(&rs->node_status, ctx.status);
+	u32_to_unaligned(&rs->sensor_loop_delay, ctx.sensor_loop_delay_us);
+	u32_to_unaligned(&rs->retransmission_counter, rt_counter);
+	u32_to_unaligned(&rs->uptime, uptime);
+	u16_to_unaligned(&rs->channel_status, ctx.current_sensor_status);
+	u16_to_unaligned(&rs->channel_enabled, ctx.active_sensor_channels);
+	rs->rt_base_delay = ctx.status_retransmission_base_delay;
+
+	// now append channel data
+	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	{
+		// I read the values directly from the se context.
+		u16_to_unaligned(&rs->channels[i].if_current, ctx.sensors[i].input_filter.current >> 2);
+		u16_to_unaligned(&rs->channels[i].rf_current, stateest_get_current_rf_value(&ctx.sensors[i]));
+		rs->channels[i].current_status = ctx.sensors[i].state_filter.current_state;
+	}
+
+	int res = meshnw_send(ctx.master_node, out_buffer, sizeof(out_buffer));
+	if (res != 0)
+	{
+		printf("sending raw status failed with error %i\n", res);
+	}
+}
+
+
+/*
  * This is the message thread.
  * It handles the status channel and the timeouts, this includes:
  *   - Buidling of the status channel
@@ -1135,12 +1205,16 @@ static void *message_thread(void *arg)
 	 */
 	uint32_t retransmission_timer = 0;
 
+	uint32_t total_retransmissions = 0;
+	uint32_t total_ticks = 0;
+
 
     xtimer_ticks32_t last = xtimer_now();
 
 	while(1)
 	{
         xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY_US);
+		total_ticks++;
 
 		/*
 		 * Increment timeout timer for config messages.
@@ -1154,6 +1228,16 @@ static void *message_thread(void *arg)
 			pm_reboot();
 		}
 
+
+		if (ctx.debug_raw_status_requested)
+		{
+			ctx.debug_raw_status_requested--;
+
+			if (ctx.debug_raw_status_requested == 0)
+			{
+				send_raw_status_message(total_retransmissions, total_ticks);
+			}
+		}
 
 		if ((ctx.status & STATUS_INIT_AUTH_STA) == 0)
 		{
@@ -1172,6 +1256,7 @@ static void *message_thread(void *arg)
 					// calculate / update rt timer / counter
 					retransmission_timer = calculate_retransmission_delay(retransmission_counter);
 					retransmission_counter++;
+					total_retransmissions++;
 				}
 			}
 
@@ -1211,6 +1296,7 @@ static void *message_thread(void *arg)
 			{
 				// Timer is 0 -> send now
 				send_update_message = 1;
+				total_retransmissions++;
 			}
 		}
 		else if ((current_status & ctx.active_sensor_channels) != (last_sent_sensor_status & ctx.active_sensor_channels))
