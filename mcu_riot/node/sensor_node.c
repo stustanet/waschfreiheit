@@ -41,15 +41,12 @@
 
 
 /*
- * Delay for status retransmissions.
+ * Max random delay for status retransmissions.
  * Actual retransmission delay is
- * (CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER) + base delay + random
+ * base delay + random((RETRANSMISSION_DELAY_RANDOM_FACTOR * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER)
  */
-#define CON_RETRANSMISSION_LINEAR_BACKOFF      10
+#define RETRANSMISSION_DELAY_RANDOM_FACTOR     10
 #define RETRANSMISSION_LINEAR_BACKOFF_DIVIDER   3
-
-// Max random wait in retransmission timer in sec
-#define RETRANSMISSION_DELAY_RANDOM_FACTOR 10
 
 // Bits in the status field
 // Basic initialization complete, node is now active and can process messages
@@ -214,11 +211,11 @@ static kernel_pid_t message_thd_pid;
  * Returns a random number between 0 and RETRANSMISSION_DELAY_RANDOM_FACTOR
  * Every time this function is called a new random value is generated.
  */
-static uint32_t get_random_delay(void)
+static uint32_t get_random_delay(uint32_t max)
 {
 	// make next rand
 	ctx.random_current = ctx.random_current * 1103515245 + 12345;
-	return ctx.random_current % RETRANSMISSION_DELAY_RANDOM_FACTOR;
+	return ctx.random_current % max;
 }
 
 /*
@@ -228,9 +225,8 @@ static uint32_t get_random_delay(void)
  */
 static uint32_t calculate_retransmission_delay(uint32_t rt_counter)
 {
-	return CON_RETRANSMISSION_LINEAR_BACKOFF * (1 + rt_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER)
-			+ ctx.status_retransmission_base_delay
-			+ get_random_delay();
+	return get_random_delay(RETRANSMISSION_DELAY_RANDOM_FACTOR * (1 + rt_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER))
+			+ ctx.status_retransmission_base_delay;
 }
 
 
