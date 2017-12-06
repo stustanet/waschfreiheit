@@ -20,6 +20,7 @@ bottom_backwall = 1;
 bottom_outerwall = 2;
 bottom_frontwall = 3;
 
+top_heightcorrection = 0.9;
 top_outerwall = 3;
 
 wall_hole_positions = [
@@ -196,9 +197,8 @@ module top() {
         translate([-top_outerwall - bottom_outerwall, -top_outerwall, -top_outerwall - 0.2])
         cube([pcbsize[0] + frontyard[0] + bottom_frontwall + bottom_outerwall + top_outerwall * 1, 
             pcbsize[1] + bottom_outerwall * 2 + top_outerwall * 2,
-            pcbsize[2] + bottom_backwall + top_outerwall * 2 + 0.2
+            pcbsize[2] + bottom_backwall + top_outerwall * 2 + top_heightcorrection
         ]);
-
 
         translate([hook_size, hook_size, -5])
         cube([pcbsize[0] + frontyard[0] + bottom_frontwall + bottom_outerwall + top_outerwall * 1 - hook_size * 2, 
@@ -207,15 +207,17 @@ module top() {
         ]);
 
         ssnscale = 0.15;
-        translate([85, 7, pcbsize[2] + bottom_backwall + top_outerwall - 0.3])
+        translate([85,
+            7,
+            pcbsize[2] + bottom_backwall + top_outerwall + top_heightcorrection - 0.5])
         rotate([0, 0, 180])
         scale([ssnscale, ssnscale, 1])
-        stustanet_logo(0.3);
+        stustanet_logo(0.5);
         
         translate([-bottom_outerwall, 0, 0])
         cube([pcbsize[0] + frontyard[0] + bottom_frontwall + bottom_outerwall, 
             pcbsize[1] + bottom_outerwall * 2,
-            pcbsize[2] + bottom_backwall
+            pcbsize[2] + bottom_backwall + + top_heightcorrection
         ]);
         scale([1,1,3])
         translate([0,0,-1.5])
@@ -237,7 +239,11 @@ module top() {
     
     }
     
-    translate([0, bottom_outerwall, bottom_backwall] + [pcbsize[0], 44, 14 + standheight] + [23, 1, 2] + [6, 0, 3])
+    // The nose
+    translate([0,          bottom_outerwall, bottom_backwall] 
+            + [pcbsize[0], 44,               14 + standheight]
+            + [23,         1,                2] 
+            + [6,          0,                3 + top_heightcorrection])
     cube([bottom_outerwall, 5, 3 + 3]);
 }
 
@@ -246,5 +252,5 @@ module top() {
 //sensorplug();
 //audioplug();
 
-//top();
-bottom();
+top();
+//bottom();
