@@ -16,28 +16,69 @@
 #define MESHNW_MSG_QUEUE   (16U)
 #define NETDEV_ISR_EVENT_MESSAGE   (0x3456)
 
-
+/*
+ * The structure definition of a layer 3 packet.
+ * The lower layers are handled by the RF hardware, the higher layers by the callbacks.
+ */
 typedef struct
 {
+	/*
+	 * Address of the next hop for this packet.
+	 * This node will discard any packet that is NOT adressed to it. (even if the destination address matches)
+	 */
 	nodeid_t next_hop;
+
+	/*
+	 * Destination address of this packet.
+	 * If a packet arrives (with correct next_hop), the destination is checked.
+	 * If the destination is this node, the callback is called.
+	 * Otherwise the packet is send again with the next hop as specified in the routing table.
+	 */
 	nodeid_t dst;
+
+	/*
+	 * The (original)  source addres of the packet.
+	 */
 	nodeid_t src;
 } layer3_packet_header_t;
 
 
+/*
+ * The max OTA packet size (Max size of packet to send)
+ * is the maximum packet size plus the header size.
+ */
 #define MESHNW_MAX_OTA_PACKET_SIZE (MESHNW_MAX_PACKET_SIZE + sizeof(layer3_packet_header_t))
 
 
+/*
+ * This struct bundles all globals to make it a bit less ugly.
+ */
 typedef struct
 {
+	// Stuff for receiving thread.
 	char recv_thd_stack[2048];
 	kernel_pid_t recv_thd_pid;
+
+	// This callback is called when a message is received.
 	mesh_nw_message_cb_t recv_callback;
+
+	// Netdev abstraction for the rf module
 	netdev_t *netdev;
+
+	// Direct instance of the rf module driver
 	sx127x_t sx127x;
+
+	// The id of this node
 	nodeid_t my_node_id;
+
+	// Routing table
 	uint8_t routing_table[MESHNW_MAX_NODEID + 1];
+
+	// Buffer for receiving packets
 	uint8_t recv_buffer[MESHNW_MAX_OTA_PACKET_SIZE];
+
+	// If this is zero, incoming packets with destination addres unqual to my address are dropped.
+	// Otherwise they are forwarded  according to the routing table.
 	uint8_t enable_forwarding;
 } meshnw_context_data_t;
 
@@ -64,17 +105,17 @@ static int forward_packet(void *packet, uint8_t len)
 {
 	layer3_packet_header_t *hdr = (layer3_packet_header_t *)packet;
 
-	// get route
+	// Get the next route and set it as next_hop
 	hdr->next_hop = get_route(hdr->dst);
 
 	if (hdr->next_hop > MESHNW_MAX_NODEID)
 	{
-		// no route found
+		// no route found -> drop packet
 		printf("Can't forward packet, no route to %u!\n", hdr->dst);
 		return -ENOENT;
 	}
 
-	// send packet, next_hop specifies the receiver
+	// Send packet, next_hop specifies the receiver
 	struct iovec vec[1];
 	vec[0].iov_base = packet;
 	vec[0].iov_len = len;
@@ -117,8 +158,11 @@ static void handle_rx_cplt(void)
 
 	size_t len;
 	netdev_sx127x_lora_packet_info_t packet_info;
+
+	// First get packet length
 	len = dev->driver->recv(dev, NULL, 0, 0);
 
+	// Check if length is in bounds
 	if (len < sizeof(layer3_packet_header_t) + 1 || len > sizeof(context.recv_buffer))
 	{
 		// I (invalid) => discard
@@ -127,6 +171,7 @@ static void handle_rx_cplt(void)
 		return;
 	}
 
+	// Now read whole packet into receive buffer
 	dev->driver->recv(dev, context.recv_buffer, len, &packet_info);
 	printf("{Payload: \"%s\" (%d bytes), RSSI: %i, SNR: %i, TOA: %i}\n",
 		   context.recv_buffer, (int)len,
@@ -134,7 +179,7 @@ static void handle_rx_cplt(void)
 		   (int)packet_info.time_on_air);
 
 
-
+	// Check the packet header
 	layer3_packet_header_t *hdr = (layer3_packet_header_t *)context.recv_buffer;
 
 	if (hdr->next_hop != context.my_node_id)
@@ -183,7 +228,7 @@ static void event_cb(netdev_t *dev, netdev_event_t event)
 
 		if (msg_send(&msg, context.recv_thd_pid) <= 0)
 		{
-			puts("gnrc_netdev: possibly lost interrupt.");
+			puts("Failed to signal thread from interrupt context.");
 		}
 	}
 	else
@@ -393,7 +438,7 @@ uint64_t meshnw_get_random(void)
 {
 	uint64_t rand = 0;
 
-	for (uint8_t i = 0; i < 8; i++)
+	for (uint8_t i = 0; i < 12; i++)
 	{
 		uint32_t rnd = get_random_checked();
 		rand = (rand << 2) + rnd;
