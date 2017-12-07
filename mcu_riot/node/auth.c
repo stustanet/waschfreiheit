@@ -159,6 +159,7 @@ int auth_master_make_handshake(auth_context_t *ctx, void *data, uint32_t offset,
 	}
 
 	ctx->status |= AUTH_HANDSHAKE_PEND;
+	ctx->status &=~ AUTH_HANDSHAKE_CPLT;
 
 	if (*result_len < sizeof(ctx->nonce) + offset)
 	{
