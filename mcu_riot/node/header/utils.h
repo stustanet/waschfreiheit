@@ -72,3 +72,20 @@ inline uint16_t u16_from_unaligned(const uint16_t *src)
 
 void u32_to_unaligned(uint32_t *dst, uint32_t src);
 uint32_t u32_from_unaligned(const uint32_t *src);
+
+/*
+ * Returns nonzero if the <bit_num> bit is set in the buffer <buf>
+ */
+static inline uint8_t utils_bit_is_set(uint8_t *buf, uint32_t bit_num)
+{
+	return buf[bit_num >> 3] & (0x80 >> (bit_num & 0x07));
+}
+
+
+/*
+ * Sets the <bit_num> bit in <buf> to 1.
+ */
+static inline void utils_set_bit(uint8_t *buf, uint32_t bit_num)
+{
+	buf[bit_num >> 3] |= (0x80 >> (bit_num & 0x07));
+}

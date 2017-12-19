@@ -17,6 +17,7 @@
 #include "auth.h"
 #include "messagetypes.h"
 #include "utils.h"
+#include "led_ws2801.h"
 
 /*
  * The max number of sensors channels.
@@ -27,6 +28,10 @@
  * limits the max number of channels.
  */
 #define NUM_OF_SENSORS 2
+
+// GPIO B, Pin 10 and 11
+#define WS2801_GPIO_DATA GPIO_PIN(PORT_B, 10)
+#define WS2801_GPIO_CLK GPIO_PIN(PORT_B, 11)
 
 /*
  * Max number of retransmissions before the node declares the network dead and reboots.
@@ -174,6 +179,33 @@ struct
 	nodeid_t master_node;
 	
 } ctx;
+
+
+/*
+ * This is the color map for the leds.
+ * It maps the three-bit codes of the led config message
+ * to RGB values for the LEDs.
+ *
+ * This has to be exactly 16 elements long
+ */
+static const rgb_data_t ColorMap[] = {
+	{   0,   0,   0 },
+	{ 255,   0,   0 },
+	{   0, 255,   0 },
+	{ 255, 255,   0 },
+	{   0,   0, 255 },
+	{ 255,   0, 255 },
+	{   0, 255, 255 },
+	{ 255, 255, 255 },
+	{   0,   0,   0 },
+	{  32,   0,   0 },
+	{   0,  32,   0 },
+	{  32,  32,   0 },
+	{   0,   0,  32 },
+	{  32,   0,  32 },
+	{   0,  32,  32 },
+	{  32,  32,  32 }
+};
 
 // Stuff for the threads
 static char adc_thd_stack[512 * 3];
@@ -891,6 +923,54 @@ static void handle_nop_request(nodeid_t src, void *data, uint8_t len)
 
 
 /*
+ * -- Config channel --
+ * Proceses a LED request.
+ */
+static void handle_led_request(nodeid_t src, void *data, uint8_t len)
+{
+	uint32_t msglen = len;
+	if (check_auth_message(src, data, &msglen) != 0)
+	{
+		// something is wrong with the auth, can't proceed
+		return;
+	}
+
+	msg_led_t *led_msg = (msg_led_t *)data;
+
+	uint8_t num_led = ((msglen - sizeof(*led_msg)) * 2);
+	rgb_data_t rgb_buffer[8];
+
+	if (num_led > sizeof(rgb_buffer) / sizeof(rgb_buffer[0]))
+	{
+		num_led = sizeof(rgb_buffer) / sizeof(rgb_buffer[0]);
+	}
+
+	_Static_assert(sizeof(ColorMap) / sizeof(ColorMap[0]) == 16, "Wrong ColorMap size");
+
+	for (uint8_t i = 0; i < num_led; i++)
+	{
+		uint8_t color = 0;
+		if (i & 1)
+		{
+			// odd -> use second nibble
+			color = led_msg->data[i >> 1] & 0x0f;
+		}
+		else
+		{
+			// even -> use first nibble
+			color = led_msg->data[i >> 1] >> 4;
+		}
+
+		rgb_buffer[i] = ColorMap[color];
+	}
+
+	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, rgb_buffer, num_led);
+
+	send_ack(0);
+}
+
+
+/*
  * -- Generic --
  * Proceses a echo request.
  */
@@ -964,6 +1044,9 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 			break;
 		case MSG_TYPE_NOP:
 			handle_nop_request(id, data, len);
+			break;
+		case MSG_TYPE_LED:
+			handle_led_request(id, data, len);
 			break;
 		case MSG_TYPE_ECHO_REQUEST:
 			handle_echo_request(id, data, len);
@@ -1362,7 +1445,7 @@ static void *message_thread(void *arg)
  */
 int sensor_node_init(void)
 {
-	// BEgin with only zeros
+	// Begin with only zeros
 	memset(&ctx, 0, sizeof(ctx));
 
 	// Get config
@@ -1373,6 +1456,10 @@ int sensor_node_init(void)
 	}
 
 	ctx.current_node = cfg->my_id;
+
+	// GPIOs for LEDs
+	gpio_init(WS2801_GPIO_CLK, GPIO_OUT);
+	gpio_init(WS2801_GPIO_DATA, GPIO_OUT);
 
 	// Need to init RF network before crypto because i need random numbers for crypto init
 	meshnw_init(cfg->my_id, &mesh_message_received);
@@ -1452,6 +1539,41 @@ int sensor_node_cmd_raw(int argc, char **argv)
 		ctx.status &= ~STATUS_SERIALDEBUG;
 		puts("Raw mode disabled");
 	}
+	return 0;
+}
+
+
+int sensor_node_cmd_led(int argc, char **argv)
+{
+	rgb_data_t buffer[8];
+
+	if (argc < 2 || argc > 1 + (sizeof(buffer) / sizeof(buffer[0])))
+	{
+		puts("USAGE: led <r,g,b> ...");
+		puts("       Set the LED RGB colors");
+		puts("       Max 8 LEDs.");
+		return 1;
+	}
+
+	for (int i = 0; i < argc - 1; i++)
+	{
+		char *end;
+		buffer[i].r = strtoul(argv[i + 1], &end, 10);
+		if (!end[0])
+		{
+			puts("Invalid RGB!");
+			return 1;
+		}
+		buffer[i].g = strtoul(end + 1, &end, 10);
+		if (!end[0])
+		{
+			puts("Invalid RGB!");
+			return 1;
+		}
+		buffer[i].b = strtoul(end + 1, NULL, 10);
+	}
+
+	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, buffer, argc - 1);
 	return 0;
 }
 

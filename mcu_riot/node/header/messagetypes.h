@@ -141,6 +141,18 @@ typedef struct
 
 
 /*
+ * Sets the status LEDs an a node
+ * The color is encoded into 4 bits per LED and a color table.
+ */
+#define MSG_TYPE_LED                        11
+typedef struct
+{
+	msg_type_t type;
+	uint8_t data[0];
+} __attribute__((packed)) msg_led_t;
+
+
+/*
  * Status update message sent by the node through the status channel to the master.
  */
 #define MSG_TYPE_STATUS_UPDATE             11

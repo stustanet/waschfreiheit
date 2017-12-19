@@ -90,6 +90,11 @@ int sensor_connection_enable_sensors(sensor_connection_t *con, uint16_t mask, ui
 int sensor_connection_authping(sensor_connection_t *con);
 
 /*
+ * Sets the LEDs on a node
+ */
+int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds);
+
+/*
  * Request raw data from the sensor.
  * Raw data is printed on the console (Prefix: *** followed by comma seperated values (16bit, hex encoded))
  */
