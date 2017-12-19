@@ -738,6 +738,68 @@ int sensor_connection_authping(sensor_connection_t *con)
 }
 
 
+int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds)
+{
+	if (con->ack_outstanding)
+	{
+		printf("Can't send led request, channel still busy for node %u\n", con->node_id);
+		return -EBUSY;
+	}
+
+
+	msg_led_t *ledmsg = (msg_led_t *)con->last_sent_message;
+
+	uint8_t bytes = (num_leds - 1) / 2 + 1;
+	if (bytes + sizeof(*ledmsg) > sizeof(con->last_sent_message))
+	{
+		printf("Too many leds in LED request\n");
+		return -EINVAL;
+	}
+
+	ledmsg->type = MSG_TYPE_LED;
+
+	memset(ledmsg->data, 0, bytes);
+
+	for (int i = 0; i < num_leds; i++)
+	{
+		int v = atoi(leds[i]);
+
+		printf("Color of LED %i is %i\n", i, v);
+
+		if (i & 1)
+		{
+			// odd -> use second nibble
+			ledmsg->data[i >> 1] |= v & 0x0f;
+		}
+		else
+		{
+			// even -> use first nibble
+			ledmsg->data[i >> 1] |= (v & 0x0f) << 4;
+		}
+
+		printf("Value source for %i: %u\n", i, ledmsg->data[i >> 1]);
+	}
+
+	puts("Dump led request");
+	for (uint32_t i = 0; i < sizeof(*ledmsg) + bytes; i++)
+	{
+		printf("%02x", con->last_sent_message[i]);
+	}
+	puts("");
+
+	// sign and send
+	int res = sign_and_send_msg(con, sizeof(*ledmsg) + bytes);
+
+	if (res != 0)
+	{
+		printf("Failed to sign led request for node %u with error %i\n", con->node_id, res);
+		return 1;
+	}
+
+	return 0;
+}
+
+
 int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, uint16_t num_frames)
 {
 	if (con->ack_outstanding)

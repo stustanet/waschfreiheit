@@ -20,3 +20,9 @@ int sensor_node_init(void);
  * Test command to read / print raw adc values
  */
 int sensor_node_cmd_raw(int argc, char **argv);
+
+
+/*
+ * Test command for LED testing
+ */
+int sensor_node_cmd_led(int argc, char **argv);

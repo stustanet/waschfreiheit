@@ -479,6 +479,42 @@ int master_node_cmd_authping(int argc, char **argv)
 }
 
 
+int master_node_cmd_led(int argc, char **argv)
+{
+	if (argc < 3)
+	{
+		puts("USAGE: led <NODE> <LED1> ... <LEDn>.\n");
+		puts("NODE      Address of the destination node");
+		puts("LEDx      Color mode of the LED.");
+		puts("          See the color table of the node for details.");
+		return 1;
+	}
+
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
+	if (dst == MESHNW_INVALID_NODE)
+	{
+		return 1;
+	}
+
+	sensor_connection_t *con = find_node(dst);
+	if (!con)
+	{
+		puts("Not connected!");
+		puts("###ERR");
+		return 1;
+	}
+
+	int res = sensor_connection_led(con, argc - 2, argv + 2);
+	if (res != 0)
+	{
+		printf("Send led request to node %u failed with error %i\n", dst, res);
+		puts("###ERR");
+		return 1;
+	}
+	return 0;
+}
+
+
 static void *message_thread(void *arg)
 {
     xtimer_ticks32_t last = xtimer_now();

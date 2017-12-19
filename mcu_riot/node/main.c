@@ -127,6 +127,7 @@ static const shell_command_t shell_commands[] = {
     { "raw_status",    "[DEBUG ONLY] Request raw node status",  master_node_cmd_raw_status },
     { "ping",          "Sends an echo reuest",                 cmd_ping },
     { "authping",      "Sends a conneted node is still alive", master_node_cmd_authping },
+    { "led",           "Set the LEDs of a node",               master_node_cmd_led },
     { "routes",        "Sets the routes for the master node",  cmd_routes },
     { NULL, NULL, NULL }
 };
@@ -150,6 +151,7 @@ static const shell_command_t shell_commands[] = {
     { "ping",    "Sends an echo reuest",                 cmd_ping },
     { "routes",  "Sets the routes for the node",         cmd_routes },
     { "raw",     "Enables / Disables raw data printing", sensor_node_cmd_raw },
+    { "led",     "RGB LED test",                         sensor_node_cmd_led },
     { NULL, NULL, NULL }
 };
 
