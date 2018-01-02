@@ -11,10 +11,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include "sensor_config_defaults.h"
+#include "meshnw_config.h"
 #include "utils.h"
 
-static const uint32_t CONFIG_NETWORK    = 1;
-static const uint32_t CONFIG_COLORTABLE = 2;
+static const uint32_t CONFIG_NETWORK    = 0x00000001;
+static const uint32_t CONFIG_COLORTABLE = 0x00000002;
+static const uint32_t CONFIG_RF         = 0x00000004;
 
 /*
  * The config data as stored in the flash.
@@ -27,6 +29,7 @@ typedef struct
 	uint32_t config_set;
 	sensor_configuration_t network;
 	color_table_t colortable;
+	meshnw_rf_config_t rf;
 } config_with_magic_t;
 
 /*
@@ -76,6 +79,26 @@ const color_table_t *sensor_config_color_table(void)
 	}
 	return &cfg->colortable;
 }
+
+
+const meshnw_rf_config_t *sensor_config_rf_settings(void)
+{
+	static const meshnw_rf_config_t defaultConfig = DefaultRFSettings;
+	config_with_magic_t *cfg = flashpage_addr(CONFIG_FLASH_PAGE);
+	if (cfg->magic != CONFIG_MAGIC)
+	{
+		puts("Node not configured -> Use default rf config!\n");
+		return &defaultConfig;
+	}
+
+	if ((cfg->config_set & CONFIG_RF) == 0)
+	{
+		puts("RF parameters not configured -> Use default!\n");
+		return &defaultConfig;
+	}
+	return &cfg->rf;
+}
+
 
 static int network_config(int argc, char **argv, config_with_magic_t *cfg)
 {
@@ -137,8 +160,41 @@ static int color_config(int argc, char **argv, config_with_magic_t *cfg)
 
 static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 {
-	puts("Not implemented yet!");
-	return 1;
+	if (argc != 4)
+	{
+		puts("USAGE: config rf <frequency> <tx_power>\n");
+		puts("frequency   Carrier frequency of the LoRa modem");
+		puts("            Valid range: "
+		                                 TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MIN)
+		                                 " - "
+		                                 TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MAX));
+		puts("tx_power    LoRa modem tx power in dB");
+		puts("            Max value: " TOSTRING(SX127X_CONFIG_LORA_POWER_MAX));
+		return 1;
+	}
+
+	uint32_t f = strtoul(argv[2], NULL, 10);
+	if (f < SX127X_CONFIG_LORA_FREQUENCY_MIN ||
+	    f > SX127X_CONFIG_LORA_FREQUENCY_MAX)
+	{
+		puts("Frequency out of range!");
+		return 1;
+	}
+
+	uint32_t p = strtoul(argv[3], NULL, 10);
+	if (p > SX127X_CONFIG_LORA_POWER_MAX)
+	{
+		puts("Tx power out of range!");
+		return 1;
+	}
+
+	cfg->rf.frequency = f;
+	cfg->rf.tx_power = (uint8_t)p;
+
+	// set "rf configured" bit
+	cfg->config_set |= CONFIG_RF;
+
+	return 0;
 }
 
 

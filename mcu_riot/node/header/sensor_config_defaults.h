@@ -28,3 +28,9 @@
 	{   0,  32,  32 },   \
 	{  32,  32,  32 }    \
 }
+
+#define DefaultRFSettings       \
+{                               \
+	433500000,  /* Frequency */ \
+	10          /* TX power  */ \
+}

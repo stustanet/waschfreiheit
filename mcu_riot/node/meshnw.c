@@ -292,7 +292,7 @@ static void *recv_thread(void *arg)
 /*
  * Configures the LoRa driver.
  */
-static int setup(void)
+static int setup(const meshnw_rf_config_t *config)
 {
 	_Static_assert(SX127X_CONFIG_LORA_SPREAD >= 7 && SX127X_CONFIG_LORA_SPREAD <= 12, "Spread factor must be between 7 and 12");
 	_Static_assert(SX127X_CONFIG_LORA_CODERATE >= 5 && SX127X_CONFIG_LORA_CODERATE <= 8, "Coderate must be between 5 and 8");
@@ -310,10 +310,25 @@ static int setup(void)
 	netdev->driver->set(netdev, NETOPT_CODING_RATE,
 	                    &lora_cr, sizeof(uint8_t));
 
-	uint32_t chan = SX127X_CONFIG_LORA_FREQUENCY;
+	if (config->frequency > SX127X_CONFIG_LORA_FREQUENCY_MAX ||
+	    config->frequency < SX127X_CONFIG_LORA_FREQUENCY_MIN)
+	{
+		printf("RF frequency (%lu) out of allowed range (%u - %u)\n",
+		       config->frequency,
+		       SX127X_CONFIG_LORA_FREQUENCY_MIN,
+		       SX127X_CONFIG_LORA_FREQUENCY_MAX);
+		return 1;
+	}
+	uint32_t chan = config->frequency;
 	netdev->driver->set(netdev, NETOPT_CHANNEL, &chan, sizeof(uint32_t));
 
-	sx127x_set_tx_power(&context.sx127x, SX127X_CONFIG_LORA_POWER);
+	if (config->tx_power > SX127X_CONFIG_LORA_POWER_MAX)
+	{
+		printf("RF tx power (%u) too large, max: %u\n", config->tx_power, SX127X_CONFIG_LORA_POWER_MAX);
+		return 2;
+	}
+
+	sx127x_set_tx_power(&context.sx127x, config->tx_power);
 
 	start_listen();
 
@@ -339,7 +354,7 @@ static uint32_t get_random_checked(void)
 /*
  * Initializes the LoRa driver and internal data.
  */
-int meshnw_init(nodeid_t id, mesh_nw_message_cb_t cb)
+int meshnw_init(nodeid_t id, const meshnw_rf_config_t *config, mesh_nw_message_cb_t cb)
 {
 	if (context.recv_thd_pid != 0)
 	{
@@ -370,7 +385,7 @@ int meshnw_init(nodeid_t id, mesh_nw_message_cb_t cb)
 
 	meshnw_clear_routes();
 
-	return setup();
+	return setup(config);
 
 }
 

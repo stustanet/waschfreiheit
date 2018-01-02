@@ -28,6 +28,13 @@ const sensor_configuration_t *sensor_config_get(void);
  */
 const color_table_t *sensor_config_color_table(void);
 
+
+/*
+ * Gets the current RF configuration.
+ * If the rf config is not set, default values are returned,
+ */
+const meshnw_rf_config_t *sensor_config_rf_settings(void);
+
 /*
  * Command function for an interactive command to set the config.
  * Add this as the "config" command to the serial console.

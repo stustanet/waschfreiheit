@@ -20,6 +20,12 @@ typedef uint8_t nodeid_t;
 
 static const nodeid_t MESHNW_INVALID_NODE = MESHNW_MAX_NODEID + 1;
 
+typedef struct
+{
+	// MAYBE: Add other LoRa parameters?
+	uint32_t frequency;
+	uint8_t tx_power;
+} meshnw_rf_config_t;
 
 /*
  * Callback for incoming data
@@ -36,7 +42,7 @@ typedef void (*mesh_nw_message_cb_t)(nodeid_t src, void *data, uint8_t len);
  * returns 0 on success
  * NOTE: At initial states there are no routes so all send calls will fail (route is unknown)
  */
-int meshnw_init(nodeid_t id, mesh_nw_message_cb_t cb);
+int meshnw_init(nodeid_t id, const meshnw_rf_config_t *config, mesh_nw_message_cb_t cb);
 
 /*
  * Enables the message forwarding. (Disabled after init)
