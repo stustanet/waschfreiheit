@@ -7,4 +7,4 @@
 #include "rgbcolor.h"
 
 
-void led_ws2801_set(gpio_t clk, gpio_t data, rgb_data_t *rgb, uint32_t count);
+void led_ws2801_set(gpio_t clk, gpio_t data, const rgb_data_t *rgb, uint32_t count);
