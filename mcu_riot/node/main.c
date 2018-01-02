@@ -162,6 +162,10 @@ static void init(void)
 	{
 		printf("Sensor node initialization failed with error %i\n", sni);
 	}
+	else
+	{
+		puts("Sensor node initialized");
+	}
 }
 
 #endif
@@ -170,10 +174,8 @@ int main(void)
 {
 	init();
 
-    /* start the shell */
-    puts("Initialization successful - starting the shell now");
-    char line_buf[SHELL_DEFAULT_BUFSIZE];
-    shell_run(shell_commands, line_buf, SHELL_DEFAULT_BUFSIZE);
+    char line_buf[256];
+    shell_run(shell_commands, line_buf, sizeof(line_buf));
 
     return 0;
 }
