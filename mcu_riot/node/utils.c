@@ -95,6 +95,38 @@ nodeid_t utils_parse_nodeid(const char *str, nodeid_t min)
 	return (nodeid_t)l;
 }
 
+
+uint8_t utils_parse_rgb(const char *str, rgb_data_t *rgb)
+{
+	char *next;
+	unsigned long r = strtoul(str, &next, 10);
+	if (r > 0xff || next == str || next[0] != ',')
+	{
+		return 0;
+	}
+
+	str = next + 1;
+	unsigned long g = strtoul(str, &next, 10);
+	if (g > 0xff || next == str || next[0] != ',')
+	{
+		return 0;
+	}
+
+	str = next + 1;
+	unsigned long b = strtoul(str, &next, 10);
+	if (b > 0xff || next == str || next[0] != 0)
+	{
+		return 0;
+	}
+
+	rgb->r = (uint8_t)r;
+	rgb->g = (uint8_t)g;
+	rgb->b = (uint8_t)b;
+
+	return 1;
+}
+
+
 void u32_to_unaligned(uint32_t *dst, uint32_t src)
 {
 	(*((uint8_t *)dst)) = (uint8_t)src;
