@@ -97,6 +97,11 @@ struct
 	auth_context_t auth_config;
 
 	/*
+	 * Color table for the LEDs
+	 */
+	const color_table_t *led_color_table;
+
+	/*
 	 * Status information for the node (STATUS_ bits)
 	 * Describes the initialization status of the individual components.
 	 */
@@ -179,33 +184,6 @@ struct
 	nodeid_t master_node;
 	
 } ctx;
-
-
-/*
- * This is the color map for the leds.
- * It maps the three-bit codes of the led config message
- * to RGB values for the LEDs.
- *
- * This has to be exactly 16 elements long
- */
-static const rgb_data_t ColorMap[] = {
-	{   0,   0,   0 },
-	{ 255,   0,   0 },
-	{   0, 255,   0 },
-	{ 255, 255,   0 },
-	{   0,   0, 255 },
-	{ 255,   0, 255 },
-	{   0, 255, 255 },
-	{ 255, 255, 255 },
-	{   0,   0,   0 },
-	{  32,   0,   0 },
-	{   0,  32,   0 },
-	{  32,  32,   0 },
-	{   0,   0,  32 },
-	{  32,   0,  32 },
-	{   0,  32,  32 },
-	{  32,  32,  32 }
-};
 
 // Stuff for the threads
 static char adc_thd_stack[512 * 3];
@@ -945,7 +923,7 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 		num_led = sizeof(rgb_buffer) / sizeof(rgb_buffer[0]);
 	}
 
-	_Static_assert(sizeof(ColorMap) / sizeof(ColorMap[0]) == 16, "Wrong ColorMap size");
+	_Static_assert(sizeof(*ctx.led_color_table) / sizeof((*ctx.led_color_table)[0]) == 16, "Wrong ColorMap size");
 
 	for (uint8_t i = 0; i < num_led; i++)
 	{
@@ -961,7 +939,7 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 			color = led_msg->data[i >> 1] >> 4;
 		}
 
-		rgb_buffer[i] = ColorMap[color];
+		rgb_buffer[i] = (*ctx.led_color_table)[color];
 	}
 
 	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, rgb_buffer, num_led);
@@ -1456,6 +1434,7 @@ int sensor_node_init(void)
 	}
 
 	ctx.current_node = cfg->my_id;
+	ctx.led_color_table = sensor_config_color_table();
 
 	// GPIOs for LEDs
 	gpio_init(WS2801_GPIO_CLK, GPIO_OUT);
