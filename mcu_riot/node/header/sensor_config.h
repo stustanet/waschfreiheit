@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <auth.h>
-#include <meshnw.h>
+#include "auth.h"
+#include "meshnw.h"
+#include "rgbcolor.h"
 
 typedef struct
 {
@@ -20,6 +21,12 @@ typedef struct
  * If the node is not yet configured, NULL is returned.
  */
 const sensor_configuration_t *sensor_config_get(void);
+
+/*
+ * Gets the current color table.
+ * If the color table is not configured, a default value is returned.
+ */
+const color_table_t *sensor_config_color_table(void);
 
 /*
  * Command function for an interactive command to set the config.
