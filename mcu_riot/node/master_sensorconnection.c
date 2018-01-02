@@ -788,13 +788,6 @@ int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds)
 		printf("Value source for %i: %u\n", i, ledmsg->data[i >> 1]);
 	}
 
-	puts("Dump led request");
-	for (uint32_t i = 0; i < sizeof(*ledmsg) + bytes; i++)
-	{
-		printf("%02x", con->last_sent_message[i]);
-	}
-	puts("");
-
 	// sign and send
 	int res = sign_and_send_msg(con, sizeof(*ledmsg) + bytes);
 
