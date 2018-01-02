@@ -4,8 +4,7 @@
 
 #ifdef ENABLE_ASSERT
 
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
+#include "utils.h"
 
 #define ASSERT(exp)     \
 	if (!(exp))         \
