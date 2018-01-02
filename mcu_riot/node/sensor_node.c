@@ -79,6 +79,9 @@
 // Serial debugging active (raw data dump)
 #define STATUS_SERIALDEBUG        64
 
+// LEDs have been set by the user or network command (stop all animations)
+#define STATUS_LED_SET           128
+
 /*
  * This struct contains all the runtime-data for the node logic
  */
@@ -942,6 +945,8 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 		rgb_buffer[i] = (*ctx.led_color_table)[color];
 	}
 
+	ctx.status |= STATUS_LED_SET;
+
 	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, rgb_buffer, num_led);
 
 	send_ack(0);
@@ -1076,6 +1081,12 @@ static void *adc_thread(void *arg)
 				uint16_t val = adc_sample(adc, ADC_RES_12BIT);
 				printf("*%u=%u ", adc, val);
 				continue;
+			}
+
+			if (ctx.status & STATUS_SENSORS_ACTIVE)
+			{
+				// sensors not configured -> stop here
+				break;
 			}
 
 			if ((ctx.active_sensor_channels & (1 << adc)) == 0)
@@ -1257,6 +1268,69 @@ void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 }
 
 
+static void do_led_animation(uint32_t ticks)
+{
+	// Show init progress with LEDs
+	rgb_data_t leds[5];
+	memset(leds, 0, sizeof(leds));
+
+	if ((ctx.status & STATUS_INIT_CPLT) == 0)
+	{
+		if (ticks > 5 && (ticks & 0x01))
+		{
+			// not yet initialized after 5 sec, this indicates an error during init
+			// blink the first led red
+			leds[0].r = 255;
+		}
+	}
+	else if (ticks & 0x01)
+	{
+	    // 0 will blink blue
+		leds[0].b = 255;
+	}
+
+	// config channel init -> 1 blue
+	if (ctx.status & STATUS_INIT_AUTH_CFG)
+	{
+		leds[1].b = 160;
+	}
+
+	// routes init -> 1 +red
+	if (ctx.status & STATUS_INIT_ROUTES)
+	{
+		leds[1].r = 255;
+	}
+
+	// status handshake pending -> 2 blue
+	if (ctx.status & STATUS_INIT_AUTH_STA_PEND)
+	{
+		leds[2].b = 160;
+	}
+
+	// status handshake done -> 2 blue+red
+	if (ctx.status & STATUS_INIT_AUTH_STA)
+	{
+		leds[2].b = 160;
+		leds[2].r = 255;
+	}
+
+	// sensors active -> 3 blue
+	if (ctx.status & STATUS_SENSORS_ACTIVE)
+	{
+		leds[3].b = 160;
+	}
+
+	// serial debug -> 4 blue
+	if (ctx.status & STATUS_SERIALDEBUG)
+	{
+		leds[4].b = 160;
+	}
+	
+	// finally set the LEDs
+	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
+}
+
+
 /*
  * This is the message thread.
  * It handles the status channel and the timeouts, this includes:
@@ -1314,6 +1388,11 @@ static void *message_thread(void *arg)
 			pm_reboot();
 		}
 
+		if ((ctx.status & STATUS_LED_SET) == 0)
+		{
+			// LEDs not yet set -> do some animations
+			do_led_animation(total_ticks);
+		}
 
 		if (ctx.debug_raw_status_requested)
 		{
@@ -1426,38 +1505,14 @@ int sensor_node_init(void)
 	// Begin with only zeros
 	memset(&ctx, 0, sizeof(ctx));
 
-	// Get config
-	const sensor_configuration_t *cfg = sensor_config_get();
-	if (!cfg)
-	{
-		return SN_ERROR_NOT_CONFIGURED;
-	}
-
-	ctx.current_node = cfg->my_id;
 	ctx.led_color_table = sensor_config_color_table();
 
 	// GPIOs for LEDs
 	gpio_init(WS2801_GPIO_CLK, GPIO_OUT);
 	gpio_init(WS2801_GPIO_DATA, GPIO_OUT);
 
-	// Need to init RF network before crypto because i need random numbers for crypto init
-	if (meshnw_init(cfg->my_id, sensor_config_rf_settings(), &mesh_message_received) != 0)
-	{
-		return SN_ERROR_MESHNW_INIT;
-	}
-
-	// Random numbers for crypto
-	uint64_t cha = meshnw_get_random();
-	uint64_t nonce = meshnw_get_random();
-
-	printf("Random numbers for auth: cha=%08lx%08lx nonce=%08lx%08lx\n", (uint32_t)(cha >> 32), (uint32_t)cha, (uint32_t)(nonce>>32), (uint32_t)nonce);
-
-	// Init crypto context
-	auth_master_init(&ctx.auth_status, cfg->key_status, cha);
-	auth_slave_init(&ctx.auth_config, cfg->key_config, nonce);
-
-	// Initialize random value with (part of) nonce;
-	ctx.random_current = (uint32_t)nonce;
+	// This resets the LEDs
+	do_led_animation(0);
 
 	// Start sample loop at 1 per sec.
 	// At initial state this loop will do nothing, because the channels are configured later.
@@ -1482,11 +1537,39 @@ int sensor_node_init(void)
 	                          THREAD_CREATE_STACKTEST, message_thread, NULL,
 	                          "node_message_thread");
 
+
 	if (message_thd_pid <= KERNEL_PID_UNDEF)
 	{
 		puts("Creation of mssage thread failed");
 		return SN_ERROR_THREAD_START;
 	}
+	// Init the network
+	const sensor_configuration_t *cfg = sensor_config_get();
+	if (!cfg)
+	{
+		return SN_ERROR_NOT_CONFIGURED;
+	}
+
+	ctx.current_node = cfg->my_id;
+
+	// Need to init RF network before crypto because i need random numbers for crypto init
+	if (meshnw_init(cfg->my_id, sensor_config_rf_settings(), &mesh_message_received) != 0)
+	{
+		return SN_ERROR_MESHNW_INIT;
+	}
+
+	// Random numbers for crypto
+	uint64_t cha = meshnw_get_random();
+	uint64_t nonce = meshnw_get_random();
+
+	printf("Random numbers for auth: cha=%08lx%08lx nonce=%08lx%08lx\n", (uint32_t)(cha >> 32), (uint32_t)cha, (uint32_t)(nonce>>32), (uint32_t)nonce);
+
+	// Init crypto context
+	auth_master_init(&ctx.auth_status, cfg->key_status, cha);
+	auth_slave_init(&ctx.auth_config, cfg->key_config, nonce);
+
+	// Initialize random value with (part of) nonce;
+	ctx.random_current = (uint32_t)nonce;
 
 	// state estimation is initialized later
 	
@@ -1555,6 +1638,7 @@ int sensor_node_cmd_led(int argc, char **argv)
 		buffer[i].b = strtoul(end + 1, NULL, 10);
 	}
 
+	ctx.status |= STATUS_LED_SET;
 	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, buffer, argc - 1);
 	return 0;
 }
