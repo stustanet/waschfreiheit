@@ -10,6 +10,12 @@
 #include "rgbcolor.h"
 
 /*
+ * Use TOSTRING to convert a number to a string by the preprocessor
+ */
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
+/*
  * Convenience macro to get the number of elements in an array.
  */
 #define ARRAYSIZE(x) (sizeof((x)) / sizeof((x)[0]))
