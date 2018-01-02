@@ -567,7 +567,10 @@ int master_node_init(void)
 {
 	printf("Start node in MASTER mode, id = %u\n", MASTER_NODE);
 	memset(master.nodes, 0, sizeof(master.nodes));
-	meshnw_init(MASTER_NODE, message_callback);
+
+	static const meshnw_rf_config_t rf_config = { 433500000, 10 };
+
+	meshnw_init(MASTER_NODE, &rf_config, message_callback);
 
 	message_thd_pid = thread_create(message_thd_stack, sizeof(message_thd_stack), THREAD_PRIORITY_MAIN - 1,
 	                          THREAD_CREATE_STACKTEST, message_thread, NULL,

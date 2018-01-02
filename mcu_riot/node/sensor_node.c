@@ -1441,7 +1441,10 @@ int sensor_node_init(void)
 	gpio_init(WS2801_GPIO_DATA, GPIO_OUT);
 
 	// Need to init RF network before crypto because i need random numbers for crypto init
-	meshnw_init(cfg->my_id, &mesh_message_received);
+	if (meshnw_init(cfg->my_id, sensor_config_rf_settings(), &mesh_message_received) != 0)
+	{
+		return SN_ERROR_MESHNW_INIT;
+	}
 
 	// Random numbers for crypto
 	uint64_t cha = meshnw_get_random();

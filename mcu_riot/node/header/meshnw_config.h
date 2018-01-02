@@ -29,8 +29,9 @@
 #define SX127X_CONFIG_LORA_SPREAD    12
 #define SX127X_CONFIG_LORA_CODERATE  6
 
-// TX Power in db
-#define SX127X_CONFIG_LORA_POWER     10
+// TX Power in db (max 10db (10 mW) allowed)
+#define SX127X_CONFIG_LORA_POWER_MAX     10
 
-// Freqency
-#define SX127X_CONFIG_LORA_FREQUENCY 433500000
+// Freqency limitations to stay within regulatury limitations
+#define SX127X_CONFIG_LORA_FREQUENCY_MIN 433200000
+#define SX127X_CONFIG_LORA_FREQUENCY_MAX 434600000

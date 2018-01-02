@@ -8,6 +8,7 @@
 
 #define SN_ERROR_NOT_CONFIGURED 1
 #define SN_ERROR_THREAD_START   2
+#define SN_ERROR_MESHNW_INIT    3
 
 /*
  * Initializes the sensor / slave node.
