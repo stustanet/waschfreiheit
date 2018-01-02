@@ -377,6 +377,14 @@ int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t nod
 	// this way i can directly access 16 bit values within this buffer (as long as they are aligned)
 	_Static_assert((offsetof(sensor_connection_t, last_sent_message) % sizeof(uint16_t) == 0), "Wrong alignment of last sent message buffer");
 
+	// Just to be sure: Check the alignment of the connection structure
+	if (((uint32_t) con) & 0x01)
+	{
+		// This should never happen ^^
+		puts("Misaligned context parameter");
+		return -EINVAL;
+	}
+
 	// initialize data in con
 	memset(con, 0, sizeof(*con));
 
