@@ -6,7 +6,8 @@
 #pragma once
 
 #include <stdint.h>
-#include <meshnw.h>
+#include "meshnw.h"
+#include "rgbcolor.h"
 
 /*
  * Convenience macro to get the number of elements in an array.
@@ -55,6 +56,15 @@ int utils_parse_route(const char **route, nodeid_t *dst, nodeid_t *hop);
  * Parses a node id and does sanity checks.
  */
 nodeid_t utils_parse_nodeid(const char *str, nodeid_t min);
+
+/*
+ * Parses a rgb value.
+ *
+ * Input format: 0-Terminated string with three 8-bit numbers seperated by a comma.
+ * Returns nonzero on success.
+ * This functions does not print an error message on error.
+ */
+uint8_t utils_parse_rgb(const char *str, rgb_data_t *rgb);
 
 
 // Helper functions for unaligned access to 16 and 32 bit numbers
