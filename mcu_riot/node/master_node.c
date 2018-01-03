@@ -271,11 +271,15 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 		puts("NODE      Address of the node");
 		puts("CHANNEL   Channel index");
 		puts("IF        Input filter parameters");
+		puts("          <MID_ADJ_SPEED>,<LOWPASS_WEIGTH>,<NUM_SAMPLES>");
 		puts("MAT       State transition matrix");
+		puts("          12 signed 16 bit values");
 		puts("WND       Window sizes in different states");
+		puts("          4 values, max 1536");
 		puts("RF        Reject filter parameters");
+		puts("          <REJECT_THRESHOLD>,<REJECT_CONSEC>");
+		puts("See the documentation for details on the parameters.");
 
-		// TODO: Explain
 		return 1;
 	}
 
