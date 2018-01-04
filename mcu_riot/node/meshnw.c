@@ -123,7 +123,7 @@ static int forward_packet(void *packet, uint8_t len)
 	vec[0].iov_len = len;
 	if (context.netdev->driver->send(context.netdev, vec, 1) == -ENOTSUP)
 	{
-		puts("Cannot send: radio is still transmitting");
+		puts("Can't send packet while radio is busy");
 		return -EBUSY;
 	}
 
@@ -175,14 +175,15 @@ static void handle_rx_cplt(void)
 
 	// Now read whole packet into receive buffer
 	dev->driver->recv(dev, context.recv_buffer, len, &packet_info);
-	printf("{Payload: \"%s\" (%d bytes), RSSI: %i, SNR: %i, TOA: %i}\n",
-		   context.recv_buffer, (int)len,
-		   packet_info.rssi, (int)packet_info.snr,
-		   (int)packet_info.time_on_air);
-
 
 	// Check the packet header
 	layer3_packet_header_t *hdr = (layer3_packet_header_t *)context.recv_buffer;
+
+	printf("Received packet for from %u for %u (%d bytes), RSSI: %i, SNR: %i\n",
+		   hdr->src, hdr->dst, (int)len,
+		   packet_info.rssi, (int)packet_info.snr);
+
+
 
 	if (hdr->next_hop != context.my_node_id)
 	{
@@ -284,7 +285,7 @@ static void *recv_thread(void *arg)
 		}
 		else
 		{
-			puts("Unexpected msg type");
+			puts("Meshnw receiving thread got unexpected msg type.");
 		}
 	}
 	return 0;
