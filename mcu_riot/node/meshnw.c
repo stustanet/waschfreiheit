@@ -235,6 +235,7 @@ static void event_cb(netdev_t *dev, netdev_event_t event)
 			{
 				puts("Failed to signal thread from interrupt context.");
 			}
+			break;
 		}
 		case NETDEV_EVENT_RX_COMPLETE:
 		    // Packet arrived -> call rx handler
