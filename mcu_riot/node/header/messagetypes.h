@@ -1,8 +1,15 @@
+/*
+ * Structure definitions of the network messages.
+ * The auth structures are defined in the auth module, the handshake
+ * messages here only work as headers for the "real" handshake.
+ */
+
 #pragma once
 
 #include <stdint.h>
 #include <meshnw.h>
 #include <state_estimation.h>
+
 
 typedef uint8_t msg_type_t;
 
@@ -11,7 +18,10 @@ typedef uint8_t msg_type_t;
  * master -> slave
  *
  * When this is sent by the master node, this also contains a temporyry route
- * to the master node
+ * to the master node.
+ *
+ * NOTE: Anyone can send a valid HS1 even without knowing the key so this message
+ *       should not change any configuration.
  */
 #define MSG_TYPE_AUTH_HS_1                  1
 typedef struct
@@ -53,6 +63,15 @@ typedef struct
  * This message must at least contain a route to the master.
  */
 #define MSG_TYPE_ROUTE_RESET                4
+
+/*
+ * Just like ROUTE_RESET but old routes are kept
+ */
+#define MSG_TYPE_ROUTE_APPEND               5
+
+/*
+ * Data for both types of route messages.
+ */
 typedef struct
 {
 	msg_type_t type;
@@ -63,12 +82,6 @@ typedef struct
 		nodeid_t next;
 	} r[1]; // at least one route, an empty table would make no sense
 } __attribute__((packed)) msg_route_data_t;
-
-
-/*
- * Just like ROUTE_RESET but old routes are kept
- */
-#define MSG_TYPE_ROUTE_APPEND               5
 
 
 /*
@@ -88,10 +101,10 @@ typedef struct
  * The sensor configuration can still be changed after activation.
  *
  * status_retransmission_delay_* are the times (in seconds) before a status message
- * is re-send, if no ack arrived. the actual delay increases linear with the number of retries.
+ * is re-send if no ack arrived. The actual delay increases linear with the number of retries.
  * For every 3 failed attempts, the current delay is increased by the base value.
  * If no ack arrived after 100 retries, the network is assumed dead and
- * the node shuts down. (Needs to be reconfigured)
+ * the node reboots. (Needs to be reconfigured)
  */
 #define MSG_TYPE_START_SENSOR               7
 typedef struct
@@ -105,7 +118,11 @@ typedef struct
 
 /*
  * Requests a sensor node to begin transmitting raw frame values.
- * This is intended for remote sensor value calibration
+ * This is intended for remote sensor value calibration.
+ *
+ * NOTE: This causes a very high network load.
+ *       If the framerate is too high, collisions due to forwarding
+ *       form intermediate hops will occure.
  */
 #define MSG_TYPE_BEGIN_SEND_RAW_FRAMES      8
 typedef struct
@@ -130,7 +147,7 @@ typedef struct
 
 /*
  * No operation, this is used by the master to check if a node is still alive
- * NOTE: Unlike the echo request, this packet is sent trough the authenticated channel,
+ * NOTE: Unlike the echo request, this packet is sent through the authenticated channel,
  *       so that no one can fake the reply.
  */
 #define MSG_TYPE_NOP                        10
@@ -142,7 +159,7 @@ typedef struct
 
 /*
  * Sets the status LEDs an a node
- * The color is encoded into 4 bits per LED and a color table.
+ * The color is encoded into 4 bits per LED. The resulting color is defined by the colortable.
  */
 #define MSG_TYPE_LED                        11
 typedef struct
