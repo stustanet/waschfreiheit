@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
-#include "net/gnrc/netdev.h"
 #include "net/netdev.h"
 
 #include "sx127x_params.h"

@@ -521,6 +521,7 @@ int master_node_cmd_led(int argc, char **argv)
 
 static void *message_thread(void *arg)
 {
+	(void) arg;
     xtimer_ticks32_t last = xtimer_now();
 
 	while(1)

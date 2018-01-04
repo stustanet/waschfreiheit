@@ -959,6 +959,8 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
  */
 static void handle_echo_request(nodeid_t src, void *data, uint8_t len)
 {
+	(void) data;
+	(void) len;
 	// Non-authenticated echo request -> just send a non-authenticated reply
 	
 	printf("Got echo request from %u\n", src);
@@ -1053,6 +1055,7 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
  */
 static void *adc_thread(void *arg)
 {
+	(void) arg;
 	/*
 	 * Initialize all channels first.
 	 */
@@ -1340,6 +1343,7 @@ static void do_led_animation(uint32_t ticks)
  */
 static void *message_thread(void *arg)
 {
+	(void) arg;
 	// The message loop runs once per second.
 	static const uint32_t MESSAGE_LOOP_DELAY_US = 1000000;
 
@@ -1612,7 +1616,7 @@ int sensor_node_cmd_led(int argc, char **argv)
 {
 	rgb_data_t buffer[8];
 
-	if (argc < 2 || argc > 1 + (sizeof(buffer) / sizeof(buffer[0])))
+	if (argc < 2 || argc > 1 + (int)((sizeof(buffer) / sizeof(buffer[0]))))
 	{
 		puts("USAGE: led <r,g,b> ...");
 		puts("       Set the LED RGB colors");
