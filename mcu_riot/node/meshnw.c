@@ -1,3 +1,6 @@
+// This include needs to be first beacuse it sets some defines used by later includes
+#include "board.h"
+
 #include "meshnw.h"
 #include "meshnw_config.h"
 
@@ -137,8 +140,23 @@ static int forward_packet(void *packet, uint8_t len)
  */
 static void start_listen(void)
 {
-	context.netdev->driver->set(context.netdev, NETOPT_SINGLE_RECEIVE, false, sizeof(uint8_t));
-	sx127x_set_rx(&context.sx127x);
+	/*
+	 * Disable timeout
+	 */
+	uint32_t timeout = 0;
+	context.netdev->driver->set(context.netdev, NETOPT_RX_TIMEOUT, &timeout, sizeof(timeout));
+
+	/*
+	 * Disable timeout
+	 */
+	netopt_enable_t en = NETOPT_DISABLE;
+	context.netdev->driver->set(context.netdev, NETOPT_SINGLE_RECEIVE, &en, sizeof(en));
+
+	/*
+	 * Switch to RX mode
+	 */
+	netopt_state_t rx = NETOPT_STATE_RX;
+	context.netdev->driver->set(context.netdev, NETOPT_STATE, &rx, sizeof(rx));
 }
 
 
@@ -322,7 +340,7 @@ static int setup(const meshnw_rf_config_t *config)
 		return 1;
 	}
 	uint32_t chan = config->frequency;
-	netdev->driver->set(netdev, NETOPT_CHANNEL, &chan, sizeof(uint32_t));
+	netdev->driver->set(netdev, NETOPT_CHANNEL_FREQUENCY, &chan, sizeof(uint32_t));
 
 	if (config->tx_power > SX127X_CONFIG_LORA_POWER_MAX)
 	{
@@ -330,7 +348,8 @@ static int setup(const meshnw_rf_config_t *config)
 		return 2;
 	}
 
-	sx127x_set_tx_power(&context.sx127x, config->tx_power);
+	int16_t tx_pwr = config->tx_power;
+	netdev->driver->set(netdev, NETOPT_TX_POWER, &tx_pwr, sizeof(uint16_t));
 
 	start_listen();
 
@@ -468,7 +487,7 @@ uint64_t meshnw_get_random(void)
 	}
 
 	// Re-enter rx mode as this is disbaled by the random function
-	sx127x_set_rx(&context.sx127x);
+	start_listen();
 
 	return rand;
 }
