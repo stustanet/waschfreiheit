@@ -37,7 +37,7 @@ typedef struct
 	nodeid_t dst;
 
 	/*
-	 * The (original)  source addres of the packet.
+	 * The (original) source address of the packet.
 	 */
 	nodeid_t src;
 } layer3_packet_header_t;
@@ -72,6 +72,8 @@ typedef struct
 	nodeid_t my_node_id;
 
 	// Routing table
+	// This table contains an entry for every address.
+	// A packet for n is sent to the next hop <routing_table[n]>.
 	uint8_t routing_table[MESHNW_MAX_NODEID + 1];
 
 	// Buffer for receiving packets
@@ -404,6 +406,7 @@ int meshnw_set_route(nodeid_t destination, nodeid_t next_hop)
 		return -EINVAL;
 	}
 
+	// Set entry <destination> to <next_hop>
 	context.routing_table[destination] = next_hop;
 
 	return 0;
@@ -416,8 +419,11 @@ void meshnw_clear_routes(void)
 
 	for (uint32_t i = 0; i < MESHNW_MAX_NODEID; i++)
 	{
+		// Reset all routes to INVALID_NODE
 		context.routing_table[i] = MESHNW_INVALID_NODE;
 	}
+
+	// and disable forwarding again
 	context.enable_forwarding = 0;
 }
 
@@ -436,7 +442,7 @@ int meshnw_send(nodeid_t dst, void *data, uint8_t len)
 		return -ENOTSUP;
 	}
 
-	// wrap data 
+	// wrap data in layer3 packet (add header)
 	uint8_t tx_buffer[MESHNW_MAX_OTA_PACKET_SIZE];
 	layer3_packet_header_t *header = (layer3_packet_header_t *)tx_buffer;
 	void *data_ptr = (void *)(&tx_buffer[sizeof(layer3_packet_header_t)]);
@@ -445,6 +451,8 @@ int meshnw_send(nodeid_t dst, void *data, uint8_t len)
 	header->dst = dst;
 	memcpy(data_ptr, data, len);
 
+	// And call the forward function.
+	// This will set the "next_hop" in the packet to the value from the routing table for <dst>
 	return forward_packet(tx_buffer, sizeof(layer3_packet_header_t) + len);
 }
 
@@ -459,6 +467,7 @@ uint64_t meshnw_get_random(void)
 		rand = (rand << 2) + rnd;
 	}
 
+	// Re-enter rx mode as this is disbaled by the random function
 	sx127x_set_rx(&context.sx127x);
 
 	return rand;
