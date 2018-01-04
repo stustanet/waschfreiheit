@@ -221,44 +221,45 @@ static void handle_rx_cplt(void)
  */
 static void event_cb(netdev_t *dev, netdev_event_t event)
 {
-	if (event == NETDEV_EVENT_ISR)
+	switch (event)
 	{
-		// Interrut -> signal the thread to allow the driver handle stuff in non-interrupt context
-		msg_t msg;
-
-		msg.type = NETDEV_ISR_EVENT_MESSAGE;
-		msg.content.ptr = dev;
-
-		if (msg_send(&msg, context.recv_thd_pid) <= 0)
+		case NETDEV_EVENT_ISR:
 		{
-			puts("Failed to signal thread from interrupt context.");
+			// Interrut -> signal the thread to allow the driver handle stuff in non-interrupt context
+			msg_t msg;
+
+			msg.type = NETDEV_ISR_EVENT_MESSAGE;
+			msg.content.ptr = dev;
+
+			if (msg_send(&msg, context.recv_thd_pid) <= 0)
+			{
+				puts("Failed to signal thread from interrupt context.");
+			}
 		}
-	}
-	else
-	{
-		switch (event)
-		{
-			case NETDEV_EVENT_RX_COMPLETE:
-				handle_rx_cplt();
-				break;
+		case NETDEV_EVENT_RX_COMPLETE:
+		    // Packet arrived -> call rx handler
+			handle_rx_cplt();
+			break;
 
 
-			case NETDEV_EVENT_TX_COMPLETE:
-				puts("Transmission completed");
-				start_listen();
-				break;
+		case NETDEV_EVENT_TX_COMPLETE:
+			// Packet sent -> re-enter listen mode
+			start_listen();
+			break;
 
-			case NETDEV_EVENT_CAD_DONE:
-				break;
+		case NETDEV_EVENT_CAD_DONE:
+			// ?? Need to check if this is relevant
+			puts("NETDEV_EVENT_CAD_DONE");
+			break;
 
-			case NETDEV_EVENT_TX_TIMEOUT:
-				start_listen();
-				break;
+		case NETDEV_EVENT_TX_TIMEOUT:
+			// Something went wrong during TX -> re-enter listen mode
+			start_listen();
+			break;
 
-			default:
-				printf("Unexpected netdev event received: %d\n", event);
-				break;
-		}
+		default:
+			printf("Unexpected netdev event received: %d\n", event);
+			break;
 	}
 }
 
@@ -306,12 +307,9 @@ static int setup(const meshnw_rf_config_t *config)
 	int lora_cr = SX127X_CONFIG_LORA_CODERATE - 4;
 
 	netdev_t *netdev = (netdev_t*) &context.sx127x;
-	netdev->driver->set(netdev, NETOPT_BANDWIDTH,
-	                    &lora_bw, sizeof(uint8_t));
-	netdev->driver->set(netdev, NETOPT_SPREADING_FACTOR,
-	                    &lora_sf, 1);
-	netdev->driver->set(netdev, NETOPT_CODING_RATE,
-	                    &lora_cr, sizeof(uint8_t));
+	netdev->driver->set(netdev, NETOPT_BANDWIDTH, &lora_bw, sizeof(uint8_t));
+	netdev->driver->set(netdev, NETOPT_SPREADING_FACTOR, &lora_sf, 1);
+	netdev->driver->set(netdev, NETOPT_CODING_RATE, &lora_cr, sizeof(uint8_t));
 
 	if (config->frequency > SX127X_CONFIG_LORA_FREQUENCY_MAX ||
 	    config->frequency < SX127X_CONFIG_LORA_FREQUENCY_MIN)
