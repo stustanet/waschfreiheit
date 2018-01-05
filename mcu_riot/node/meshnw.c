@@ -120,13 +120,28 @@ static int forward_packet(void *packet, uint8_t len)
 		return -ENOENT;
 	}
 
+	/*
+	 * Check the current state of the device, if this is TX or RX a transmission is
+	 * currently happening -> I should not send anything to avoid collisions.
+	 *
+	 * NOTE: Currently this requires a patched version of the sx127x driver to work correctly.
+	 */
+	netopt_state_t state = NETOPT_STATE_OFF;
+	context.netdev->driver->get(context.netdev, NETOPT_STATE, &state, sizeof(state));
+
+	if (state == NETOPT_STATE_RX || state == NETOPT_STATE_TX)
+	{
+		puts("Can't forward_packet() while radio is transmitting or receiving");
+		return -EBUSY;
+	}
+
 	// Send packet, next_hop specifies the receiver
 	struct iovec vec[1];
 	vec[0].iov_base = packet;
 	vec[0].iov_len = len;
-	if (context.netdev->driver->send(context.netdev, vec, 1) == -ENOTSUP)
+	if (context.netdev->driver->send(context.netdev, vec, 1) != 0)
 	{
-		puts("Can't send packet while radio is busy");
+		puts("Unexpected failure of send call to netdev");
 		return -EBUSY;
 	}
 
@@ -154,8 +169,9 @@ static void start_listen(void)
 
 	/*
 	 * Switch to RX mode
+	 * This is called "idle" in RIOT, the NETOPT_STATE_RX means that data is received at the moment.
 	 */
-	netopt_state_t rx = NETOPT_STATE_RX;
+	netopt_state_t rx = NETOPT_STATE_IDLE;
 	context.netdev->driver->set(context.netdev, NETOPT_STATE, &rx, sizeof(rx));
 }
 
