@@ -8,8 +8,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include "mutex.h"
-
 #include "net/netdev.h"
 
 #include "sx127x_params.h"
@@ -20,23 +18,6 @@
 
 #define MESHNW_MSG_QUEUE   (16U)
 #define NETDEV_ISR_EVENT_MESSAGE   (0x3456)
-
-/*
- * Strategy to avoid collisions when transmitting:
- *
- * The straight forward approuch would be to read the netdev state and simply don't send anything, if the state is "RX"
- * sadly this does NOT work with the sx127x. So i have to abuse the CAD for this.
- * TODO: Check if I can fix the driver so that the RX mode is detected correctly!
- *
- * I have a local tx data buffer, when I get a tx request i first check if the tx buffer is already in use,
- * if so the tx will fail. If not, the message is copied into this buffer and the CAD is started.
- * When i get the CAD done event, I check if the channel is used, if not the tansmission is started.
- * Otherwise (channel busy) the transmission fails (but i have no method to notify the sender).
- * In both cases the tx buffer is cleared.
- *
- * To avoid unneccessary redundant buffers, the routing is done when the packet is actually sent.
- * This allows me to assemble the packet directly in the tx buffer.
- */
 
 /*
  * The structure definition of a layer 3 packet.
@@ -101,18 +82,10 @@ typedef struct
 	// Buffer for receiving packets
 	uint8_t recv_buffer[MESHNW_MAX_OTA_PACKET_SIZE];
 
-	// Buffer for sending the messages
-	uint8_t tx_buffer[MESHNW_MAX_OTA_PACKET_SIZE];
-
-	// Number of bytes in the tx buffer.
-	// If this is 0, the buffer is unused.
-	size_t tx_buffer_used;
-
 	// If this is zero, incoming packets with destination addres unqual to my address are dropped.
 	// Otherwise they are forwarded  according to the routing table.
 	uint8_t enable_forwarding;
 } meshnw_context_data_t;
-
 
 static meshnw_context_data_t context = { 0 };
 
@@ -128,6 +101,36 @@ static nodeid_t get_route(nodeid_t destination)
 	}
 
 	return context.routing_table[destination];
+}
+
+/*
+ * Sends/Forwards a packet to the next hop specified in the routing table
+ */
+static int forward_packet(void *packet, uint8_t len)
+{
+	layer3_packet_header_t *hdr = (layer3_packet_header_t *)packet;
+
+	// Get the next route and set it as next_hop
+	hdr->next_hop = get_route(hdr->dst);
+
+	if (hdr->next_hop > MESHNW_MAX_NODEID)
+	{
+		// no route found -> drop packet
+		printf("Can't forward packet, no route to %u!\n", hdr->dst);
+		return -ENOENT;
+	}
+
+	// Send packet, next_hop specifies the receiver
+	struct iovec vec[1];
+	vec[0].iov_base = packet;
+	vec[0].iov_len = len;
+	if (context.netdev->driver->send(context.netdev, vec, 1) == -ENOTSUP)
+	{
+		puts("Can't send packet while radio is busy");
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 
@@ -154,23 +157,6 @@ static void start_listen(void)
 	 */
 	netopt_state_t rx = NETOPT_STATE_RX;
 	context.netdev->driver->set(context.netdev, NETOPT_STATE, &rx, sizeof(rx));
-}
-
-
-/*
- * Starts the CAD.
- * This should be called after new data has been written to the tx buffer.
- */
-static void begin_cad(void)
-{
-	/*
-	 * For the device to get to start the CAD i first need to switch it into standby mode, otherwise the cad gets stuck.
-	 */
-	netopt_state_t mode = NETOPT_STATE_STANDBY;
-	context.netdev->driver->set(context.netdev, NETOPT_STATE, &mode, sizeof(mode));
-
-	 // For now there is no "normal" way to start the CAD so  I'll just call the drivers' function directly.
-	 sx127x_start_cad(&context.sx127x);
 }
 
 
@@ -234,82 +220,12 @@ static void handle_rx_cplt(void)
 	else if(context.enable_forwarding)
 	{
 		// IV (need to forward) -> forward
-		
-		if (context.tx_buffer_used > 0)
+		int res = forward_packet(context.recv_buffer, len);
+		if (res != 0)
 		{
-			puts("Can't forward packet beacuse tx is still in progress");
-		}
-		else
-		{
-			// copy packet to tx buffer
-			_Static_assert(sizeof(context.tx_buffer) == sizeof(context.recv_buffer), "tx and rx buffer must have the same size");
-			memcpy(context.tx_buffer, context.recv_buffer, len);
-			context.tx_buffer_used = len;
-
-			// Start CAD, the packet will be sent in the handler
-			begin_cad();
+			printf("Failed to forward packet, error %i.\n", res);
 		}
 	}
-}
-
-
-/*
- * Should be called when i get a CAD_DONE event from the netdev.
- * This check, if the channel is free and if so, the message is sent according to the routing table.
- * Sends/Forwards a packet to the next hop specified in the routing table
- */
-static void handle_cad_done(void)
-{
-	if (context.tx_buffer_used < sizeof(layer3_packet_header_t))
-	{
-		// buffer empty -> nothing to do
-		puts("Got CAD done event but packet buffer is empty!");
-		context.tx_buffer_used = 0;
-		return;
-	}
-
-	// check if the channel is in use
-	// TODO: This is super super ugly, becasue I directly access internal variables of the sx127x driver.
-	//       Sadly for now, this is the only way to get this information.
-	//       For now this also riquires manually fixing the driver (the internal value is NOT set correctly)
-	//       I intend to resolve both problems and bring the changes upstream!
-	if (context.sx127x._internal.is_last_cad_success)
-	{
-		puts("CAD is positive -> Don't send to avoid collision");
-		
-		// discard tx buffer
-		context.tx_buffer_used = 0;
-		return;
-	}
-
-	layer3_packet_header_t *hdr = (layer3_packet_header_t *)context.tx_buffer;
-
-	// Get the next route and set it as next_hop
-	hdr->next_hop = get_route(hdr->dst);
-
-	if (hdr->next_hop > MESHNW_MAX_NODEID)
-	{
-		// no route found -> drop packet
-		printf("Can't forward packet, no route to %u!\n", hdr->dst);
-		context.tx_buffer_used = 0;
-		return;
-	}
-
-	// Send packet, next_hop specifies the receiver
-	struct iovec vec[1];
-	vec[0].iov_base = context.tx_buffer;
-	vec[0].iov_len = context.tx_buffer_used;
-	if (context.netdev->driver->send(context.netdev, vec, 1) != 0)
-	{
-		// This should never happen
-		puts("Failed to send packet with netdev!");
-		context.tx_buffer_used = 0;
-		return;
-	}
-	puts("TX success");
-
-	// tx buffer is reset in the tx complete event
-	return;
 }
 
 
@@ -346,22 +262,17 @@ static void event_cb(netdev_t *dev, netdev_event_t event)
 
 
 		case NETDEV_EVENT_TX_COMPLETE:
-			// Packet sent -> clear tx buffer and re-enter listen mode
-			context.tx_buffer_used = 0;
-			puts("TX OK");
+			// Packet sent -> re-enter listen mode
 			start_listen();
 			break;
 
 		case NETDEV_EVENT_CAD_DONE:
-			// This happens when I'm about to send something -> call cad done handler
-			puts("CAD done");
-			handle_cad_done();
+			// ?? Need to check if this is relevant
+			puts("NETDEV_EVENT_CAD_DONE");
 			break;
 
 		case NETDEV_EVENT_TX_TIMEOUT:
-			// Something went wrong during TX -> clear tx buffer and re-enter listen mode
-			context.tx_buffer_used = 0;
-			puts("TX TIMEOUT");
+			// Something went wrong during TX -> re-enter listen mode
 			start_listen();
 			break;
 
@@ -550,35 +461,18 @@ int meshnw_send(nodeid_t dst, void *data, uint8_t len)
 		return -ENOTSUP;
 	}
 
-	if (context.tx_buffer_used > 0)
-	{
-		puts("Can't send data, tx buffer not empty");
-		return -EBUSY;
-	}
-
-	/*
-	 * Wrap data in layer3 packet (add header)
-	 * This packet is assembled directly in the global packet buffer.
-	 */
-
-	layer3_packet_header_t *header = (layer3_packet_header_t *)context.tx_buffer;
-	void *data_ptr = (void *)(&context.tx_buffer[sizeof(layer3_packet_header_t)]);
+	// wrap data in layer3 packet (add header)
+	uint8_t tx_buffer[MESHNW_MAX_OTA_PACKET_SIZE];
+	layer3_packet_header_t *header = (layer3_packet_header_t *)tx_buffer;
+	void *data_ptr = (void *)(&tx_buffer[sizeof(layer3_packet_header_t)]);
 
 	header->src = context.my_node_id;
 	header->dst = dst;
 	memcpy(data_ptr, data, len);
 
-	context.tx_buffer_used = sizeof(layer3_packet_header_t) + len;
-
-	/*
-	 * Start a CAD (channel activity detection)
-	 * The data is sent if this results in the channel being empty.
-	 * Otherwise (channel used) the data is discarded.
-	 */
-
-	begin_cad();
-
-	return 0;
+	// And call the forward function.
+	// This will set the "next_hop" in the packet to the value from the routing table for <dst>
+	return forward_packet(tx_buffer, sizeof(layer3_packet_header_t) + len);
 }
 
 
