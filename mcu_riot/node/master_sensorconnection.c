@@ -539,7 +539,7 @@ int sensor_connection_set_routes(sensor_connection_t *con, uint8_t reset, const 
 	static const uint8_t MAX_ROUTES = 20;
 	if (con->ack_outstanding)
 	{
-		printf("Can't send route request, channel still busy for node %u\n", con->node_id);
+		printf("Can't send route request to %u, ACK for last command is still outstanding.\n", con->node_id);
 		return -EBUSY;
 	}
 
@@ -611,7 +611,7 @@ int sensor_connection_configure_sensor(sensor_connection_t *con, uint8_t channel
 
 	if (con->ack_outstanding)
 	{
-		printf("Can't send config request, channel still busy for node %u\n", con->node_id);
+		printf("Can't send config request to %u, ACK for last command is still outstanding.\n", con->node_id);
 		return -EBUSY;
 	}
 
@@ -692,7 +692,7 @@ int sensor_connection_enable_sensors(sensor_connection_t *con, uint16_t mask, ui
 {
 	if (con->ack_outstanding)
 	{
-		printf("Can't enable sensor request, channel still busy for node %u\n", con->node_id);
+		printf("Can't send enable sensor request to %u, ACK for last command is still outstanding.\n", con->node_id);
 		return -EBUSY;
 	}
 
@@ -725,7 +725,7 @@ int sensor_connection_authping(sensor_connection_t *con)
 {
 	if (con->ack_outstanding)
 	{
-		printf("Can't send authping, channel still busy for node %u\n", con->node_id);
+		printf("Can't send authping to %u, ACK for last command is still outstanding.\n", con->node_id);
 		return -EBUSY;
 	}
 
@@ -750,7 +750,7 @@ int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds)
 {
 	if (con->ack_outstanding)
 	{
-		printf("Can't send led request, channel still busy for node %u\n", con->node_id);
+		printf("Can't send led request to %u, ACK for last command is still outstanding.\n", con->node_id);
 		return -EBUSY;
 	}
 
@@ -805,7 +805,7 @@ int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, ui
 {
 	if (con->ack_outstanding)
 	{
-		printf("Can't send raw data request, channel still busy for node %u\n", con->node_id);
+		printf("Can't send raw data request to %u, ACK for last command is still outstanding.\n", con->node_id);
 		return -EBUSY;
 	}
 
@@ -834,7 +834,7 @@ int sensor_connection_get_raw_status(sensor_connection_t *con)
 {
 	if (con->ack_outstanding)
 	{
-		printf("Can't send raw status request, channel still busy for node %u\n", con->node_id);
+		printf("Can't send raw status request to %u, ACK for last command is still outstanding.\n", con->node_id);
 		return -EBUSY;
 	}
 
