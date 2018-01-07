@@ -290,7 +290,7 @@ int auth_slave_handshake(auth_context_t *ctx, const void *inmsg, uint32_t inofs,
 		return AUTH_WRONG_SIZE;
 	}
 
-	printf("Make has2 with nonce=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
+	printf("Make hs2 with nonce=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
 
 	// reply with my nonce and the challenge as data
 	memcpy(((uint8_t*)outmsg) + outofs, ((uint8_t*)inmsg) + inofs, sizeof(auth_number_t));
