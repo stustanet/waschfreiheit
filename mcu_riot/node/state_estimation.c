@@ -9,7 +9,7 @@
 /*
  * Update the input filter.
  * This proceses the raw ADC values and calculates the <current> input filter value from the data.
- * <current> describes the short-time average power consumption of the measured device. 
+ * <current> describes the short-time average power consumption of the measured device.
  * This also increments the current filter counter.
  */
 static void update_input_filter(state_estimation_data_t *data, uint16_t value)
@@ -84,12 +84,12 @@ static void adjust_window_size(state_estimation_data_t *data)
 		{
 			// msb set -> this value was used
 			// => subtract it from sum
-			
+
 			ASSERT(data->state_filter.window_sum >= (data->state_filter.window[discard_idx] & 0x7fff));
 
 			data->state_filter.window_sum -= (data->state_filter.window[discard_idx] & 0x7fff);
 		}
-		
+
 		current_window_used--;
 		discard_idx = (discard_idx + 1) % SE_MAX_WINDOW_SIZE;
 	}
@@ -140,9 +140,9 @@ static void update_reject_thd_filter(state_estimation_data_t *data)
 			if (data->state_filter.above_reject_counter == data->params.state_filter.reject_consec_count)
 			{
 				// II => add all old values to sum (and mark as added)
-				
+
 				ASSERT(data->params.state_filter.reject_consec_count <= calc_current_window_used(data));
-				
+
 				for (uint16_t i = 0; i < data->params.state_filter.reject_consec_count; i++)
 				{
 					if (buffer_pos > 0)
@@ -202,7 +202,7 @@ static void do_state_transition(state_estimation_data_t *data)
 	int16_t average = stateest_get_current_rf_value(data);
 
 	ASSERT(average >= 0);
-	
+
 
 	for (uint8_t i = 0; i < SE_STATECOUNT; i++)
 	{
@@ -276,7 +276,7 @@ int stateest_init(state_estimation_data_t *data, const state_estimation_params_t
 {
 	// check window sizes
 	// NOTE: This is no real sanity check, it only prevents out-of-bounds memory access
-	
+
 	for (uint8_t i = 0; i < SE_STATECOUNT; i++)
 	{
 		if (params->state_filter.window_sizes[i] > SE_MAX_WINDOW_SIZE)
@@ -339,7 +339,7 @@ state_update_result_t stateest_update(state_estimation_data_t *data, uint16_t ra
 
 		// rememebr if the last state was an ON state
 		uint8_t was_on = (data->state_filter.current_state >= SE_STATE_ON_THRESHOLD);
-		
+
 		// update the state
 		update_state_filter(data);
 

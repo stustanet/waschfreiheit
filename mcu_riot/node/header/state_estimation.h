@@ -42,7 +42,7 @@ struct state_estimation_params
 		 * If this is too large, mid will follow the input waveform which results in signal reduction.
 		 */
 		uint16_t mid_value_adjustment_speed;
-		
+
 		/*
 		 * The lowpass is applied after calculating the absolute value (deviation from mid)
 		 *

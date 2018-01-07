@@ -13,7 +13,6 @@ typedef struct
 	uint8_t key_status[AUTH_KEY_LEN];
 	uint8_t key_config[AUTH_KEY_LEN];
 	nodeid_t my_id;
-	
 } sensor_configuration_t;
 
 /*

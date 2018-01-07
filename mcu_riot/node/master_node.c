@@ -146,7 +146,7 @@ int master_node_cmd_connect(int argc, char **argv)
 		return 1;
 	}
 
-	
+
 	sensor_connection_t *con = find_or_init_node(dst);
 	if (!con)
 	{
@@ -563,7 +563,7 @@ static void message_callback(nodeid_t src, void *data, uint8_t len)
 		meshnw_send(src, &ping, sizeof(ping));
 		return;
 	}
-	
+
 	dispatch_packet(src, data, len);
 }
 
