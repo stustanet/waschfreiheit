@@ -4,6 +4,7 @@
 
 #include "sensor_node.h"
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <xtimer.h>
@@ -80,8 +81,11 @@
 // Serial debugging active (raw data dump)
 #define STATUS_SERIALDEBUG        64
 
+// Print state estimation frame values
+#define STATUS_PRINTFRAMES       128
+
 // LEDs have been set by the user or network command (stop all animations)
-#define STATUS_LED_SET           128
+#define STATUS_LED_SET           256
 
 /*
  * This struct contains all the runtime-data for the node logic
@@ -1111,7 +1115,7 @@ static void *adc_thread(void *arg)
 
 				printf("Channel %u on state change %i\n", adc, res);
 
-				// just change the status bits, the message loop will chek for changes and notify the master
+				// just change the status bits, the message loop will check for changes and notify the master
 				if (res == state_update_changed_to_on)
 				{
 					ctx.current_sensor_status |= (1 << adc);
@@ -1119,6 +1123,21 @@ static void *adc_thread(void *arg)
 				else
 				{
 					ctx.current_sensor_status &= ~(1 << adc);
+				}
+			}
+
+			if (ctx.status & STATUS_PRINTFRAMES)
+			{
+				// Print frame values
+				if (stateest_get_frame(&ctx.sensors[adc]) != 0xffffffff)
+				{
+					// It's a frame -> Print it
+					uint16_t frame = (uint16_t)stateest_get_frame(&ctx.sensors[adc]);
+					printf("%u: %u\t%u\t%u\n",
+					       adc,
+					       frame,
+					       stateest_get_current_rf_value(&ctx.sensors[adc]),
+					       stateest_get_current_state(&ctx.sensors[adc]));
 				}
 			}
 
@@ -1143,7 +1162,7 @@ static void *adc_thread(void *arg)
 						uint8_t len = raw_values_in_msg * sizeof(raw_frame_vals->values[0]) + sizeof(*raw_frame_vals);
 						int res = meshnw_send(ctx.master_node,
 						                      rf_buffer,
-											  len);
+						                      len);
 
 						if (res != 0)
 						{
@@ -1261,7 +1280,7 @@ void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 		// I read the values directly from the se context.
 		u16_to_unaligned(&rs->channels[i].if_current, ctx.sensors[i].input_filter.current >> 2);
 		u16_to_unaligned(&rs->channels[i].rf_current, stateest_get_current_rf_value(&ctx.sensors[i]));
-		rs->channels[i].current_status = ctx.sensors[i].state_filter.current_state;
+		rs->channels[i].current_status = stateest_get_current_state(&ctx.sensors[i]);
 	}
 
 	int res = meshnw_send(ctx.master_node, out_buffer, sizeof(out_buffer));
@@ -1646,6 +1665,29 @@ int sensor_node_cmd_led(int argc, char **argv)
 
 	ctx.status |= STATUS_LED_SET;
 	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, buffer, argc - 1);
+	return 0;
+}
+
+
+int sensor_node_cmd_print_frames(int argc, char **argv)
+{
+	if (argc != 2)
+	{
+		puts("USAGE: print_frames TRUE|FALSE");
+		puts("Enables / Disables printing of the sensor state.");
+		puts("If enbaled, the state estimation state is printed every frame.");
+		return 1;
+	}
+
+	if (strcasecmp(argv[1], "true") == 0 ||
+	    strcmp(argv[1], "1") == 0)
+	{
+		ctx.status |= STATUS_PRINTFRAMES;
+	}
+	else
+	{
+		ctx.status &= ~STATUS_PRINTFRAMES;
+	}
 	return 0;
 }
 

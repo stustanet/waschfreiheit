@@ -27,3 +27,8 @@ int sensor_node_cmd_raw(int argc, char **argv);
  * Test command for LED testing
  */
 int sensor_node_cmd_led(int argc, char **argv);
+
+/*
+ * Test command for sensor callibration
+ */
+int sensor_node_cmd_print_frames(int argc, char **argv);
