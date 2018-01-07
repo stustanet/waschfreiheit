@@ -12,6 +12,8 @@
 #include "utils.h"
 #include "messagetypes.h"
 
+#include "watchdog.h"
+
 
 /*
  * master_routes <DST1>:<HOP1>,<DST2>:<HOP2>,...
@@ -157,6 +159,8 @@ static const shell_command_t shell_commands[] = {
 
 static void init(void)
 {
+	// Start the watchdog, this needs to be fed min every 4 sec
+	watchdog_init();
 	int sni = sensor_node_init();
 	if (sni != 0)
 	{

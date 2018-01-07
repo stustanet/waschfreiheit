@@ -18,6 +18,7 @@
 #include "messagetypes.h"
 #include "utils.h"
 #include "led_ws2801.h"
+#include "watchdog.h"
 
 /*
  * The max number of sensors channels.
@@ -1377,6 +1378,7 @@ static void *message_thread(void *arg)
 
 	while(1)
 	{
+		WATCHDOG_FEED();
         xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY_US);
 		total_ticks++;
 
