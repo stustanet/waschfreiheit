@@ -377,3 +377,9 @@ int16_t stateest_get_current_rf_value(const state_estimation_data_t *data)
 	ASSERT(data->state_filter.current_state < SE_STATECOUNT);
 	return data->state_filter.window_sum / calc_current_window_used(data);
 }
+
+
+uint8_t stateest_get_current_state(const state_estimation_data_t *data)
+{
+	return data->state_filter.current_state;
+}
