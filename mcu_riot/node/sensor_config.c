@@ -246,7 +246,7 @@ int sensor_config_set_cmd(int argc, char **argv)
 		puts("Reset config!");
 		// zero the whole config
 		memset(&config_buffer, 0, sizeof(config_buffer));
-		
+
 		res = 0;
 	}
 	else

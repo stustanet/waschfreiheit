@@ -186,7 +186,7 @@ struct
 	 * Changing the master address afterwards is currently impossible (requires a restart).
 	 */
 	nodeid_t master_node;
-	
+
 } ctx;
 
 // Stuff for the threads
@@ -364,7 +364,7 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 	 * to the master, this is verified as soon as the first authenticated message is received.
 	 * This also implies that I can't trust any data from the hs1 message.
 	 */
-	
+
 	if ((ctx.status & STATUS_INIT_ROUTES) == 0)
 	{
 		/*
@@ -381,16 +381,16 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 		// also, store the source address as master address, the route request is expected from the same address.
 		ctx.master_node = src;
 	}
-	
+
 	// Finally send the hs2 to the master.
 	res = meshnw_send(src, out_buffer, rep_msg_len);
-	
+
 	if (res != 0)
 	{
 		printf("sending slave handshake reply failed with error %i\n", res);
 		return;
 	}
-	
+
 	// Auth context for config channel is now init -> Now i can receive authenticated messages.
 	ctx.status |= STATUS_INIT_AUTH_CFG;
 }
@@ -434,7 +434,7 @@ static void init_status_auth(void)
 
 	// Send the hs1 to the master.
 	res = meshnw_send(ctx.master_node, out_buffer, rep_msg_len);
-	
+
 	if (res != 0)
 	{
 		printf("sending master handshake failed with error %i\n", res);
@@ -513,7 +513,7 @@ static void send_ack(uint8_t ack_result)
 	// Buffer for the ack message.
 	uint8_t out_buffer[MESHNW_MAX_PACKET_SIZE];
 	uint32_t rep_msg_len = sizeof(out_buffer);
-	
+
 	msg_auth_ack_t *ack = (msg_auth_ack_t *)out_buffer;
 
 	/*
@@ -536,7 +536,7 @@ static void send_ack(uint8_t ack_result)
 
 	// Send the ack to the master.
 	res = meshnw_send(ctx.master_node, out_buffer, rep_msg_len);
-	
+
 	if (res != 0)
 	{
 		printf("sending slave ack reply failed with error %i\n", res);
@@ -892,7 +892,7 @@ static void handle_raw_status_request(nodeid_t src, void *data, uint8_t len)
 static void handle_nop_request(nodeid_t src, void *data, uint8_t len)
 {
 	// NOP request -> just check auth and ack it
-	
+
 	uint32_t msglen = len;
 	if (check_auth_message(src, data, &msglen) != 0)
 	{
@@ -963,7 +963,7 @@ static void handle_echo_request(nodeid_t src, void *data, uint8_t len)
 	(void) data;
 	(void) len;
 	// Non-authenticated echo request -> just send a non-authenticated reply
-	
+
 	printf("Got echo request from %u\n", src);
 
 	msg_echo_reply_t echo_rep_msg;
@@ -1071,7 +1071,7 @@ static void *adc_thread(void *arg)
 	raw_frame_vals->type = MSG_TYPE_RAW_FRAME_VALUES;
 	static const uint8_t VALUES_PER_MESSAGE = (sizeof(rf_buffer) - sizeof(*raw_frame_vals)) / sizeof(raw_frame_vals->values[0]);
 	uint8_t raw_values_in_msg = 0;
-	
+
 
     xtimer_ticks32_t last = xtimer_now();
     while (1)
@@ -1108,10 +1108,10 @@ static void *adc_thread(void *arg)
 			if (res != state_update_unchanged)
 			{
 				// Status change on this channel.
-				
+
 				printf("Channel %u on state change %i\n", adc, res);
 
-				// just change the status bits, the message loop will chek for changes and notify the master 
+				// just change the status bits, the message loop will chek for changes and notify the master
 				if (res == state_update_changed_to_on)
 				{
 					ctx.current_sensor_status |= (1 << adc);
@@ -1125,7 +1125,7 @@ static void *adc_thread(void *arg)
 			if (adc == ctx.debug_raw_frame_channel && ctx.debug_raw_frame_transmission_counter > 0)
 			{
 				// Raw frame values have been requested for this channel
-				
+
 				if (stateest_get_frame(&ctx.sensors[adc]) != 0xffffffff)
 				{
 					// This is a frame of the input filter
@@ -1224,7 +1224,7 @@ static void send_status_update_message(uint16_t status)
 
 	// ... and send it.
 	res = meshnw_send(ctx.master_node, out_buffer, status_msg_len);
-	
+
 	if (res != 0)
 	{
 		printf("sending status update failed with error %i\n", res);
@@ -1329,7 +1329,7 @@ static void do_led_animation(uint32_t ticks)
 	{
 		leds[4].b = 160;
 	}
-	
+
 	// finally set the LEDs
 	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
 }
@@ -1457,7 +1457,7 @@ static void *message_thread(void *arg)
 		if (!ctx.last_status_msg_was_acked)
 		{
 			// I -> Check / do retransmission
-			
+
 			if (retransmission_timer > 0)
 			{
 				// Wait for timer
@@ -1473,7 +1473,7 @@ static void *message_thread(void *arg)
 		else if ((current_status & ctx.active_sensor_channels) != (last_sent_sensor_status & ctx.active_sensor_channels))
 		{
 			// II -> Send new status
-			
+
 			// Now i know that last_status_msg_was_acked is nonzero, therefore i may change the last status
 			last_sent_sensor_status = current_status;
 
@@ -1485,7 +1485,7 @@ static void *message_thread(void *arg)
 			send_update_message = 1;
 		}
 		// else do nothing
-		
+
 
 		if (send_update_message)
 		{
@@ -1528,7 +1528,7 @@ int sensor_node_init(void)
 	ctx.last_status_msg_was_acked = 1;
 
 	// Start the threads
-	
+
 	adc_thd_pid = thread_create(adc_thd_stack, sizeof(adc_thd_stack), THREAD_PRIORITY_MAIN - 1,
 	                          THREAD_CREATE_STACKTEST, adc_thread, NULL,
 	                          "node_adc_thread");
@@ -1578,7 +1578,7 @@ int sensor_node_init(void)
 	ctx.random_current = (uint32_t)nonce;
 
 	// state estimation is initialized later
-	
+
 	ctx.status |= STATUS_INIT_CPLT;
 
 	return 0;

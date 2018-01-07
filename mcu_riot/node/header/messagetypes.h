@@ -46,7 +46,7 @@ typedef struct
 /*
  * ACK packet for authenticated packets.
  * Only the slave of a connection sends ACK
- * result_code is a command-defined result value, 
+ * result_code is a command-defined result value,
  *   if the msb is set, this is an retransmission-ack
  */
 #define MSG_TYPE_AUTH_ACK                   3

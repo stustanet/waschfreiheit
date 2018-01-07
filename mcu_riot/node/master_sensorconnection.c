@@ -54,7 +54,7 @@ static void handle_hs1(sensor_connection_t *con, uint8_t *message, uint8_t len)
 	}
 
 	// send hs2 directly (not through the retransmission buffer)
-	
+
 	res = meshnw_send(con->node_id, rep_buffer, rep_len);
 
 	if (res != 0)
@@ -417,7 +417,7 @@ int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t nod
 	con->auth_add_data_sta[1] = master;
 
 	// Now send the hs1, the data is written directly into the last message buffer
-	
+
 	uint32_t msg_len = sizeof(con->last_sent_message);
 
 	msg_auth_hs_1_t *hs1 = (msg_auth_hs_1_t *)con->last_sent_message;
@@ -633,7 +633,7 @@ int sensor_connection_configure_sensor(sensor_connection_t *con, uint8_t channel
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.input_filter.mid_value_adjustment_speed);
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.input_filter.lowpass_weight);
 	ASSERT_ALIGNED(msg_configure_sensor_t, params.input_filter.num_samples);
-	
+
 	// Input filter
 	msg->params.input_filter.mid_value_adjustment_speed = tmp[0];
 	msg->params.input_filter.lowpass_weight = tmp[1];
@@ -706,7 +706,7 @@ int sensor_connection_enable_sensors(sensor_connection_t *con, uint16_t mask, ui
 
 	startmsg->active_sensors = mask;
 	startmsg->adc_samples_per_sec = samples_per_sec;
-	
+
 
 	// sign and send
 	int res = sign_and_send_msg(con, sizeof(*startmsg));

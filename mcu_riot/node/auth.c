@@ -118,7 +118,7 @@ int check_message_tag(const auth_context_t *ctx, auth_number_t nonce, const void
 	}
 
 	uint32_t data_len = (*len) - sizeof(auth_footer_t);
-	
+
 	auth_footer_t *footer = (auth_footer_t *)(((uint8_t *)data) + data_len);
 
 	// Compare nonce first before generating the tag
@@ -182,7 +182,7 @@ int auth_master_process_handshake(auth_context_t *ctx, const void *data, uint32_
 	}
 
 	// message is normally signed, the contents must be the challenge + offset data
-	
+
 	if (len != sizeof(auth_footer_t) + sizeof(ctx->nonce) + offset)
 	{
 		return AUTH_WRONG_SIZE;
@@ -195,7 +195,7 @@ int auth_master_process_handshake(auth_context_t *ctx, const void *data, uint32_
 	}
 
 	auth_footer_t *footer =(auth_footer_t *)(((uint8_t *)data) + offset + sizeof(ctx->nonce));
-	
+
 	auth_number_t tag = generate_tag(ctx, footer->nonce, data, offset + sizeof(ctx->nonce), NULL, 0);
 
 	if (!timesafe_memeq(&tag, &footer->tag, sizeof(tag)))
@@ -350,7 +350,7 @@ int auth_slave_verify(auth_context_t *ctx, const void *data, uint32_t *len, cons
 
 	// tag ok -> packet is valid
 	// => return ok and increment nonce
-	
+
 	ctx->nonce += 2;
 	return 0;
 }
