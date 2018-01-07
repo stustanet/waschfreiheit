@@ -58,34 +58,34 @@
 
 // Bits in the status field
 // Basic initialization complete, node is now active and can process messages
-#define STATUS_INIT_CPLT           1
+#define STATUS_INIT_CPLT          0x00000001
 
 /*
  * Route initialization complete, node has valid routes
  * This also indicates a fully completed config handshake.
  */
-#define STATUS_INIT_ROUTES         2
+#define STATUS_INIT_ROUTES        0x00000002
 
 // Status auth initialization complete, node can send status update
-#define STATUS_INIT_AUTH_STA       4
+#define STATUS_INIT_AUTH_STA      0x00000004
 
 // Config auth initialization complete, node can now receive config messages
-#define STATUS_INIT_AUTH_CFG       8
+#define STATUS_INIT_AUTH_CFG      0x00000008
 
 // Stauts auth init pending, hs1 was sent to the master node, waiting for hs2
-#define STATUS_INIT_AUTH_STA_PEND 16
+#define STATUS_INIT_AUTH_STA_PEND 0x00000010
 
 // Sensors have been started
-#define STATUS_SENSORS_ACTIVE     32
+#define STATUS_SENSORS_ACTIVE     0x000000020
 
 // Serial debugging active (raw data dump)
-#define STATUS_SERIALDEBUG        64
+#define STATUS_SERIALDEBUG        0x000000040
 
 // Print state estimation frame values
-#define STATUS_PRINTFRAMES       128
+#define STATUS_PRINTFRAMES        0x000000080
 
 // LEDs have been set by the user or network command (stop all animations)
-#define STATUS_LED_SET           256
+#define STATUS_LED_SET            0x000000100
 
 /*
  * This struct contains all the runtime-data for the node logic
