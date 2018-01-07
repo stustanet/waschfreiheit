@@ -1087,7 +1087,7 @@ static void *adc_thread(void *arg)
 				continue;
 			}
 
-			if (ctx.status & STATUS_SENSORS_ACTIVE)
+			if ((ctx.status & STATUS_SENSORS_ACTIVE) == 0)
 			{
 				// sensors not configured -> stop here
 				break;
