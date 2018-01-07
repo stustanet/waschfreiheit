@@ -1572,8 +1572,11 @@ int sensor_node_init(void)
 	const sensor_configuration_t *cfg = sensor_config_get();
 	if (!cfg)
 	{
+		puts("Network not configured, init aborted!");
 		return SN_ERROR_NOT_CONFIGURED;
 	}
+
+	printf("Starting SENSOR node, id = %u\n", cfg->my_id);
 
 	ctx.current_node = cfg->my_id;
 
