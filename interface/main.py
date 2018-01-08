@@ -1,89 +1,59 @@
 #!/usr/bin/env python3
 import wasch
 import asyncio
-import json
-import sensor
 
-class WaschConfig:
-    class Node:
-        class Channel:
-            def __init__(self, conf={}):
-                self.number = conf['number']
-                self.name = conf['name']
-                self.model = conf['model']
-                with open(conf['config']) as f:
-                    self.config = json.load(f)
 
-        def __init__(self, conf={}):
-            self.id = conf['id']
-            self.name = conf['name']
-            self.channels = { c['number']: WaschConfig.Node.Channel(c) for c in conf['channels'] }
-            self.routes = conf['routes']
-            self.routes_id = {}
-            self.is_initialized = False
+async def observer(master):
+    while True:
+        await asyncio.sleep(1)
+        if not master:
+            continue
+        state =  "*************************************************\n"
+        state += "* Master:\n"
+        state += "*  - response_pending: {}\n".format(master.response_pending)
+        state += "*  - message_pending:  {}\n".format(master.message_pending)
+        state += "*  - last_command:     {}\n".format(master.last_command)
+        state += "*     - messagestr:    {}\n".format(master.last_command.message)
+        state += "*     - retransmit:    {}\n".format(master.last_command.retransmit)
+        state += "*     - r_count:       {}\n".format(master.last_command.retransmit_count)
+        state += "*\n"
+        state += "*  - Sensors [{}]:\n".format(len(master._sensors))
+        for id, s in master._sensors.items():
+            state += "*\n"
+            state += "*    # SENSOR: ID {}: {}\n".format(s.nodeid, s.config.name)
+            state += "*      - last_distance: {}\n".format(s.distance)
+            state += "*      - last_status:   {}\n".format(s.last_status)
+            state += "*      - last_update:   {}\n".format(s.last_update)
+            state += "*      - state:         {}\n".format(s.state)
+            if master.last_command.node == s:
+                state += "*      - running command: {}\n".format(master.last_command)
 
-    def __init__(self, fname):
-        with open(fname) as f:
-            conf = json.load(f)
+        state +=  "\n\n"
 
+        with open("/tmp/wasch.state", 'w+') as f:
+            f.write(state)
+
+
+async def network_sanity_observer(master):
+    while True:
+        await asyncio.sleep(master.config.networkcheckintervall)
         try:
-            self.nodes = { c['name']: WaschConfig.Node(c) for c in conf['nodes'] }
-            # Postprocess the stuff
-            for node in self.nodes.values():
-                for rfrom, rto in node.routes.items():
-                    node.routes_id[self.nodes[rfrom].id] = self.nodes[rto].id
-        except KeyError:
-            print("Config failed")
-            raise
+            await master.nm.recover_network(None)
+        except WaschOperationInterrupted:
+            pass
 
-
-class NetworkManager:
-    def __init__(self, config, wasch):
-        self.config = config
-        self.wasch = wasch
-        self.nodes = {}
-
-    async def reinit_node(self, node):
-        node.is_initialized = False
-        await self.init_the_network(node)
-
-    async def init_the_network(self, node=None):
-        if not node:
-            node = self.config.nodes["MASTER"]
-
-        print("Initing node ", node.name)
-        if node.is_initialized:
-            return
-
-        if node.name == "MASTER":
-            await self.wasch.sensor_routes(node.routes_id)
-        else:
-            connection = await self.wasch.node(node.id, self.config.nodes[node.routes["MASTER"]].id)
-            await connection.routes(node.routes_id, reset=True)
-            self.nodes[node.name] = connection
-            node.is_initialized = True
-
-        for n in node.routes.values():
-            await self.init_the_network(self.config.nodes[n])
-
-        # TODO Send sensor config data,
-        # TODO enable the configured channels
-
-async def run(conf, master):
+async def run(master):
     # TODO Here the magic happens:
     #
     # Magic auth-ping to keep testing the network to all nodes
     # reboot identification
     # Error handling for failed nodes:
-    # 
-
 
     # Configure the master
-    nm = NetworkManager(config, master)
-    await nm.init_the_network()
     master.status_subscribe(lambda n, s: print("node:", n,"status", s))
+
     try:
-        await nm.nodes["HSH7"].authping()
+        await master.get_node("HSH16").authping()
     except wasch.WaschError:
         print("Wasch has failed")
 
@@ -97,12 +67,31 @@ if __name__ == "__main__":
 
     # if you have a real serial interface, just issue the serial /dev/ttyUSBX
     # here.
-    config = WaschConfig('nodes.json')
+
 
     master = wasch.WaschInterface(
-        "/dev/ttyUSB0", loop=loop,
-        timeoutstrategy=wasch.TimeoutStrategy.NRetransmit(3) )
+        "/dev/ttyUSB0", 'nodes.json', loop=loop)
 
-    loop.run_until_complete(run(config, master))
+    observertask = loop.create_task(observer(master))
+    
 
-    loop.run_forever()
+    try:
+        loop.run_until_complete(master.start())
+        loop.run_until_complete(run(master))
+        networksanitizertask = loop.create_task(network_sanity_observer(master))
+        loop.run_forever()
+    except:
+        pass
+    finally:
+        try:
+            observertask.cancel()
+            observertask.result()
+        except asyncio.CancelledError:
+            pass
+        try:
+            networksanitizertask.cancel()
+            networksanitizertask.result()
+        except asyncio.CancelledError:
+            pass
+
+    loop.cancel()
