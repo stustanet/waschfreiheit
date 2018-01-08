@@ -35,12 +35,20 @@ async def observer(master):
 
 
 async def network_sanity_observer(master):
+    print("Starting network sanity observer every {} seconds".format(
+        master.config.networkcheckintervall))
+
     while True:
         await asyncio.sleep(master.config.networkcheckintervall)
         try:
-            await master.nm.recover_network(None)
-        except WaschOperationInterrupted:
+            print("Performing network sanity check")
+            await master.networkmanager.recover_network(None)
+        except wasch.WaschOperationInterrupted:
+            print("Network sanity check was interrupted")
             pass
+
+def node_status_update(node, status):
+    print("\n\nNODE {} HAS NEW STATUS: {}\n\n".format(node, status))
 
 async def run(master):
     # TODO Here the magic happens:
@@ -50,7 +58,7 @@ async def run(master):
     # Error handling for failed nodes:
 
     # Configure the master
-    master.status_subscribe(lambda n, s: print("node:", n,"status", s))
+    master.status_subscribe(node_status_update)
 
     try:
         await master.get_node("HSH16").authping()
@@ -68,12 +76,10 @@ if __name__ == "__main__":
     # if you have a real serial interface, just issue the serial /dev/ttyUSBX
     # here.
 
-
     master = wasch.WaschInterface(
         "/dev/ttyUSB0", 'nodes.json', loop=loop)
 
     observertask = loop.create_task(observer(master))
-    
 
     try:
         loop.run_until_complete(master.start())
