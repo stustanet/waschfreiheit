@@ -4,6 +4,7 @@ import json
 import asyncio
 import serial_asyncio
 import re
+from functools import partial
 
 import sensor
 
@@ -278,6 +279,7 @@ class WaschInterface:
         else:
             raise KeyError()
 
+
     def status_subscribe(self, callback, nodeid=None):
         """
         Subscribe to status updates from the node network
@@ -286,12 +288,11 @@ class WaschInterface:
 
         if nodeid is None, subscribe to all sensors
         """
-
         if nodeid == None:
-            for e in self._sensors.values():
-                e.status_callback(lambda s: callback(e.nodeid, s))
+            for i, e in self._sensors.items():
+                e.status_callback(partial(callback, i))
         else:
-            get_node(nodeid).status_callback(lambda s: callback(nodeid, s))
+            get_node(nodeid).status_callback(partial(callback, nodeid))
 
     async def send_raw(self, msg, node=None, expect_response=True, force=False, maximum_priority=False):
         """
@@ -316,7 +317,6 @@ class WaschInterface:
                 self._queue.insert(0, message)
             else:
                 self._queue.append(message)
-
             if node:
                 node.last_message = message
 
@@ -356,24 +356,65 @@ class WaschInterface:
             raise WaschCommandError(message.message)
         elif response[0:3] == "ACK":
             print(response)
-            if message.node:
-                message.node.state = CONNECTED
-            match = re.findall(r"ACK\d*-(\d*)", response)
+            match = re.findall(r"ACK(\d+)-(\d+)", response)
             if not match:
                 raise WaschCommandError("Invalud ACK result {}".format(response))
-            code = match[0]
+            self.get_node(match.groups()[0]).state = CONNECTED
+            code = match.groups()[1]
             if code != "128" and code != "0":
                 raise WaschAckError(code)
         elif response[0:7] == "TIMEOUT":
-            node = self.get_node(response[7:])
+            node = self.get_node(response[len("TIMEOUT"):])
             try:
                 await self.timeoutstrategy.timeout(self, node, message)
             except WaschTimeoutError:
-                await self.recover_network(node)
+                if self.networkmanager.network_recovery_in_progress:
+                    raise
+                else:
+                    await self.recover_network(node)
         else:
             raise WaschCommandError("Unknown command: {}".format(response))
 
 
+    def received(self, msg):
+        msg = ''.join(msg).strip()
+        if not msg:
+            return
+
+        #print("received: ", msg)
+
+        match = re.match(r".*###(.*)", msg)
+        if match:
+            msg, = match.groups(1)
+
+            if str.startswith(msg.upper(), "STATUS"):
+                print(msg)
+                self.__status(msg[len("STATUS"):])
+            else:
+                self.last_result = msg
+                self.response_pending = False
+                self.response_event.set()
+                self.allow_next_message(),
+        else:
+            print("RAW: \"{}\"".format(msg))
+
+
+    def allow_next_message(self):
+        """
+        Allow the next message to be sent
+        """
+        self.message_pending = False
+        self.message_event.set()
+
+
+    def __status(self, msg):
+        # The `2:` hack works because the ID is single letter!
+        match = re.match(r"(\d+) (\d+)", msg)
+        if match:
+            node = self.get_node(int(match.groups()[0]))
+            node._status(match.groups()[1])
+        else:
+            raise WaschCommandError("Wasch Interface send invalid status command")
 
     def received(self, msg):
         msg = ''.join(msg).strip()
@@ -505,6 +546,7 @@ class NetworkManager:
 
 
     async def recover_network(self, failednode):
+        self.network_recovery_failed_node = []
         print("Starting to recover network")
         if self.network_recovery_in_progress:
             print("Another recovery is already in the progress. Waiting for",
@@ -512,19 +554,12 @@ class NetworkManager:
             while self.network_recovery_in_progress:
                 await self.network_recovery_event.wait()
                 self.network_recovery_event.clear()
-                if self.network_recovery_failed_node == failednode:
+                if failednode and failednode in self.network_recovery_failed_node:
                     raise WaschOperationInterrupted()
             return
         print("Recovering network...")
         # TODO: Lock the masters queue, to not continue execution
         # maybe use the response_pending logic for that?
-
-        # TODO: override master.parse_response
-        # new parse_response mode:
-        #    timeout: keep it evil
-        #    ack: it is happy - continue normally
-        #    err: you suck!
-        #    status: just do it... stop wasting bandwidth
 
         if self.master.response_pending:
             print("Waiting for missing responses on the network")
@@ -544,13 +579,24 @@ class NetworkManager:
                 node.nodeid, node.config.name, node.state))
             try:
                 if node.state == TRANSMITTING:
+                    # If the node is currently working on a command (we are in
+                    # a retransmit in this case), we will continue sending re-
+                    # transmits, and hope for the best.
+                    #
+                    # If this starts a network recovery, it will raise a timeout
+                    # error instead.
                     if node.last_message.retransmit_count > self.master.config.retransmissionlimit:
-                        node.state == FAILED
+                        node.state = FAILED
                     else:
-                        await node.retransmit()
-                        if failednode == node:
-                            throw_error = False
+                        try:
+                            await node.retransmit()
+                            if failednode == node:
+                                throw_error = False
+                        except WaschTimeoutError:
+                            node.state = FAILED
                 elif node.state == CONNECTED:
+                    # If a node is connected, we try to ping it, and if this is
+                    # ok, we can relax
                     await node.authping()
                     if failednode == node:
                         throw_error = False
@@ -559,7 +605,7 @@ class NetworkManager:
                 else:
                     await self.reinit_node()
                     if failednode != node:
-                        self.network_recovert_failed_node = node
+                        self.network_recovery_failed_node.append(node)
                         self.network_recovery_event.set()
                     else:
                         throw_error = True
@@ -568,10 +614,10 @@ class NetworkManager:
                 await self.reinit_node()
 
         # TODO: re-enable the masters queue
-        # TODO: re-enable parse_response
 
         self.recovery_in_progress = False
         self.network_recovery_event.set()
 
-        if throw_error:
+        # Only throw an error if we actually run from a failed node
+        if failednode and throw_error:
             raise WaschOperationInterrupted()
