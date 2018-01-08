@@ -3,27 +3,30 @@
 import time
 
 class Sensor:
-    def __init__(self, master, nodeid):
+    def __init__(self, master, nodeid, config):
         self.nodeid = nodeid
         self.master = master
+        self.config = config
         self._ack_cbs = []
         self._status_cbs = []
         self.last_status = ""
         self.last_update = None
+        self.state = ""
+        self.distance = config.distance
 
     async def ping(self):
         """
         Ping the node to test if the path is valid
         """
-        await self.master.send_raw("ping {}".format(self.nodeid), expect_response=False)
+        await self.master.send_raw("ping {}".format(self.nodeid), self, expect_response=False)
 
     async def authping(self):
         """
         Ping a sensor and check if it is still valid and alive
         """
-        await self.master.send_raw("authping {}".format(self.nodeid))
+        await self.master.send_raw("authping {}".format(self.nodeid), self)
 
-    async def connect(self, return_hop, timeout, force=False):
+    async def connect(self, return_hop, timeout):
         """
         Opens a connection to a hope
 
@@ -34,38 +37,37 @@ class Sensor:
         """
         await self.master.send_raw("connect {} {} {}".format(self.nodeid,
                                                              return_hop,
-                                                             timeout,
-                                                             force=force))
+                                                             timeout), self)
 
     async def retransmit(self):
         """
         Retransmits the last packet for the node again
         Call this only after a node sent a timeout.
         """
-        await self.master.send_raw("retransmit {}".format(self.nodeid))
+        await self.master.send_raw("retransmit {}".format(self.nodeid), self)
 
     async def configure(self, channel, input_filter, st_matrix,
             wnd_sizes, reject_filter):
         """
         Set configuration parameters
         """
-        await self.master.send_raw("configure_sensor {} {} {} {} {} {} ".format(
+        await self.master.send_raw("cfg_sensor {} {} {} {} {} {} ".format(
             self.nodeid, channel, input_filter, st_matrix, wnd_sizes,
-            reject_filter))
+            reject_filter), self)
 
     async def enable(self, channel_mask, samples_per_sec):
         """
         Enable/start the sensor
         """
         await self.master.send_raw("enable_sensor {} {} {}".format(self.nodeid,
-            channel_mask, samples_per_sec))
+            channel_mask, samples_per_sec), self)
 
     async def get_rawframes(self, channel, num_frames):
         """
         Get raw frames from a sensor. Used for calibration
         """
-        await self.master.send_raw("get_raw {} {} {}", self.nodeid, channel,
-                num_frames)
+        await self.master.send_raw("get_raw {} {} {}".format(self.nodeid, channel,
+                                                             num_frames), self)
 
     async def routes(self, routes, reset=False):
         """
@@ -77,9 +79,9 @@ class Sensor:
         # TODO Check what does the doku mean with "add_routes"?
         routestring = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
         if reset:
-            await self.master.send_raw("reset_routes {} {}".format(self.nodeid, routestring))
+            await self.master.send_raw("reset_routes {} {}".format(self.nodeid, routestring), self)
         else:
-            await self.master.send_raw("set_routes {} {}".format(self.nodeid, routestring))
+            await self.master.send_raw("set_routes {} {}".format(self.nodeid, routestring), self)
 
     def _ack(self, code):
         """
