@@ -1,0 +1,24 @@
+{
+	"input_filter":
+	{
+		"mid_adjustment_speed": 20,
+		"lowpass_weight": 50,
+		"frame_size": 100
+	},
+	"transition_matrix": [
+		[   0,    0,   80,    0],
+		[ -24,    0,    0,  160],
+		[ -48,    0,    0,  160],
+		[   0,  -80,    0,    0]
+	],
+	"window_sizes": [
+		150,
+		1500,
+		1500,
+		1500
+	],
+	"reject_filter": {
+		"threshold": 104,
+		"consec_count": 15
+	}
+}
