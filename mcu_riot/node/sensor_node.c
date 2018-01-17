@@ -87,6 +87,9 @@
 // LEDs have been set by the user or network command (stop all animations)
 #define STATUS_LED_SET            0x000000100
 
+// Send the status even if the master status is the same
+#define STATUS_FORCE_UPDATE       0x000000200
+
 /*
  * This struct contains all the runtime-data for the node logic
  */
@@ -234,7 +237,6 @@ static kernel_pid_t message_thd_pid;
  * |------------- ACK ----------->|
  */
 
-
 /*
  * Returns a random number between 0 and RETRANSMISSION_DELAY_RANDOM_FACTOR
  * Every time this function is called a new random value is generated.
@@ -305,6 +307,8 @@ static void reset(void)
 
 	// reset sensor loop delay to 1s
 	ctx.sensor_loop_delay_us = 1000000;
+
+	ctx.status |= STATUS_FORCE_UPDATE;
 }
 
 
@@ -1489,7 +1493,8 @@ static void *message_thread(void *arg)
 				total_retransmissions++;
 			}
 		}
-		else if ((current_status & ctx.active_sensor_channels) != (last_sent_sensor_status & ctx.active_sensor_channels))
+		else if ((current_status & ctx.active_sensor_channels) != (last_sent_sensor_status & ctx.active_sensor_channels) ||
+		          (ctx.status & STATUS_FORCE_UPDATE) != 0)
 		{
 			// II -> Send new status
 
@@ -1502,6 +1507,8 @@ static void *message_thread(void *arg)
 
 			// Send message
 			send_update_message = 1;
+
+			ctx.status &= ~STATUS_FORCE_UPDATE;
 		}
 		// else do nothing
 
@@ -1514,6 +1521,7 @@ static void *message_thread(void *arg)
 			// finally calculate the new retransmission timer
 			retransmission_timer = calculate_retransmission_delay(retransmission_counter);
 			retransmission_counter++;
+			printf("Status message sent, rt_t=%lu, rt_c=%lu\n", retransmission_timer, retransmission_counter);
 		}
 	}
 
