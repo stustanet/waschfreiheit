@@ -1310,6 +1310,17 @@ static void do_led_animation(uint32_t ticks)
 			leds[0].r = 255;
 		}
 	}
+	else if (ticks < 5)
+	{
+		// Show id as binary
+		leds[0].b = (ctx.current_node & 0x01) ? 255 : 0;
+		leds[1].b = (ctx.current_node & 0x02) ? 255 : 0;
+		leds[2].b = (ctx.current_node & 0x04) ? 255 : 0;
+		leds[3].b = (ctx.current_node & 0x08) ? 255 : 0;
+		leds[4].b = (ctx.current_node & 0x10) ? 255 : 0;
+		led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
+		return;
+	}
 	else if (ticks & 0x01)
 	{
 	    // 0 will blink blue
