@@ -48,17 +48,10 @@ Es gibt im ganzen System genau eine Bridge (Gateway, Master Node), diese besteht
 ### Webserver
 Der Webserver bekommt die Daten von der Bridge und zeigt den aktuellen Status an.
 
-
-## TODO
-* Sensorhalterung (3D Druck Teil um den Hall Sensor mit dem Ferritkern am Kabel zu halten)
-* Gehäuse for Node
-* Software für Funk <-> Lan Bridge (Raspi)
-* Webserver
-
 ## Ich will das complien!
 * RIOT-OS nach Anleitung herunterladen / installieren.
 * Dieses Repo klonen.
-* "bluepill" Board-Definition (mcu\_riot / boards) in "boards" Ordner von RIOT kopieren
+* "wasch\_v1" Board-Definition (mcu\_riot / boards) in "boards" Ordner von RIOT kopieren
 * Das Hauptprojekt liegt in mcu\_riot / node
   * make NODE=MASTER erstellt die Firmware für den Master-Knoten 
   * make NODE=SENSOR erstellt die Firmware für einen Sensor-Knoten 
