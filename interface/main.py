@@ -78,8 +78,8 @@ if __name__ == "__main__":
     # here.
 
     master = wasch.WaschInterface(
-        "/dev/ttyUSB0", 'nodes.json', loop=loop)
-        #"/dev/ttyUSB0",
+        #"/tmp/waschfreiheit_pts",
+        "/dev/ttyUSB0",
         'nodes.json', loop=loop)
 
     observertask = loop.create_task(observer(master))
