@@ -11,6 +11,7 @@
 
 #include "utils.h"
 #include "messagetypes.h"
+#include "serial_getchar_dma.h"
 
 #include "watchdog.h"
 
@@ -177,10 +178,11 @@ static void init(void)
 
 int main(void)
 {
+	serial_getchar_dma_init();
 	init();
 
-    char line_buf[256];
-    shell_run(shell_commands, line_buf, sizeof(line_buf));
+	char line_buf[256];
+	shell_run(shell_commands, line_buf, sizeof(line_buf));
 
-    return 0;
+	return 0;
 }
