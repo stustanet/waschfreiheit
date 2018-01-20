@@ -352,6 +352,7 @@ class WaschInterface:
                 await self.response_event.wait()
                 self.response_event.clear()
                 await self.parse_response(self.last_result, self.last_command)
+                self.allow_next_message(),
 
     async def parse_response(self, response, message):
         if response[0:3] == "ERR":
@@ -359,13 +360,15 @@ class WaschInterface:
         elif response[0:3] == "ACK":
             print(response)
             match = re.findall(r"ACK(\d+)-(\d+)", response)
-            if not match:
+            if not match or len(match) > 1:
                 raise WaschCommandError("Invalud ACK result {}".format(response))
-            self.get_node(match.groups()[0]).state = CONNECTED
-            code = match.groups()[1]
+            match = match[0]
+            self.get_node(match[0]).state = CONNECTED
+            code = match[1]
             if code != "128" and code != "0":
                 raise WaschAckError(code)
         elif response[0:7] == "TIMEOUT":
+            print("Received timeout: ", response)
             node = self.get_node(response[len("TIMEOUT"):])
             try:
                 await self.timeoutstrategy.timeout(self, node, message)
@@ -396,7 +399,6 @@ class WaschInterface:
                 self.last_result = msg
                 self.response_pending = False
                 self.response_event.set()
-                self.allow_next_message(),
         else:
             print("RAW: \"{}\"".format(msg))
 
@@ -411,7 +413,7 @@ class WaschInterface:
 
     def __status(self, msg):
         # The `2:` hack works because the ID is single letter!
-        match = re.match(r"(\d+) (\d+)", msg)
+        match = re.match(r"(\d+)[ -](\d+)", msg)
         if match:
             node = self.get_node(int(match.groups()[0]))
             node._status(match.groups()[1])
@@ -487,6 +489,7 @@ class NetworkManager:
                 await connection.configure(ch.number, *self.parse_sensor_config(ch.config))
 
             await connection.enable(bitmask, node.samplerate)
+            await connection.led(sensor.LED.OFF)
 
     def parse_sensor_config(self, config):
         #cfg_sensor x 0 20,50,100 0,80,0,-24,0,160,-48,0,160,0,-80,0 150,1500,1500,1500 104,15
