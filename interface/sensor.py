@@ -97,12 +97,14 @@ class Sensor:
         ledstring = ' '.join(ledcolors)
         await self.master.send_raw("led {} {}        ".format(self.nodeid, ledstring))
 
+
     def _ack(self, code):
         """
         An "ack" has been received with the given code
         """
         for x in self._ack_cbs:
             x(code)
+
 
     def _status(self, status):
         """

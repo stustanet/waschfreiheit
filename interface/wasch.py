@@ -8,8 +8,6 @@ from functools import partial
 
 import sensor
 
-
-
 TRANSMITTING = 'transmitting'
 CONNECTED = 'connected'
 FAILED = 'failed'
@@ -420,6 +418,7 @@ class WaschInterface:
         else:
             raise WaschCommandError("Wasch Interface send invalid status command")
 
+
     async def sensor_config(self, node, key_status, key_config):
         """
         node: id of the node to configure
@@ -440,6 +439,7 @@ class WaschInterface:
         await self.send_raw("routes {}".format(routestring),
                             expect_response=False)
 
+
 class NetworkManager:
     def __init__(self, config, master, loop=None):
         if not loop:
@@ -449,8 +449,8 @@ class NetworkManager:
         self.master = master
         self.network_recovery_in_progress = False
         self.network_recovery_event = asyncio.Event(loop=loop)
-
         master.recover_network = self.recover_network
+
 
     async def reinit_node(self, node):
         node.is_initialized = False
@@ -490,6 +490,7 @@ class NetworkManager:
 
             await connection.enable(bitmask, node.samplerate)
             await connection.led(sensor.LED.OFF)
+
 
     def parse_sensor_config(self, config):
         #cfg_sensor x 0 20,50,100 0,80,0,-24,0,160,-48,0,160,0,-80,0 150,1500,1500,1500 104,15
@@ -536,7 +537,6 @@ class NetworkManager:
             print("Waiting for missing responses on the network")
             await self.master.response_event.wait()
 
-
         # Do we have to throw an WaschOperationInterrupted error after we are done?
         throw_error = True
 
@@ -574,7 +574,7 @@ class NetworkManager:
                         throw_error = False
                 elif node.state == FAILED:
                     # We ignore failed nodes in recovery.
-                    # TODOysThis has to be improved.
+                    # TODO This has to be improved.
                     continue
                 else:
                     await self.reinit_node()
