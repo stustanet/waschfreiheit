@@ -2,6 +2,13 @@
 
 import time
 
+class LED:
+    OFF = '0'
+    RED = '9'
+    GREEN = '10'
+    YELLOW = '11'
+    BLUE = '12'
+
 class Sensor:
     def __init__(self, master, nodeid, config):
         self.nodeid = nodeid
@@ -82,6 +89,13 @@ class Sensor:
             await self.master.send_raw("reset_routes {} {}".format(self.nodeid, routestring), self)
         else:
             await self.master.send_raw("set_routes {} {}".format(self.nodeid, routestring), self)
+
+
+    async def led(self, ledcolors):
+        if type(ledcolors) not in (list, tuple):
+            ledcolors = [str(ledcolors)] * 5
+        ledstring = ' '.join(ledcolors)
+        await self.master.send_raw("led {} {}        ".format(self.nodeid, ledstring))
 
     def _ack(self, code):
         """

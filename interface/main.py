@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import wasch
+import machinemanager
 import asyncio
-
 
 async def observer(master):
     while True:
@@ -59,6 +59,7 @@ async def run(master):
 
     # Configure the master
     master.status_subscribe(node_status_update)
+    mm = machinemanager.MachineManager(master, "http://waschen.stusta.de", "token")
 
     try:
         await master.get_node("HSH16").authping()
@@ -78,6 +79,8 @@ if __name__ == "__main__":
 
     master = wasch.WaschInterface(
         "/dev/ttyUSB0", 'nodes.json', loop=loop)
+        #"/dev/ttyUSB0",
+        'nodes.json', loop=loop)
 
     observertask = loop.create_task(observer(master))
 
@@ -87,12 +90,13 @@ if __name__ == "__main__":
         networksanitizertask = loop.create_task(network_sanity_observer(master))
         loop.run_forever()
     except:
+        raise
         pass
     finally:
         try:
             observertask.cancel()
             observertask.result()
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, asyncio.InvalidStateError):
             pass
         try:
             networksanitizertask.cancel()
