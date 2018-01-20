@@ -79,8 +79,8 @@ if __name__ == "__main__":
 
 
     master = wasch.WaschInterface(
-        "/tmp/waschfreiheit_pts",
-        #"/dev/ttyUSB0",
+        #"/tmp/waschfreiheit_pts",
+        "/dev/ttyUSB0",
         'nodes.json', loop=loop)
 
 
