@@ -215,7 +215,7 @@ struct
 } ctx;
 
 // Stuff for the threads
-static char adc_thd_stack[512 * 3];
+static char adc_thd_stack[1024];
 static kernel_pid_t adc_thd_pid;
 
 static char message_thd_stack[512 * 3];
@@ -1431,7 +1431,8 @@ static void *message_thread(void *arg)
 	uint32_t total_ticks = 0;
 
 
-    xtimer_ticks32_t last = xtimer_now();
+	xtimer_ticks32_t last = xtimer_now();
+
 
 	while(1)
 	{
