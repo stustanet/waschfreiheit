@@ -1605,7 +1605,10 @@ int sensor_node_init(void)
 
 	// Start the threads
 
-	adc_thd_pid = thread_create(adc_thd_stack, sizeof(adc_thd_stack), THREAD_PRIORITY_MAIN - 1,
+	/*
+	 * Need to run this thread with maximum priority due to bug in xtimer_periodic_wakeup
+	 */
+	adc_thd_pid = thread_create(adc_thd_stack, sizeof(adc_thd_stack), 0,
 	                          THREAD_CREATE_STACKTEST, adc_thread, NULL,
 	                          "node_adc_thread");
 
