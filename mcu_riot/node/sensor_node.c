@@ -1215,7 +1215,7 @@ static void *adc_thread(void *arg)
 			// Use normal delay
 			xtimer_periodic_wakeup(&last, ctx.sensor_loop_delay_us);
 		}
-    }
+	}
 
 	return NULL;
 }
