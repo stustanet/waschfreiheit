@@ -12,6 +12,7 @@
 
 #include "sx127x_params.h"
 #include "sx127x_netdev.h"
+#include "mutex.h"
 
 #include "thread.h"
 
@@ -61,6 +62,9 @@ typedef struct
 	// Stuff for receiving thread.
 	char recv_thd_stack[2048];
 	kernel_pid_t recv_thd_pid;
+
+	// Mutex used for all operations on the driver
+	mutex_t mutex;
 
 	// This callback is called when a message is received.
 	mesh_nw_message_cb_t recv_callback;
@@ -120,6 +124,8 @@ static int forward_packet(void *packet, uint8_t len)
 		return -ENOENT;
 	}
 
+	mutex_lock(&context.mutex);
+
 	/*
 	 * Check the current state of the device, if this is TX or RX a transmission is
 	 * currently happening -> I should not send anything to avoid collisions.
@@ -132,6 +138,7 @@ static int forward_packet(void *packet, uint8_t len)
 	if (state == NETOPT_STATE_RX || state == NETOPT_STATE_TX)
 	{
 		puts("Can't forward_packet() while radio is transmitting or receiving");
+		mutex_unlock(&context.mutex);
 		return -EBUSY;
 	}
 
@@ -141,9 +148,12 @@ static int forward_packet(void *packet, uint8_t len)
 	vec[0].iov_len = len;
 	if (context.netdev->driver->send(context.netdev, vec, 1) != 0)
 	{
+		mutex_unlock(&context.mutex);
 		puts("Unexpected failure of send call to netdev");
 		return -EBUSY;
 	}
+
+	mutex_unlock(&context.mutex);
 
 	return 0;
 }
@@ -155,6 +165,8 @@ static int forward_packet(void *packet, uint8_t len)
  */
 static void start_listen(void)
 {
+	mutex_lock(&context.mutex);
+
 	/*
 	 * Disable timeout
 	 */
@@ -173,6 +185,8 @@ static void start_listen(void)
 	 */
 	netopt_state_t rx = NETOPT_STATE_IDLE;
 	context.netdev->driver->set(context.netdev, NETOPT_STATE, &rx, sizeof(rx));
+
+	mutex_unlock(&context.mutex);
 }
 
 
@@ -195,6 +209,8 @@ static void handle_rx_cplt(void)
 	size_t len;
 	netdev_sx127x_lora_packet_info_t packet_info;
 
+	mutex_lock(&context.mutex);
+
 	// First get packet length
 	len = dev->driver->recv(dev, NULL, 0, 0);
 
@@ -204,11 +220,14 @@ static void handle_rx_cplt(void)
 		// I (invalid) => discard
 		printf("Discard packet with invalid size %u.\n", len);
 		dev->driver->recv(dev, NULL, len, NULL);
+		mutex_unlock(&context.mutex);
 		return;
 	}
 
 	// Now read whole packet into receive buffer
 	dev->driver->recv(dev, context.recv_buffer, len, &packet_info);
+
+	mutex_unlock(&context.mutex);
 
 	// Check the packet header
 	layer3_packet_header_t *hdr = (layer3_packet_header_t *)context.recv_buffer;
@@ -216,8 +235,6 @@ static void handle_rx_cplt(void)
 	printf("Received packet for from %u for %u (%d bytes), RSSI: %i, SNR: %i\n",
 		   hdr->src, hdr->dst, (int)len,
 		   packet_info.rssi, (int)packet_info.snr);
-
-
 
 	if (hdr->next_hop != context.my_node_id)
 	{
@@ -269,6 +286,7 @@ static void event_cb(netdev_t *dev, netdev_event_t event)
 			{
 				puts("Failed to signal thread from interrupt context.");
 			}
+
 			break;
 		}
 		case NETDEV_EVENT_RX_COMPLETE:
@@ -400,6 +418,8 @@ int meshnw_init(nodeid_t id, const meshnw_rf_config_t *config, mesh_nw_message_c
 		return -ENOTSUP;
 	}
 
+	mutex_init(&context.mutex);
+
 	memcpy(&context.sx127x.params, sx127x_params, sizeof(sx127x_params));
 	context.netdev = (netdev_t*) &context.sx127x;
 	context.netdev->driver = &sx127x_driver;
@@ -494,6 +514,7 @@ int meshnw_send(nodeid_t dst, void *data, uint8_t len)
 
 uint64_t meshnw_get_random(void)
 {
+	mutex_lock(&context.mutex);
 	uint64_t rand = 0;
 
 	for (uint8_t i = 0; i < 16; i++)
@@ -501,6 +522,8 @@ uint64_t meshnw_get_random(void)
 		uint32_t rnd = get_random_checked();
 		rand = (rand << 2) + rnd;
 	}
+
+	mutex_unlock(&context.mutex);
 
 	// Re-enter rx mode as this is disbaled by the random function
 	start_listen();
