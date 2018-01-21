@@ -11,20 +11,41 @@
 
 
 /*
+ * All authenticated connections have two sides. One side is the master, the other is called slave.
+ * The master can send messages to the slave that change the slaves state (config values or status updates).
+ * The slave can only reply with a ACK.
+ *
+ * Auth message footers / message types
+ * HS1:  The first message sent by the auth module form the master.
+ *       This contains a challenge for the slave.
+ *
+ *       USERDATA
+ *       CHALLENGE
+ *
+ * HS2:  This is sent from the slave as a reply to the HS1.
+ *       It is a data message containing the initial challenge and the slaves curent nonce.
+ *
+ *       USERDATA
+ *       CHALLENGE
+ *       NONCE
+ *       AUTH_TAG
+ *
+ * Data: A data message contains some user data (or a HS2).
+ *       The data is followed by a 64 bit tag consisting of the last 4 bits of the nonce and a 60 bit hash over
+ *       The data and a secret key (HMAC)
+ *
+ *       USERDATA
+ *       AUTH_TAG
+ */
+
+/*
  * This is used as representation for 64 bit numbers in the auth process.
  * This comes handy because normal numbers must be aligned.
  */
-
 typedef struct
 {
 	uint8_t bytes[sizeof(uint64_t)];
 } auth_number_t;
-
-typedef struct
-{
-	auth_number_t nonce;
-	auth_number_t tag;
-} auth_footer_t;
 
 static inline uint8_t is_master(auth_context_t *ctx)
 {
@@ -59,7 +80,7 @@ static uint8_t timesafe_memeq(const void *a, const void *b, uint32_t length)
 }
 
 
-static auth_number_t generate_tag(const auth_context_t *ctx, auth_number_t nonce, const void *data1, uint32_t len1, const void *data2, uint32_t len2)
+static auth_number_t generate_tag(const auth_context_t *ctx, uint64_t nonce, const void *data1, uint32_t len1, const void *data2, uint32_t len2)
 {
 	hmac_context_t hash_ctx;
 	uint8_t digest[SHA256_DIGEST_LENGTH];
@@ -84,10 +105,13 @@ static auth_number_t generate_tag(const auth_context_t *ctx, auth_number_t nonce
 
 /*
  * Signs message with given nonce
+ *
+ * The message footer of a normal authenticated message contains a 60 bit tag
+ * and the last 4 bit of the current nonce.
  */
-int sign_message(const auth_context_t *ctx, auth_number_t nonce, void *data, uint32_t len, uint32_t *result_len, const void *add_data, uint32_t add_datalen)
+int sign_message(const auth_context_t *ctx, uint64_t nonce, void *data, uint32_t len, uint32_t *result_len, const void *add_data, uint32_t add_datalen)
 {
-	if ((*result_len) < len + sizeof(auth_footer_t))
+	if ((*result_len) < len + sizeof(auth_number_t))
 	{
 		return -ENOMEM;
 	}
@@ -96,12 +120,12 @@ int sign_message(const auth_context_t *ctx, auth_number_t nonce, void *data, uin
 
 	auth_number_t tag = generate_tag(ctx, nonce, data, len, add_data, add_datalen);
 
-	auth_footer_t *footer = (auth_footer_t *)(((uint8_t *)data) + len);
+	// Set the first 4 bits of the tag to the current nonce
+	tag.bytes[0] = (tag.bytes[0] & 0x0F) | ((nonce & 0x0F) << 4);
 
-	footer->nonce = nonce;
-	footer->tag = tag;
+	memcpy((uint8_t *)data + len, &tag, sizeof(tag));
 
-	(*result_len) = len + sizeof(auth_footer_t);
+	(*result_len) = len + sizeof(auth_number_t);
 
 	return 0;
 }
@@ -110,26 +134,34 @@ int sign_message(const auth_context_t *ctx, auth_number_t nonce, void *data, uin
 /*
  * Checks if message is signed with given nonce
  */
-int check_message_tag(const auth_context_t *ctx, auth_number_t nonce, const void *data, uint32_t *len, const void *add_data, uint32_t add_datalen)
+int check_message_tag(const auth_context_t *ctx, uint64_t nonce, const void *data, uint32_t *len, const void *add_data, uint32_t add_datalen)
 {
-	if (*len < sizeof(auth_footer_t))
+	if (*len < sizeof(auth_number_t))
 	{
 		return AUTH_WRONG_SIZE;
 	}
 
-	uint32_t data_len = (*len) - sizeof(auth_footer_t);
+	uint32_t data_len = (*len) - sizeof(auth_number_t);
 
-	auth_footer_t *footer = (auth_footer_t *)(((uint8_t *)data) + data_len);
+	auth_number_t *footer = (auth_number_t *)(((uint8_t *)data) + data_len);
 
 	// Compare nonce first before generating the tag
-	if (memcmp(&footer->nonce, &nonce, sizeof(nonce)) != 0)
+	if ((footer->bytes[0] & 0xF0) != ((nonce & 0x0F) << 4))
 	{
 		return AUTH_WRONG_NONCE;
 	}
 
 	// nonce OK -> check tag
 	auth_number_t tag = generate_tag(ctx, nonce, data, data_len, add_data, add_datalen);
-	if (!timesafe_memeq(&footer->tag, &tag, sizeof(tag)))
+
+	auth_number_t message_tag;
+	memcpy(&message_tag, footer, sizeof(message_tag));
+
+	// set the first 4 bits to 0
+	tag.bytes[0] &= 0x0F;
+	message_tag.bytes[0] &= 0x0F;
+
+	if (!timesafe_memeq(&tag, &message_tag, sizeof(tag)))
 	{
 		return AUTH_WRONG_MAC;
 	}
@@ -139,6 +171,7 @@ int check_message_tag(const auth_context_t *ctx, auth_number_t nonce, const void
 
 	return 0;
 }
+
 
 void auth_master_init(auth_context_t *ctx, const uint8_t *key, uint64_t challenge)
 {
@@ -181,34 +214,45 @@ int auth_master_process_handshake(auth_context_t *ctx, const void *data, uint32_
 		return AUTH_WRONG_STATE;
 	}
 
-	// message is normally signed, the contents must be the challenge + offset data
+	// message is normally signed, the contents must be the challenge + nonce + offset data
 
-	if (len != sizeof(auth_footer_t) + sizeof(ctx->nonce) + offset)
+	if (len != sizeof(auth_number_t) * 3 + offset)
 	{
 		return AUTH_WRONG_SIZE;
 	}
 
-	if (memcmp(((uint8_t *)data) + offset, &ctx->nonce, sizeof(ctx->nonce)) != 0)
+	auth_number_t *hs2_values = (auth_number_t *)(((uint8_t *)data) + offset);
+	auth_number_t *hs2_challenge = hs2_values + 0;
+
+
+	if (memcmp(hs2_challenge, &ctx->nonce, sizeof(ctx->nonce)) != 0)
 	{
 		// wrong challenge
 		return AUTH_WRONG_NONCE;
 	}
 
-	auth_footer_t *footer =(auth_footer_t *)(((uint8_t *)data) + offset + sizeof(ctx->nonce));
+	uint64_t hs2_nonce;
+	memcpy(&hs2_nonce, hs2_values + 1, sizeof(hs2_nonce));
 
-	auth_number_t tag = generate_tag(ctx, footer->nonce, data, offset + sizeof(ctx->nonce), NULL, 0);
+	auth_number_t tag = generate_tag(ctx, hs2_nonce, data, offset + sizeof(*hs2_values) * 2, NULL, 0);
+	auth_number_t hs2_tag;
+	memcpy(&hs2_tag, hs2_values + 2, sizeof(hs2_tag));
 
-	if (!timesafe_memeq(&tag, &footer->tag, sizeof(tag)))
+	// Set the first 4 bits to 0
+	hs2_tag.bytes[0] &= 0x0f;
+	tag.bytes[0] &= 0x0f;
+
+	if (!timesafe_memeq(&tag, &hs2_tag, sizeof(tag)))
 	{
 		return AUTH_WRONG_MAC;
 	}
 
 	// store nonce
-	memcpy(&(ctx->nonce), &footer->nonce, sizeof(ctx->nonce));
+	ctx->nonce = hs2_nonce;
 	ctx->status |= AUTH_HANDSHAKE_CPLT;
 	ctx->status &= ~AUTH_HANDSHAKE_PEND;
 
-	// inrement the nonce for the next sent packet
+	// increment the nonce for the next sent packet
 	ctx->nonce += 2;
 
 	return 0;
@@ -223,10 +267,7 @@ int auth_master_sign(auth_context_t *ctx, void *data, uint32_t len, uint32_t *re
 	}
 
 	// make tag with current nonce
-	auth_number_t num;
-	memcpy(&num, &ctx->nonce, sizeof(ctx->nonce));
-
-	return sign_message(ctx, num, data, len, result_len, add_data, add_datalen);
+	return sign_message(ctx, ctx->nonce, data, len, result_len, add_data, add_datalen);
 }
 
 
@@ -237,21 +278,18 @@ int auth_master_check_ack(auth_context_t *ctx, const void *data, uint32_t offset
 		return AUTH_WRONG_STATE;
 	}
 
-	if (len != sizeof(auth_footer_t) + offset)
+	if (len != sizeof(auth_number_t) + offset)
 	{
 		// ack message is only the footer
 		return AUTH_WRONG_SIZE;
 	}
 
 
-
-	uint64_t ack_expected = ctx->nonce + 1;
-	auth_number_t num;
-	memcpy(&num, &ack_expected, sizeof(ack_expected));
+	uint64_t ack_expected_nonce = ctx->nonce + 1;
 
 	uint32_t msg_len = len;
 
-	int res = check_message_tag(ctx, num, data, &msg_len, NULL, 0);
+	int res = check_message_tag(ctx, ack_expected_nonce, data, &msg_len, NULL, 0);
 	if (res != 0)
 	{
 		return res;
@@ -280,7 +318,8 @@ int auth_slave_handshake(auth_context_t *ctx, const void *inmsg, uint32_t inofs,
 		return AUTH_WRONG_STATE;
 	}
 
-	if (*outlen < sizeof(auth_footer_t) + sizeof(auth_number_t) + outofs)
+	// Need three numbers in response
+	if (*outlen < sizeof(auth_number_t) * 3 + outofs)
 	{
 		return -ENOMEM;
 	}
@@ -292,13 +331,17 @@ int auth_slave_handshake(auth_context_t *ctx, const void *inmsg, uint32_t inofs,
 
 	printf("Make hs2 with nonce=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
 
+	auth_number_t *hs2_values = (auth_number_t *)(((uint8_t *)outmsg) + outofs);
+
 	// reply with my nonce and the challenge as data
-	memcpy(((uint8_t*)outmsg) + outofs, ((uint8_t*)inmsg) + inofs, sizeof(auth_number_t));
+	// Copy the challenge from the hs1 to the hs2
+	memcpy(hs2_values, ((uint8_t*)inmsg) + inofs, sizeof(auth_number_t));
 
-	auth_number_t nonce;
-	memcpy(&nonce, &ctx->nonce, sizeof(nonce));
+	// Write current nonce to hs2
+	memcpy(hs2_values + 1, &ctx->nonce, sizeof(*hs2_values));
 
-	int res = sign_message(ctx, nonce, outmsg, outofs + sizeof(auth_number_t), outlen, NULL, 0);
+	// And normally sign the message using the current nonce
+	int res = sign_message(ctx, ctx->nonce, outmsg, outofs + sizeof(*hs2_values) * 2, outlen, NULL, 0);
 
 	if (res != 0)
 	{
@@ -325,22 +368,25 @@ int auth_slave_verify(auth_context_t *ctx, const void *data, uint32_t *len, cons
 		return AUTH_WRONG_STATE;
 	}
 
+	/*
+	 * We expect a new message to have nonce + 2 as nonce
+	 */
 	uint64_t nonce_expected = ctx->nonce + 2;
-	auth_number_t num;
-	memcpy(&num, &nonce_expected, sizeof(nonce_expected));
 
-	int res = check_message_tag(ctx, num, data, len, add_data, add_datalen);
+	int res = check_message_tag(ctx, nonce_expected, data, len, add_data, add_datalen);
 
 	if (res == AUTH_WRONG_NONCE)
 	{
 		// If an ack was lost, i may receive the last nonce again, this is reported as a special error.
 
-		auth_footer_t *footer = (auth_footer_t *)(((uint8_t *)data) + (*len) - sizeof(auth_footer_t));
+		auth_number_t *tag = (auth_number_t *)(((uint8_t *)data) + (*len) - sizeof(auth_number_t));
 
-		if (memcmp(&footer->nonce, &ctx->nonce, sizeof(ctx->nonce)) == 0)
+		// Check if the 4-bit nonce code matches the old nonce
+		if (((tag->bytes[0] & 0xF0) >> 4) == (ctx->nonce & 0x0F))
 		{
 			return AUTH_OLD_NONCE;
 		}
+
 		return res;
 	}
 	else if (res != 0)
@@ -366,10 +412,7 @@ int auth_slave_make_ack(auth_context_t *ctx, void *data, uint32_t offset, uint32
 	// make an empty packet with nonce + 1
 	uint64_t ack_num = ctx->nonce + 1;
 
-	auth_number_t num;
-	memcpy(&num, &ack_num, sizeof(ack_num));
-
-	return sign_message(ctx, num, data, offset, len, NULL, 0);
+	return sign_message(ctx, ack_num, data, offset, len, NULL, 0);
 
 	return 0;
 }

@@ -29,6 +29,7 @@
 
 // Received message has old nonce (that of the previous packet)
 // Should be re-acked
+// The message must not be processed again!
 #define AUTH_OLD_NONCE       5
 
 typedef struct

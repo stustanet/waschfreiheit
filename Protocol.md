@@ -84,6 +84,8 @@ A                                      B
 
 ### Aufbau eines Layer 4 Pakets
 Anhand der Payload-ID wird entschieden was für Daten das Paket enthält und ob es eine MAC hat.
+Die nonce in der Nachricht ist die letzten 4 bit der aktuellen nonce. Dies wird verwendet um retransmissions schnell
+zu erkennen.
 
 ```
 +---------------------*
@@ -93,9 +95,9 @@ Anhand der Payload-ID wird entschieden was für Daten das Paket enthält und ob 
 | Layer 5 / Daten (n) |
 |                     |
 |---------------------|
-| [Nonce (64)]        |
+| [Nonce (4)]         |
 |---------------------|
-| [MAC (64)]          |
+| [MAC (60)]          |
 +---------------------+
 ```
 
