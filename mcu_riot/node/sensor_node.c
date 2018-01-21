@@ -48,6 +48,12 @@
  */
 #define CONFIG_CHANNEL_TIMEOUT 1800
 
+/*
+ * Max time for the watchdog observing the ADC thread.
+ * This is a pure software watchdog, but it is guarded by a low-level harware watchdog.
+ */
+#define ADC_THREAD_WATCHDOG_TIMEOUT 10
+
 
 /*
  * Max random delay for status retransmissions.
@@ -185,6 +191,14 @@ struct
 	 * Base retransmission delay for status update messages
 	 */
 	uint8_t status_retransmission_base_delay;
+
+	/*
+	 * Watchdog counter for the adc thread.
+	 * This counter is incremented in the message thread and reset in the adc thread.
+	 * Should this counter ever reach 10, the adc thread has not been run in 10 sec.
+	 * In this case, the CPU is reset.
+	 */
+	volatile uint8_t adc_thread_watchdog;
 
 	/*
 	 * The address of this node.
@@ -1087,9 +1101,12 @@ static void *adc_thread(void *arg)
 	uint8_t raw_values_in_msg = 0;
 
 
-    xtimer_ticks32_t last = xtimer_now();
-    while (1)
+	xtimer_ticks32_t last = xtimer_now();
+
+	while (1)
 	{
+		ctx.adc_thread_watchdog = 0;
+
 		// Loop over all channels
 		for (uint8_t adc = 0; adc < NUM_OF_SENSORS; adc++)
 		{
@@ -1431,6 +1448,13 @@ static void *message_thread(void *arg)
 			ctx.config_channel_timeout_timer > CONFIG_CHANNEL_TIMEOUT)
 		{
 			puts("NETWORK TIMEOUT! Rebooting...");
+			pm_reboot();
+		}
+
+		ctx.adc_thread_watchdog++;
+		if (ctx.adc_thread_watchdog > ADC_THREAD_WATCHDOG_TIMEOUT)
+		{
+			puts("ADC THREAD DIED! Rebooting...");
 			pm_reboot();
 		}
 
