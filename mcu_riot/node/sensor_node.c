@@ -11,6 +11,7 @@
 #include <thread.h>
 #include <periph/pm.h>
 #include <periph/adc.h>
+#include <mutex.h>
 
 #include "meshnw.h"
 #include "state_estimation.h"
@@ -106,6 +107,9 @@ struct
 
 	// Auth context for receiving config commands
 	auth_context_t auth_config;
+
+	// Mutex for accessing context values
+	mutex_t mutex;
 
 	/*
 	 * Color table for the LEDs
@@ -1008,6 +1012,7 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 		return;
 	}
 
+	mutex_lock(&ctx.mutex);
 	printf("Handle message with type %u\n", msg->type);
 	switch (msg->type)
 	{
@@ -1051,6 +1056,7 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 		default:
 			printf("Received message with unexpected type %u\n", msg->type);
 	}
+	mutex_unlock(&ctx.mutex);
 	puts("Message handled");
 }
 
@@ -1444,6 +1450,8 @@ static void *message_thread(void *arg)
 			}
 		}
 
+		mutex_lock(&ctx.mutex);
+
 		if ((ctx.status & STATUS_INIT_AUTH_STA) == 0)
 		{
 			// Status channel not built -> check if sensors are active (if so, i'm supposed to build the channel)
@@ -1464,6 +1472,8 @@ static void *message_thread(void *arg)
 					total_retransmissions++;
 				}
 			}
+
+			mutex_unlock(&ctx.mutex);
 
 			// can't do more without status channel
 			continue;
@@ -1534,6 +1544,9 @@ static void *message_thread(void *arg)
 			retransmission_counter++;
 			printf("Status message sent, rt_t=%lu, rt_c=%lu\n", retransmission_timer, retransmission_counter);
 		}
+
+		mutex_unlock(&ctx.mutex);
+
 	}
 
 	return NULL;
