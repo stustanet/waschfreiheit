@@ -22,9 +22,11 @@ static const nodeid_t MESHNW_INVALID_NODE = MESHNW_MAX_NODEID + 1;
 
 typedef struct
 {
-	// MAYBE: Add other LoRa parameters?
 	uint32_t frequency;
 	uint8_t tx_power;
+	uint8_t lora_spread_factor;
+	uint8_t lora_coderate;
+	uint8_t lora_bandwidth;
 } meshnw_rf_config_t;
 
 /*

@@ -5,6 +5,7 @@
 
 #pragma once
 #include "rgbcolor.h"
+#include "net/lora.h"
 
 /*
  * This is the default color map for the leds.
@@ -29,8 +30,11 @@
 	{  32,  32,  32 }    \
 }
 
-#define DefaultRFSettings       \
-{                               \
-	433500000,  /* Frequency */ \
-	10          /* TX power  */ \
+#define DefaultRFSettings               \
+{                                       \
+	433500000,      /* Frequency     */ \
+	10,             /* TX power      */ \
+	8,              /* Code rate     */ \
+	2,              /* Spread factor */ \
+	LORA_BW_125_KHZ /* Bandwidth     */ \
 }

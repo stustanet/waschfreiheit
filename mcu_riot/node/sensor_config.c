@@ -135,8 +135,19 @@ static int network_config(int argc, char **argv, config_with_magic_t *cfg)
 static int color_config(int argc, char **argv, config_with_magic_t *cfg)
 {
 	_Static_assert(sizeof(cfg->colortable) == sizeof(cfg->colortable[0]) * 16, "Colortable must have exactly 16 elements");
-	if (argc != 18)
+	if (argc == 3 && strcmp(argv[2], "get") == 0)
 	{
+		const color_table_t *current = sensor_config_color_table();
+		puts("Current color table:");
+		for (int i = 0; i < 16; i++)
+		{
+			printf("<%u,%u,%u> ", (*current)[i].r, (*current)[i].g, (*current)[i].b);
+		}
+		puts("");
+	}
+	else if (argc != 18)
+	{
+		puts("USAGE: config color get");
 		puts("USAGE: config color <r0,g0,b0> <r1,g1,b1> ... <r15,g15,b15>\n");
 		puts("All 16 RBG values are set at once.");
 		puts("Each RGB value is composed of 3 8-bit decimal numbers seperated by a comma.");
@@ -160,16 +171,42 @@ static int color_config(int argc, char **argv, config_with_magic_t *cfg)
 
 static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 {
-	if (argc != 4)
+	if (argc == 3 && strcmp(argv[2], "get") == 0)
 	{
-		puts("USAGE: config rf <frequency> <tx_power>\n");
-		puts("frequency   Carrier frequency of the LoRa modem");
-		puts("            Valid range: "
-		                                 TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MIN)
-		                                 " - "
-		                                 TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MAX));
-		puts("tx_power    LoRa modem tx power in dB");
-		puts("            Max value: " TOSTRING(SX127X_CONFIG_LORA_POWER_MAX));
+		const meshnw_rf_config_t *current = sensor_config_rf_settings();
+		printf("Current rf configuration:\n%lu %u %u %u ",
+		       current->frequency,
+		       current->tx_power,
+		       current->lora_spread_factor,
+		       current->lora_coderate);
+		switch (current->lora_bandwidth)
+		{
+			case LORA_BW_125_KHZ: puts("125"); break;
+			case LORA_BW_250_KHZ: puts("250"); break;
+			case LORA_BW_500_KHZ: puts("500"); break;
+		}
+		return 2;
+	}
+	else if (argc != 7)
+	{
+		puts("USAGE: config rf get");
+		puts("USAGE: config rf <frequency> <tx_power> <spread_factor> <coderate> <bandwidth>\n");
+		puts("frequency     Carrier frequency of the LoRa modem");
+		puts("              Valid range: "
+		                                   TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MIN)
+		                                   " - "
+		                                   TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MAX));
+		puts("tx_power      LoRa modem tx power in dB");
+		puts("              Max value: " TOSTRING(SX127X_CONFIG_LORA_POWER_MAX));
+		puts("spread_factor LoRa spreading factor");
+		puts("              Valid range: "
+		                                   TOSTRING(SX127X_CONFIG_LORA_SPREAD_MIN)
+		                                   " - "
+		                                   TOSTRING(SX127X_CONFIG_LORA_SPREAD_MAX));
+		puts("coderate      LoRa coderate");
+		puts("              Max value: " TOSTRING(SX127X_CONFIG_LORA_CODERATE_MAX));
+		puts("bandwidth     Signal bandwith");
+		puts("              Allowed values: 125, 250, 500");
 		return 1;
 	}
 
@@ -188,8 +225,36 @@ static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 		return 1;
 	}
 
+	uint32_t sf = strtoul(argv[4], NULL, 10);
+	if (sf > SX127X_CONFIG_LORA_SPREAD_MAX ||
+	    sf < SX127X_CONFIG_LORA_SPREAD_MIN)
+	{
+		puts("Spreading factor out of range!");
+		return 1;
+	}
+
+	uint32_t cr = strtoul(argv[5], NULL, 10);
+	if (cr > SX127X_CONFIG_LORA_CODERATE_MAX)
+	{
+		puts("Invalid coderate!");
+		return 1;
+	}
+
+	uint32_t bw = strtoul(argv[6], NULL, 10);
+	switch (bw)
+	{
+		case 125: cfg->rf.lora_bandwidth = LORA_BW_125_KHZ; break;
+		case 250: cfg->rf.lora_bandwidth = LORA_BW_250_KHZ; break;
+		case 500: cfg->rf.lora_bandwidth = LORA_BW_500_KHZ; break;
+		default:
+			puts("Invalid LoRa bandwitth");
+			return 1;
+	}
+
 	cfg->rf.frequency = f;
 	cfg->rf.tx_power = (uint8_t)p;
+	cfg->rf.lora_spread_factor = (uint8_t)sf;
+	cfg->rf.lora_coderate = (uint8_t)cr;
 
 	// set "rf configured" bit
 	cfg->config_set |= CONFIG_RF;

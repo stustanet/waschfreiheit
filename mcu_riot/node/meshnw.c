@@ -351,18 +351,24 @@ static void *recv_thread(void *arg)
  */
 static int setup(const meshnw_rf_config_t *config)
 {
-	_Static_assert(SX127X_CONFIG_LORA_SPREAD >= 7 && SX127X_CONFIG_LORA_SPREAD <= 12, "Spread factor must be between 7 and 12");
-	_Static_assert(SX127X_CONFIG_LORA_CODERATE >= 5 && SX127X_CONFIG_LORA_CODERATE <= 8, "Coderate must be between 5 and 8");
+	if (config->lora_spread_factor > SX127X_CONFIG_LORA_SPREAD_MAX ||
+	    config->lora_spread_factor < SX127X_CONFIG_LORA_SPREAD_MIN)
+	{
+		printf("Invalid LoRa spread factor: %u\n", config->lora_spread_factor);
+		return 1;
+	}
 
-	uint8_t lora_bw = SX127X_CONFIG_LORA_BW;
-	uint8_t lora_sf = SX127X_CONFIG_LORA_SPREAD;
+	if (config->lora_coderate > SX127X_CONFIG_LORA_CODERATE_MAX)
+	{
+		printf("Invalid LoRa code rate: %u\n", config->lora_coderate);
+		return 1;
+	}
 
-	int lora_cr = SX127X_CONFIG_LORA_CODERATE - 4;
-
-	netdev_t *netdev = (netdev_t*) &context.sx127x;
-	netdev->driver->set(netdev, NETOPT_BANDWIDTH, &lora_bw, sizeof(uint8_t));
-	netdev->driver->set(netdev, NETOPT_SPREADING_FACTOR, &lora_sf, 1);
-	netdev->driver->set(netdev, NETOPT_CODING_RATE, &lora_cr, sizeof(uint8_t));
+	if (config->tx_power > SX127X_CONFIG_LORA_POWER_MAX)
+	{
+		printf("RF tx power (%u) too large, max: %u\n", config->tx_power, SX127X_CONFIG_LORA_POWER_MAX);
+		return 2;
+	}
 
 	if (config->frequency > SX127X_CONFIG_LORA_FREQUENCY_MAX ||
 	    config->frequency < SX127X_CONFIG_LORA_FREQUENCY_MIN)
@@ -373,17 +379,16 @@ static int setup(const meshnw_rf_config_t *config)
 		       SX127X_CONFIG_LORA_FREQUENCY_MAX);
 		return 1;
 	}
-	uint32_t chan = config->frequency;
-	netdev->driver->set(netdev, NETOPT_CHANNEL_FREQUENCY, &chan, sizeof(uint32_t));
 
-	if (config->tx_power > SX127X_CONFIG_LORA_POWER_MAX)
-	{
-		printf("RF tx power (%u) too large, max: %u\n", config->tx_power, SX127X_CONFIG_LORA_POWER_MAX);
-		return 2;
-	}
+	netdev_t *netdev = (netdev_t*) &context.sx127x;
+	netdev->driver->set(netdev, NETOPT_BANDWIDTH, &config->lora_bandwidth, sizeof(config->lora_bandwidth));
+	netdev->driver->set(netdev, NETOPT_SPREADING_FACTOR, &config->lora_spread_factor, sizeof(config->lora_spread_factor));
+	netdev->driver->set(netdev, NETOPT_CODING_RATE, &config->lora_coderate, sizeof(config->lora_coderate));
+	netdev->driver->set(netdev, NETOPT_CHANNEL_FREQUENCY, &config->frequency, sizeof(config->frequency));
 
-	int16_t tx_pwr = config->tx_power;
-	netdev->driver->set(netdev, NETOPT_TX_POWER, &tx_pwr, sizeof(uint16_t));
+	// Need to copy this value to a int16_t as it needs to be a int16_t by definition.
+	int16_t pwr = config->tx_power;
+	netdev->driver->set(netdev, NETOPT_TX_POWER, &config->tx_power, sizeof(pwr));
 
 	start_listen();
 
