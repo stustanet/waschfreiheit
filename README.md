@@ -35,7 +35,7 @@ Der aktuelle Plan sieh in etwa so aus:
 ```
 
 ### Sensoren
-Ein Sensor misst den Stromverbrauch einer Maschine. Dies soll mit einem Hallsensor am Stromkabel gemacht werden.
+Ein Sensor misst den Stromverbrauch einer Maschine. Dies geschieht über einen Hallsensor am Stromkabel.
 
 ### Knoten
 Ein Knoten besteht aus einem Mikroprozessor (STM32F103C8T6, Kleiner 32bit ARM) und einem 433Mhz Funkchip (Sx1276, LoRa Modulation).
@@ -49,6 +49,7 @@ Es gibt im ganzen System genau eine Bridge (Gateway, Master Node), diese besteht
 Der Webserver bekommt die Daten von der Bridge und zeigt den aktuellen Status an.
 
 ## Ich will das complien!
+Um dieses Projekt zu bauen wird eine ARM-Toolchain vorrausgesetzt.
 * RIOT-OS nach Anleitung herunterladen / installieren.
 * Dieses Repo klonen.
 * "wasch\_v1" Board-Definition (mcu\_riot / boards) in "boards" Ordner von RIOT kopieren
