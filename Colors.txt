@@ -1,0 +1,25 @@
+-- Generic --
+ 0 Black   0,0,0
+
+-- Status Dark --
+ 1 Green   0,10,0
+ 2 Yellow  15,7,0
+ 3 Red     15,0,0
+
+-- Status Mid --
+ 4 Green   0,50,0
+ 5 Yellow  75,35,0
+ 6 Red     85,0,0
+
+-- Status Bright --
+ 7 Green   0,140,0
+ 8 Yellow  200,100,0
+ 9 Red     255,0,0
+
+-- Other colors --
+10 Blue    0,0,10
+11 Blue    0,0,255
+12 Pink    10,0,10
+13 Pink    255,0,255
+14 Cyan    0,10,10
+15 Cyan    0,255,255
