@@ -388,7 +388,7 @@ static int setup(const meshnw_rf_config_t *config)
 
 	// Need to copy this value to a int16_t as it needs to be a int16_t by definition.
 	int16_t pwr = config->tx_power;
-	netdev->driver->set(netdev, NETOPT_TX_POWER, &config->tx_power, sizeof(pwr));
+	netdev->driver->set(netdev, NETOPT_TX_POWER, &pwr, sizeof(pwr));
 
 	start_listen();
 
