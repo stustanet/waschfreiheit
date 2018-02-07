@@ -56,6 +56,7 @@
 #include "master_sensorconnection.h"
 #include "messagetypes.h"
 #include "utils.h"
+#include "net/lora.h"
 
 #define MAX_ACTIVE_SENSORS 32
 
@@ -573,7 +574,7 @@ int master_node_init(void)
 	printf("Start node in MASTER mode, id = %u\n", MASTER_NODE);
 	memset(master.nodes, 0, sizeof(master.nodes));
 
-	static const meshnw_rf_config_t rf_config = { 433500000, 10 };
+	static const meshnw_rf_config_t rf_config = { 433500000, 10 , 8, 2, LORA_BW_125_KHZ};
 
 	meshnw_init(MASTER_NODE, &rf_config, message_callback);
 
