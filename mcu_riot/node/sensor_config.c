@@ -141,14 +141,15 @@ static int color_config(int argc, char **argv, config_with_magic_t *cfg)
 		puts("Current color table:");
 		for (int i = 0; i < 16; i++)
 		{
-			printf("<%u,%u,%u> ", (*current)[i].r, (*current)[i].g, (*current)[i].b);
+			printf("%u,%u,%u ", (*current)[i].r, (*current)[i].g, (*current)[i].b);
 		}
 		puts("");
+		return 2;
 	}
 	else if (argc != 18)
 	{
 		puts("USAGE: config color get");
-		puts("USAGE: config color <r0,g0,b0> <r1,g1,b1> ... <r15,g15,b15>\n");
+		puts("USAGE: config color r0,g0,b0 r1,g1,b2 ... r15,g15,b15\n");
 		puts("All 16 RBG values are set at once.");
 		puts("Each RGB value is composed of 3 8-bit decimal numbers seperated by a comma.");
 		return 1;
