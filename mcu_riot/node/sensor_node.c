@@ -1149,18 +1149,17 @@ static void *adc_thread(void *arg)
 			if (res != state_update_unchanged)
 			{
 				// Status change on this channel.
-
 				printf("Channel %u on state change %i\n", adc, res);
+			}
 
-				// just change the status bits, the message loop will check for changes and notify the master
-				if (res == state_update_changed_to_on)
-				{
-					ctx.current_sensor_status |= (1 << adc);
-				}
-				else
-				{
-					ctx.current_sensor_status &= ~(1 << adc);
-				}
+			// just change the status bits, the message loop will check for changes and notify the master
+			if (stateest_is_on(&ctx.sensors[adc]))
+			{
+				ctx.current_sensor_status |= (1 << adc);
+			}
+			else
+			{
+				ctx.current_sensor_status &= ~(1 << adc);
 			}
 
 			if (ctx.status & STATUS_PRINTFRAMES)
