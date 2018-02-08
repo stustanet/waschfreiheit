@@ -207,4 +207,15 @@ int16_t stateest_get_current_rf_value(const state_estimation_data_t *data);
 /*
  * Gets the current state index.
  */
-uint8_t stateest_get_current_state(const state_estimation_data_t *data);
+static inline uint8_t stateest_get_current_state(const state_estimation_data_t *data)
+{
+	return data->state_filter.current_state;
+}
+
+/*
+ * Gets the current state index.
+ */
+static inline uint8_t stateest_is_on(const state_estimation_data_t *data)
+{
+	return data->state_filter.current_state >= SE_STATE_ON_THRESHOLD;
+}
