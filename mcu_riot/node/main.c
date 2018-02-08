@@ -156,6 +156,7 @@ static const shell_command_t shell_commands[] = {
     { "raw",          "Enables / Disables raw data printing",    sensor_node_cmd_raw },
     { "led",          "RGB LED test",                            sensor_node_cmd_led },
     { "print_frames", "Enbales / Disables frame value printing", sensor_node_cmd_print_frames },
+    { "status",       "Prints node status",                      sensor_node_cmd_print_status },
     { NULL, NULL, NULL }
 };
 
