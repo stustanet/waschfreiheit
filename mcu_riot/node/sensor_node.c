@@ -63,6 +63,11 @@
 #define RETRANSMISSION_DELAY_RANDOM_FACTOR     10
 #define RETRANSMISSION_LINEAR_BACKOFF_DIVIDER   3
 
+/*
+ * Number of LEDs connected.
+ */
+#define NUM_OF_LED 5
+
 // Bits in the status field
 // Basic initialization complete, node is now active and can process messages
 #define STATUS_INIT_CPLT          0x00000001
@@ -191,6 +196,13 @@ struct
 	 * Base retransmission delay for status update messages
 	 */
 	uint8_t status_retransmission_base_delay;
+
+	/*
+	 * Buffer for the led rgb values
+	 * This is required because the LEDs tend to randomly change their color.
+	 * Therefore I store the values here and send them to the LEDs every second.
+	 */
+	rgb_data_t led_buffer[NUM_OF_LED];
 
 	/*
 	 * Watchdog counter for the adc thread.
@@ -946,11 +958,11 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 	msg_led_t *led_msg = (msg_led_t *)data;
 
 	uint8_t num_led = ((msglen - sizeof(*led_msg)) * 2);
-	rgb_data_t rgb_buffer[8];
 
-	if (num_led > sizeof(rgb_buffer) / sizeof(rgb_buffer[0]))
+	static const uint32_t MAX_LEDS = sizeof(ctx.led_buffer) / sizeof(ctx.led_buffer[0]);
+	if (num_led > MAX_LEDS)
 	{
-		num_led = sizeof(rgb_buffer) / sizeof(rgb_buffer[0]);
+		num_led = MAX_LEDS;
 	}
 
 	_Static_assert(sizeof(*ctx.led_color_table) / sizeof((*ctx.led_color_table)[0]) == 16, "Wrong ColorMap size");
@@ -969,12 +981,10 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 			color = led_msg->data[i >> 1] >> 4;
 		}
 
-		rgb_buffer[i] = (*ctx.led_color_table)[color];
+		ctx.led_buffer[i] = (*ctx.led_color_table)[color];
 	}
 
 	ctx.status |= STATUS_LED_SET;
-
-	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, rgb_buffer, num_led);
 
 	send_ack(0);
 }
@@ -1464,6 +1474,11 @@ static void *message_thread(void *arg)
 			// LEDs not yet set -> do some animations
 			do_led_animation(total_ticks);
 		}
+		else
+		{
+			// Set LEDs to defined colors
+			led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, NUM_OF_LED);
+		}
 
 		if (ctx.debug_raw_status_requested)
 		{
@@ -1698,36 +1713,33 @@ int sensor_node_cmd_raw(int argc, char **argv)
 
 int sensor_node_cmd_led(int argc, char **argv)
 {
-	rgb_data_t buffer[8];
-
-	if (argc < 2 || argc > 1 + (int)((sizeof(buffer) / sizeof(buffer[0]))))
+	if (argc < 2 || argc > 1 + NUM_OF_LED)
 	{
 		puts("USAGE: led <r,g,b> ...");
 		puts("       Set the LED RGB colors");
-		puts("       Max 8 LEDs.");
 		return 1;
 	}
 
 	for (int i = 0; i < argc - 1; i++)
 	{
 		char *end;
-		buffer[i].r = strtoul(argv[i + 1], &end, 10);
+		ctx.led_buffer[i].r = strtoul(argv[i + 1], &end, 10);
 		if (!end[0])
 		{
 			puts("Invalid RGB!");
 			return 1;
 		}
-		buffer[i].g = strtoul(end + 1, &end, 10);
+		ctx.led_buffer[i].g = strtoul(end + 1, &end, 10);
 		if (!end[0])
 		{
 			puts("Invalid RGB!");
 			return 1;
 		}
-		buffer[i].b = strtoul(end + 1, NULL, 10);
+		ctx.led_buffer[i].b = strtoul(end + 1, NULL, 10);
 	}
 
 	ctx.status |= STATUS_LED_SET;
-	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, buffer, argc - 1);
+	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, argc - 1);
 	return 0;
 }
 
