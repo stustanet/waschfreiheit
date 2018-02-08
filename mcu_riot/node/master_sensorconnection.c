@@ -10,6 +10,7 @@
 #include "meshnw.h"
 #include "messagetypes.h"
 #include "utils.h"
+#include "isrsafe_printf.h"
 
 
 /*
@@ -91,7 +92,7 @@ static void handle_hs2(sensor_connection_t *con, uint8_t *message, uint8_t len)
 
 	// Handsahke OK => Channel built!
 	con->ack_outstanding = 0;
-	printf("###ACK%u-0\n", con->node_id);
+	ISRSAFE_PRINTF("###ACK%u-0\n", con->node_id);
 	printf("Auth handshake complete for %u\n", con->node_id);
 }
 
@@ -124,7 +125,7 @@ static void handle_ack(sensor_connection_t *con, uint8_t *message, uint8_t len)
 
 	// ACK ok -> notify the interface
 	con->ack_outstanding = 0;
-	printf("###ACK%u-%u\n", con->node_id, ack->result_code);
+	ISRSAFE_PRINTF("###ACK%u-%u\n", con->node_id, ack->result_code);
 }
 
 
@@ -205,11 +206,11 @@ static void handle_status_update(sensor_connection_t *con, uint8_t *message, uin
 
 	con->current_status = u16_from_unaligned(&su->status);
 
-	// Notify interface about status change
-	printf("###STATUS%u-%u\n", con->node_id, con->current_status);
-
 	// Send ACK
 	ack_status_message(con);
+
+	// Notify interface about status change
+	ISRSAFE_PRINTF("###STATUS%u-%u\n", con->node_id, con->current_status);
 	return;
 }
 
@@ -509,7 +510,7 @@ void sensor_connection_update(sensor_connection_t *con)
 
 	// Set timeout counter to 0xff to mark that i already sent the TIMEOUT notification
 	con->timeout_counter = 0xff;
-	printf("###TIMEOUT%u\n", con->node_id);
+	ISRSAFE_PRINTF("###TIMEOUT%u\n", con->node_id);
 
 }
 
