@@ -1,58 +1,106 @@
-import sensor
 import asyncio
+import time
+
+import sensor
+import wasch
+
 
 class MachineManager:
-    def __init__(self, master, server, credentials, loop=None):
+    """
+    Manage the machines, keep track of their states and inform the website
+    that stuff has changed.
+    Also manage the LEDs on the nodes of the machines themselves.
+    """
+
+    def __init__(self, master, host, credentials, loop=None):
         if not loop:
             loop = asyncio.get_event_loop()
         self.loop = loop
-        self.leds = [sensor.LED.OFF] * len(master._sensors)
+        self.leds = [sensor.LED.OFF] * len(master.sensors)
         self.master = master
-        self.server = server
-        print("MachineManager status subscribe")
+        self.host = host
+        self.credentials = credentials
         self.master.status_subscribe(self.status_update)
+        self.all_there = 0
 
-        self.status_event = asyncio.Event(loop=loop)
-        self.loop.create_task(self.send_all_status())
+    async def teardown(self):
+        """
+        Clean up your asyncio!
+        """
+        pass
 
-    def status_update(self, nodeid, status):
-        print("status update")
-        self.status_event.set()
+    async def status_update(self, nodeid, status):
+        """
+        This is the callback to the updated status. It is called whenever
+        a node decides to send a status message.
+        """
+        await self.update_sensors()
+        #await self.update_website()
 
     def status_to_color(self, status):
+        """
+        The sensor sends values as bitmasks regarding the occupation of the
+        machines, i.e. 0: both available, 1, 2: one is used, 3 both used
+        """
         status = int(status)
         if status == 3:
             return sensor.LED.RED
-        elif status in (2, 1):
+        if status in (2, 1):
             return sensor.LED.YELLOW
-        elif status == 0:
+        if status == 0:
             return sensor.LED.GREEN
-        else:
-            return sensor.LED.BLUE
+        return sensor.LED.BLUE
 
-    async def send_all_status(self):
-        while True:
-            await self.status_event.wait()
-            self.status_event.clear()
+    async def update_website(self):
+        """
+        Send info regarding the occupation to the website
+        TODO: Actually do it
+        """
+        pass
 
-            await asyncio.sleep(0.1)
+    async def update_sensors(self):
+        """
+        Send status updates whenever a status message is triggered
+        """
 
-            leds = []
-            for sname in ['HSH2', 'HSH7', 'HSH10', 'HSH16']:
-                try:
-                    snsor = self.master.get_node(sname)
-                    if snsor.last_status:
-                        leds.append(self.status_to_color(snsor.last_status))
-                    else:
-                        leds.append(sensor.LED.OFF)
-                except KeyError:
+        while self.master.networkmanager.network_recovery_in_progress:
+            await self.master.networkmanager.network_recovery_event.wait()
+
+        leds = []
+        all_ok = True
+        # These could be read from the config
+        for sname in ['HSH2', 'HSH7', 'HSH10', 'HSH16']:
+            try:
+                snsor = self.master.get_node(sname)
+                if snsor.state != 'connected':
+                    self.master.log.info("Skipping node %s because it is in "
+                                         "state %s", snsor.config.name,
+                                         snsor.state)
+                    all_ok = False
                     leds.append(sensor.LED.OFF)
+                    continue
+                if snsor.last_status:
+                    leds.append(self.status_to_color(snsor.last_status))
+                else:
+                    all_ok = False
+                    leds.append(sensor.LED.OFF)
+            except KeyError:
+                all_ok = False
+                leds.append(sensor.LED.OFF)
 
-            print("leds:", leds)
-            if leds != self.leds:
-                self.leds = leds
-                for snsor in self.master._sensors.values():
-                    await snsor.led(leds)
-            else:
-                print("LEDs have not changed")
+        if all_ok and self.all_there == 0:
+            self.all_there = time.time()
 
+        if leds != self.leds:
+            self.master.log.info("Setting leds to %s", leds)
+            self.leds = leds
+            for snsor in self.master.sensors.values():
+                for _ in range(10):
+                    if snsor.state != 'failed':
+                        try:
+                            await snsor.led(leds)
+                            break
+                        except wasch.WaschOperationInterrupted:
+                            pass
+                    else:
+                        break

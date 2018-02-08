@@ -1,25 +1,50 @@
 #!/usr/bin/env python3
 
+import asyncio
 import time
+from enum import Enum
 
-class LED:
+class DarkLED:
     OFF = '0'
+    GREEN = '1'
+    YELLOW = '2'
+    RED = '3'
+    BLUE = '10'
+
+class MidLED:
+    OFF = '0'
+    MID_GREEN = '4'
+    MID_YELLOW = '5'
+    MID_RED = '6'
+    BLUE = '11'
+
+class BrightLED:
+    OFF = '0'
+    GREEN = '7'
+    YELLOW = '8'
     RED = '9'
-    GREEN = '10'
-    YELLOW = '11'
-    BLUE = '12'
+    BLUE = '11'
+
+LED = DarkLED
 
 class Sensor:
-    def __init__(self, master, nodeid, config):
+    """
+    Describes a node within a room.
+    Keeps track of the internal state of this node and manages calls to the
+    node and callbacks for status
+    """
+    def __init__(self, master, nodeid, config, loop):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        self._loop = loop
         self.nodeid = nodeid
         self.master = master
         self.config = config
-        self._ack_cbs = []
-        self._status_cbs = []
         self.last_status = ""
         self.last_update = None
         self.state = ""
         self.distance = config.distance
+        self.last_led_command = ""
 
     async def ping(self):
         """
@@ -54,7 +79,8 @@ class Sensor:
         await self.master.send_raw("retransmit {}".format(self.nodeid), self)
 
     async def configure(self, channel, input_filter, st_matrix,
-            wnd_sizes, reject_filter):
+                        wnd_sizes, reject_filter):
+
         """
         Set configuration parameters
         """
@@ -66,15 +92,18 @@ class Sensor:
         """
         Enable/start the sensor
         """
-        await self.master.send_raw("enable_sensor {} {} {}".format(self.nodeid,
-            channel_mask, samples_per_sec), self)
+        await self.master.send_raw("enable_sensor {} {} {}"
+                                   .format(self.nodeid, channel_mask,
+                                           samples_per_sec),
+                                   self)
 
     async def get_rawframes(self, channel, num_frames):
         """
         Get raw frames from a sensor. Used for calibration
         """
-        await self.master.send_raw("get_raw {} {} {}".format(self.nodeid, channel,
-                                                             num_frames), self)
+        await self.master.send_raw("get_raw {} {} {}".format(
+            self.nodeid, channel, num_frames), self)
+
 
     async def routes(self, routes, reset=False):
         """
@@ -83,46 +112,46 @@ class Sensor:
         routes in the format : {dst1: hop1, dst2: hop2}
         reset: indicate, if the node should be reset before adding routes
         """
-        # TODO Check what does the doku mean with "add_routes"?
-        routestring = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
+        routestring = ",".join(["{}:{}".format(dst, hop)
+                                for dst, hop in routes.items()])
         if reset:
-            await self.master.send_raw("reset_routes {} {}".format(self.nodeid, routestring), self)
+            await self.master.send_raw("reset_routes {} {}"
+                                       .format(self.nodeid, routestring), self)
         else:
-            await self.master.send_raw("set_routes {} {}".format(self.nodeid, routestring), self)
+            await self.master.send_raw("set_routes {} {}"
+                                       .format(self.nodeid, routestring), self)
 
+
+
+    async def resend_state(self):
+        """
+        Re-send the last led command, in order to recover the state
+        """
+        await self.master.send_raw(self.last_led_command, self)
 
     async def led(self, ledcolors):
-        if type(ledcolors) not in (list, tuple):
-            ledcolors = [str(ledcolors)] * 5
+        """
+        Set the leds for the sensor
+        """
         ledstring = ' '.join(ledcolors)
-        await self.master.send_raw("led {} {}        ".format(self.nodeid, ledstring))
+        self.last_led_command = "led {} {}"\
+                                   .format(self.nodeid, ledstring)
+        await self.master.send_raw(self.last_led_command, self)
 
-    def _ack(self, code):
-        """
-        An "ack" has been received with the given code
-        """
-        for x in self._ack_cbs:
-            x(code)
-
-    def _status(self, status):
+    async def notify_status(self, status):
         """
         An "status" has been received with the given code
         """
+        self.master.log.info("Node: %s (%i) status: %s",
+                             self.config.name, self.config.id, status)
         self.last_status = status
         self.last_update = time.time()
-        for x in self._status_cbs:
-            x(status)
+        for callback in self.config.status_callbacks:
+            if asyncio.iscoroutinefunction(callback):
+                await callback(self, status)
+            else:
+                callback(self, status)
 
-    def ack_callback(self, ack_func):
-        """
-        Register a ack-callback for the given node
-
-        ack_callback(statuscode)
-        """
-        self._ack_cbs.append(ack_func)
-
-    def remove_ack_callback(self, ack_callback):
-        self._ack_cbs = [ x for x in self._ack_cbs if x != ack_callback ]
 
     def status_callback(self, cb_func):
         """
@@ -130,7 +159,13 @@ class Sensor:
 
         status_callback(statuscode)
         """
-        self._status_cbs.append(cb_func)
+        self.config.status_callbacks.append(cb_func)
+
 
     def remove_status_callback(self, cb_func):
-        self._status_cbs = [ x for x in self._status_cbs if x != cb_func ]
+        """
+        Remove the function from the status callbacks
+        """
+        self.config.status_callbacks = [x
+                                        for x in self.config.status_callbacks
+                                        if x != cb_func]

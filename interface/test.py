@@ -3,19 +3,25 @@ import os
 import re
 import sys
 import random
+import logging
 
 from asyncio.streams import StreamWriter, FlowControlMixin
 
+# Setup the log
+logformat = '%(asctime)s | %(name)s | %(levelname)s | %(message)s'
+logging.basicConfig(format=logformat)
+log = logging.getLogger('we')
+log.setLevel(logging.DEBUG)
+log.info("starting waschemulator")
 
 async def normal_op_test(stdin, stdout, loop=None):
     while True:
         await setup(stdin, stdout, loop)
-
+        await asyncio.sleep(0.1)
         for i in range(10):
             global nodes
             node, _ = random.choice(list(nodes.items()))
             status = random.randint(0, 3)
-            print("sending status", file=sys.stderr)
             await command(stdout, "###STATUS{} {}".format(node, status))
 
 async def one_node_dead(stdin, stdout, loop=None):
@@ -26,7 +32,6 @@ async def one_node_dead(stdin, stdout, loop=None):
             global nodes
             node, _ = random.choice(list(nodes.items()))
             status = random.randint(0, 3)
-            print("sending status", file=sys.stderr)
             await command(stdout, "###STATUS{} {}".format(node, status))
 
 async def node_irresponsive(stdin, stdout, loop=None):
@@ -37,7 +42,7 @@ nodes = {}
 async def setup(stdin, stdout, loop=None, dead_nodes=[]):
     async for line in stdin:
         line = line.decode('ascii')
-        print("I: ", line.strip(), file=sys.stderr)
+        log.info("I: %s", line.strip())
 
         if line[0:7] == 'routes ':
             continue
@@ -59,14 +64,15 @@ async def setup(stdin, stdout, loop=None, dead_nodes=[]):
             break
 
     # Now we can penetrate the network!
-    print("We have finished a normal network setup, everything was working fine.", file=sys.stderr)
+    log.info("We have finished a normal network setup.")
 
 
 async def command(stdout, cmd):
     if cmd[-1] != '\n':
         cmd += '\n'
     stdout.write(cmd.encode('ascii'))
-    print("O: ", cmd.strip(), file=sys.stderr)
+    await stdout.drain()
+    log.info("O: %s", cmd.strip())
 
 async def setup_stdio(loop=None):
     if not loop:
