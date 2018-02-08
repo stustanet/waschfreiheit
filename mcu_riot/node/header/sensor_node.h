@@ -32,3 +32,8 @@ int sensor_node_cmd_led(int argc, char **argv);
  * Test command for sensor callibration
  */
 int sensor_node_cmd_print_frames(int argc, char **argv);
+
+/*
+ * Print status information
+ */
+int sensor_node_cmd_print_status(int argc, char **argv);

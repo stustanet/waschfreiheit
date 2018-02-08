@@ -177,6 +177,7 @@ struct
 	/*
 	 * Set to base_delay when the raw status has been requested by the master.
 	 * The status is sent in the message thread. (this is also reset there)
+	 * Set this to ~0 to print the status on the serial console.
 	 */
 	uint8_t debug_raw_status_requested;
 
@@ -1326,6 +1327,35 @@ void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 	}
 }
 
+/*
+ * Prints the current status on the serial console.
+ */
+void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_timer, uint16_t master_sensor_status)
+{
+	puts("Node status");
+	printf("Node id:               %4u\n", ctx.current_node);
+	printf("Master node:           %4u\n", ctx.master_node);
+	printf("Status:          0x%08lX\n", ctx.status);
+	printf("Channel status:      0x%04X\n", ctx.current_sensor_status);
+	printf("Last sent status:    0x%04X\n", master_sensor_status);
+	printf("Channel enabled:     0x%04X\n", ctx.active_sensor_channels);
+	printf("Retransmissions:   %8lu\n", rt_counter);
+	printf("Uptime:            %8lu\n", uptime);
+	printf("ADC loop delay:    %8lu\n", ctx.sensor_loop_delay_us);
+	printf("RT base delay:         %4u\n", ctx.status_retransmission_base_delay);
+	printf("RT timer:          %8lu\n", rt_timer);
+	printf("Last message:      %8lu\n", ctx.config_channel_timeout_timer);
+
+	// now append channel data
+	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	{
+		// I read the values directly from the se context.
+		printf("  Channel %u\n", i);
+		printf("    Input:    %5u\n", (uint16_t)(ctx.sensors[i].input_filter.current >> 2));
+		printf("    Filtered: %5u\n", stateest_get_current_rf_value(&ctx.sensors[i]) >> 1);
+		printf("    Status:   %5u\n", stateest_get_current_state(&ctx.sensors[i]));
+	}
+}
 
 static void do_led_animation(uint32_t ticks)
 {
@@ -1481,11 +1511,19 @@ static void *message_thread(void *arg)
 
 		if (ctx.debug_raw_status_requested)
 		{
-			ctx.debug_raw_status_requested--;
-
-			if (ctx.debug_raw_status_requested == 0)
+			if (ctx.debug_raw_status_requested == 255)
 			{
-				send_raw_status_message(total_retransmissions, total_ticks);
+				print_raw_status(total_retransmissions, total_ticks, retransmission_timer, last_sent_sensor_status);
+				ctx.debug_raw_status_requested = 0;
+			}
+			else
+			{
+				ctx.debug_raw_status_requested--;
+
+				if (ctx.debug_raw_status_requested == 0)
+				{
+					send_raw_status_message(total_retransmissions, total_ticks);
+				}
 			}
 		}
 
@@ -1764,5 +1802,17 @@ int sensor_node_cmd_print_frames(int argc, char **argv)
 	}
 	return 0;
 }
+
+
+int sensor_node_cmd_print_status(int argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
+
+	puts("Requested status data");
+	ctx.debug_raw_status_requested = ~0;
+	return 0;
+}
+
 
 #endif
