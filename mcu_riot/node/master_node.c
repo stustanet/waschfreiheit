@@ -57,6 +57,7 @@
 #include "messagetypes.h"
 #include "utils.h"
 #include "net/lora.h"
+#include "isrsafe_printf.h"
 
 #define MAX_ACTIVE_SENSORS 32
 
@@ -119,6 +120,11 @@ static void dispatch_packet(nodeid_t src, uint8_t *data, uint32_t len)
 	sensor_connection_handle_packet(con, data, len);
 }
 
+static void print_err_text(void)
+{
+	ISRSAFE_PRINTF("###ERR\n");
+}
+
 
 /*
  * connect <NODE> <FIRST_HOP> <TIMEOUT>
@@ -152,7 +158,7 @@ int master_node_cmd_connect(int argc, char **argv)
 	if (!con)
 	{
 		puts("Connection limit reached!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -162,7 +168,7 @@ int master_node_cmd_connect(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Connection init for node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -193,7 +199,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -201,7 +207,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Retransmission to node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -238,7 +244,7 @@ int master_node_cmd_node_routes(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -252,7 +258,7 @@ int master_node_cmd_node_routes(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Route request for node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -294,7 +300,7 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -304,7 +310,7 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Sensor config request for node %u (channel %u) failed with error %i\n", dst, channel_id, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -338,7 +344,7 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -353,7 +359,7 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Sensor enable request for node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -388,7 +394,7 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -399,7 +405,7 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Raw data request for node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -431,7 +437,7 @@ int master_node_cmd_raw_status(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -439,7 +445,7 @@ int master_node_cmd_raw_status(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Send raw status request to node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -469,7 +475,7 @@ int master_node_cmd_authping(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -477,7 +483,7 @@ int master_node_cmd_authping(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Send authping to node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
@@ -505,7 +511,7 @@ int master_node_cmd_led(int argc, char **argv)
 	if (!con)
 	{
 		puts("Not connected!");
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 
@@ -513,7 +519,7 @@ int master_node_cmd_led(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Send led request to node %u failed with error %i\n", dst, res);
-		puts("###ERR");
+		print_err_text();
 		return 1;
 	}
 	return 0;
