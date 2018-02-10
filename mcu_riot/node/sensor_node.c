@@ -961,17 +961,18 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 	uint8_t num_led = ((msglen - sizeof(*led_msg)) * 2);
 
 	static const uint32_t MAX_LEDS = sizeof(ctx.led_buffer) / sizeof(ctx.led_buffer[0]);
-	if (num_led > MAX_LEDS)
-	{
-		num_led = MAX_LEDS;
-	}
 
 	_Static_assert(sizeof(*ctx.led_color_table) / sizeof((*ctx.led_color_table)[0]) == 16, "Wrong ColorMap size");
 
-	for (uint8_t i = 0; i < num_led; i++)
+	for (uint8_t i = 0; i < MAX_LEDS; i++)
 	{
-		uint8_t color = 0;
-		if (i & 1)
+		uint8_t color;
+		if (i >= num_led)
+		{
+			// No data -> 0 is the default color in this case
+			color = 0;
+		}
+		else if (i & 1)
 		{
 			// odd -> use second nibble
 			color = led_msg->data[i >> 1] & 0x0f;
