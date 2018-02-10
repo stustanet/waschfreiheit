@@ -2,13 +2,6 @@
 #include "utils.h"
 #include <stdio.h>
 
-static void micro_delay(void)
-{
-	for (volatile uint32_t i = 0; i < 30; i++)
-	{
-	}
-}
-
 
 void led_ws2801_set(gpio_t clk, gpio_t data, const rgb_data_t *rgb, uint32_t count)
 {
@@ -26,14 +19,11 @@ void led_ws2801_set(gpio_t clk, gpio_t data, const rgb_data_t *rgb, uint32_t cou
 		{
 			gpio_clear(data);
 		}
-		micro_delay();
 
 		// Now set clock to high
 		gpio_set(clk);
-		micro_delay();
 
 		// Set clock to low again
 		gpio_clear(clk);
-		micro_delay();
 	}
 }
