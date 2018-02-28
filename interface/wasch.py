@@ -788,7 +788,7 @@ class NetworkManager:
 
         if self.master.message_pending and self.master.running_message.node:
             timeout = self.master.running_message.node.distance \
-                      * self.config.single_hop_timeout
+                      * self.config.single_hop_timeout + 2
             self.master.log.info("Waiting for a missing response for %s "
                                  "for %s seconds",
                                  self.master.running_message, timeout)
@@ -891,4 +891,5 @@ class NetworkManager:
             if self.master.message_pending:
                 self.master.message_event.clear()
                 await asyncio.wait_for(self.master.message_event.wait(), 10)
-            await node.retransmit()
+            if self.master.message_pending:
+                await node.retransmit()
