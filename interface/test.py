@@ -24,6 +24,7 @@ async def normal_op_test(stdin, stdout, loop=None):
             status = random.randint(0, 3)
             await command(stdout, "###STATUS{} {}".format(node, status))
 
+
 async def one_node_dead(stdin, stdout, loop=None):
     while True:
         await setup(stdin, stdout, loop, dead_nodes=['2'])
@@ -34,12 +35,19 @@ async def one_node_dead(stdin, stdout, loop=None):
             status = random.randint(0, 3)
             await command(stdout, "###STATUS{} {}".format(node, status))
 
+
 async def node_irresponsive(stdin, stdout, loop=None):
-    pass
+    while True:
+        await setup(stdin, stdout, loop, random_dead_nodes=['1', '2', '3', '4'])
+        for i in range(10):
+            global nodes
+            node, _ = random.choice(list(nodes.items()))
+            status = random.randint(0, 3)
+            await command(stdout, "###STATUS{} {}".format(node, status))
 
 
 nodes = {}
-async def setup(stdin, stdout, loop=None, dead_nodes=[]):
+async def setup(stdin, stdout, loop=None, dead_nodes=[], random_dead_nodes=[]):
     async for line in stdin:
         line = line.decode('ascii')
         log.info("I: %s", line.strip())
@@ -52,6 +60,8 @@ async def setup(stdin, stdout, loop=None, dead_nodes=[]):
         if match:
             if match[0] in dead_nodes:
                 await command(stdout, "###TIMEOUT{}".format(match[0]))
+            elif match[0] in random_dead_nodes and random.random() < 0.7:
+                await command(stdout, "###TIMEOUT{}".format(match[0]))
             else:
                 # Now in match[0] we have the node to ACK:
                 await command(stdout, "###ACK{}-0".format(match[0]))
@@ -60,7 +70,7 @@ async def setup(stdin, stdout, loop=None, dead_nodes=[]):
         else:
             print("Unknown line", line, file=sys.stderr)
 
-        if line.strip() == "authping 5":
+        if line.strip() == "authping 4":
             break
 
     # Now we can penetrate the network!

@@ -127,7 +127,8 @@ class Sensor:
         """
         Re-send the last led command, in order to recover the state
         """
-        await self.master.send_raw(self.last_led_command, self)
+        if self.last_led_command:
+            await self.master.send_raw(self.last_led_command, self)
 
     async def led(self, ledcolors):
         """
