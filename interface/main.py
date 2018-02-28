@@ -23,10 +23,7 @@ class WaschenInFreiheit:
             configfile,
             loop=self.loop)
         self.observertask = loop.create_task(self.observer())
-        self.networksanitizertask = None
         self.machineobserver = None
-        self.last_observer_run = None
-        self.next_observer_run = None
         self.startup_time = 0
         self.startup = time.time()
 
@@ -51,13 +48,6 @@ class WaschenInFreiheit:
         except asyncio.CancelledError:
             pass
 
-        try:
-            if self.networksanitizertask:
-                self.networksanitizertask.cancel()
-                await self.networksanitizertask
-        except asyncio.CancelledError:
-            pass
-
 
     async def start(self):
         """
@@ -67,8 +57,6 @@ class WaschenInFreiheit:
         self.startup_time = int((time.time() - self.startup) * 1000) / 1000
         try:
             await self.master.get_node("HSH16").authping()
-            self.networksanitizertask = self.loop.create_task(
-                self.network_sanity_observer())
 
             self.machineobserver = machinemanager.MachineManager(
                 self.master, "http://waschen.stusta.de",
@@ -88,17 +76,19 @@ class WaschenInFreiheit:
                 continue
             state = "*************************************************\n"
             state += "* Update time: {}\n".format(time.asctime())
-            if self.next_observer_run:
+            if self.master.networkmanager.next_observer_run:
                 state += "* Next network observer run in {}s\n"\
-                         .format(int(self.next_observer_run - time.time()))
+                         .format(int(
+                             self.master.networkmanager.next_observer_run - time.time()))
             else:
                 state += "* Next network observer run: None\n"
 
-            if self.last_observer_run:
+            if self.master.networkmanager.last_observer_run:
                 state += "* Last observer run {}s ago\n"\
-                         .format(int(time.time() - self.last_observer_run))
+                         .format(int(
+                             time.time() - self.master.networkmanager.last_observer_run))
             else:
-                state += "* Last observer run: None\n"
+                state += "* Last observer run: Never\n"
 
             if self.startup_time:
                 state += "* Startup time was: {}s\n"\
@@ -145,31 +135,6 @@ class WaschenInFreiheit:
                 statefile.write(state)
 
 
-    async def network_sanity_observer(self):
-        """
-        In regular intervals start a network recovery task.
-        The network recovery starts with pinging all nodes an assessing, what
-        part of the network does neet do be recovered, so it gets in contact
-        with every node
-
-        This should not be done too often, since it requires a lot of bandwidth
-        """
-        self.master.log.info("Start network sanity observer every %s seconds",
-                             self.master.config.networkcheckintervall)
-
-        while True:
-            timeout = self.master.config.networkcheckintervall
-
-            self.next_observer_run = time.time() + timeout
-            await asyncio.sleep(timeout)
-            self.last_observer_run = time.time()
-            try:
-                self.master.log.info("Performing network sanity check")
-                await self.master.networkmanager.recover_network(None)
-            except wasch.WaschOperationInterrupted:
-                pass
-            except wasch.WaschCommandError as exp:
-                self.master.log.exception(exp)
 
 
 def main():
