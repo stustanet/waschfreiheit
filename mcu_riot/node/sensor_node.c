@@ -684,6 +684,8 @@ static int check_auth_message(nodeid_t src, void *data, uint32_t *len)
 
 		// set re-ack bit and ack
 		send_ack(ctx.last_ack_result | 0x80);
+
+		return res;
 	}
 	else if (res != 0)
 	{
