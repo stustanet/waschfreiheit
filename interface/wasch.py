@@ -6,11 +6,13 @@ import sys
 import asyncio
 import re
 import logging
+import functools
 from serial import SerialException
 import serial_asyncio
 
 import sensor
 import debuginterface
+import uplink
 
 TRANSMITTING = 'transmitting'
 CONNECTED = 'connected'
@@ -94,6 +96,10 @@ class WaschConfig:
             conf = json.load(configfile)
 
         try:
+            self.do_uplink = conf['webinterface_enabled']
+            if self.do_uplink:
+                self.uplink_base = conf['webinterface_basepath']
+                self.uplink_auth = conf['webinterface_token']
             self.retransmissionlimit = conf['retransmissionlimit']
             self.networkcheckintervall = conf['networkcheckintervall']
             self.single_hop_timeout = conf['single_hop_timeout']
@@ -159,6 +165,7 @@ class WaschInterface:
     last updated state
     """
 
+    @functools.total_ordering
     class Message:
         """
         Message object that is currently transferred to the node.
@@ -180,6 +187,12 @@ class WaschInterface:
 
         def __repr__(self):
             return self.message
+
+        def __lt__(self, other):
+            return self.message < other.message
+
+        def __eq__(self, other):
+            return self.message == other.message
 
         def command(self):
             """
@@ -216,6 +229,13 @@ class WaschInterface:
         self.serial_port = serial_port
         # with the corresponding baud-rate
         self.baudrate = baudrate
+
+        # Setup the uplink connection
+        if self.config.do_uplink:
+            self.uplink = uplink.WaschUplink(self.config.uplink_base,
+                                             self.config.uplink_auth)
+        else:
+            self.uplink = None
 
         # message synchronisation to avoid multiple commands on the line at the
         # same time
@@ -429,10 +449,16 @@ class WaschInterface:
                 msg.result.set_result(match[2])
                 if msg.node:
                     msg.node.state = CONNECTED
+                    if self.uplink:
+                        await self.uplink.statistics_update(
+                            msg.node, 'ACK - ' + repr(msg))
                 return True
             elif match[0] == 'ERR':
                 if msg.node:
                     msg.node.state = FAILED
+                if self.uplink:
+                    await self.uplink.statistics_update(
+                        msg.node, 'ERR - ' + repr(msg))
                 await self.networkmanager.perform_networkcheck()
                 # The message processing is ok, we do not expect any reponse for
                 # the last message
@@ -440,6 +466,9 @@ class WaschInterface:
                 return True
             elif match[0] == 'TIMEOUT':
                 self.log.info("Received timeout for message %s", msg)
+                if self.uplink:
+                    await self.uplink.statistics_update(
+                        msg.node, 'TIMEOUT - ' + repr(msg))
                 msg.retransmit = True
                 msg.retransmit_count += 1
                 if msg.node:
@@ -544,6 +573,8 @@ class WaschInterface:
                            int(nodeid), status)
             try:
                 node = self.get_node(int(nodeid))
+                if self.uplink:
+                    await self.uplink.status_update(node, status)
                 await node.notify_status(status)
             except WaschTimeoutError:
                 self.log.warning("Timeout during status processing... "
@@ -741,6 +772,8 @@ class NetworkManager:
                     await node.routes(node.config.routes_id, reset=True,
                                       is_recovery=True)
             except WaschError as exp:
+                if self.uplink:
+                    await self.uplink.statistics_update(node, 'CONNECTFAIL')
                 self.master.log.error("Could not connect to %s (%i): %s "
                                       "Check the hardware, then the routes.",
                                       node.config.name, node.nodeid, repr(exp))
@@ -861,6 +894,8 @@ class NetworkManager:
                     await node.authping()
                     self.master.log.info("ping successfull")
                 elif node.state == FAILED:
+                    if self.master.uplink:
+                        await self.master.uplink.statistics_update(node, 'FAIL-RESCUE')
                     self.master.log.info("Restarting failed Node %s (%i)",
                                          node.config.name, node.nodeid)
                     await self._initialize_single_node(node)
