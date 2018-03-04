@@ -56,7 +56,7 @@ class WaschenInFreiheit:
         await self.master.start()
         self.startup_time = int((time.time() - self.startup) * 1000) / 1000
         try:
-            await self.master.get_node("HSH16").authping()
+            #await self.master.get_node("HSH16").authping()
 
             self.machineobserver = machinemanager.MachineManager(
                 self.master, "http://waschen.stusta.de",

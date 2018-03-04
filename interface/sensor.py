@@ -42,23 +42,25 @@ class Sensor:
         self.config = config
         self.last_status = ""
         self.last_update = None
-        self.state = ""
+        self.state = "CREATED"
         self.distance = config.distance
         self.last_led_command = ""
 
-    async def ping(self):
+    async def ping(self, **kwargs):
         """
         Ping the node to test if the path is valid
         """
-        await self.master.send_raw("ping {}".format(self.nodeid), self, expect_response=False)
+        await self.master.send_raw("ping {}".format(self.nodeid), self,
+                                   expect_response=False, **kwargs)
 
-    async def authping(self):
+    async def authping(self, **kwargs):
         """
         Ping a sensor and check if it is still valid and alive
         """
-        await self.master.send_raw("authping {}".format(self.nodeid), self)
+        await self.master.send_raw("authping {}".format(self.nodeid),
+                                   self, **kwargs)
 
-    async def connect(self, return_hop, timeout):
+    async def connect(self, return_hop, timeout, **kwargs):
         """
         Opens a connection to a hope
 
@@ -67,45 +69,46 @@ class Sensor:
         timeout: time to wait in seconds until a package needs to be
                 retransmitted
         """
-        await self.master.send_raw("connect {} {} {}".format(self.nodeid,
-                                                             return_hop,
-                                                             timeout), self)
+        await self.master.send_raw(
+            "connect {} {} {}".format(self.nodeid, return_hop, timeout),
+            self, **kwargs)
 
-    async def retransmit(self):
+    async def retransmit(self, **kwargs):
         """
         Retransmits the last packet for the node again
         Call this only after a node sent a timeout.
         """
-        await self.master.send_raw("retransmit {}".format(self.nodeid), self)
+        await self.master.send_raw("retransmit {}".format(self.nodeid),
+                                   self, **kwargs)
 
     async def configure(self, channel, input_filter, st_matrix,
-                        wnd_sizes, reject_filter):
+                        wnd_sizes, reject_filter, **kwargs):
 
         """
         Set configuration parameters
         """
         await self.master.send_raw("cfg_sensor {} {} {} {} {} {} ".format(
             self.nodeid, channel, input_filter, st_matrix, wnd_sizes,
-            reject_filter), self)
+            reject_filter), self, **kwargs)
 
-    async def enable(self, channel_mask, samples_per_sec):
+    async def enable(self, channel_mask, samples_per_sec, **kwargs):
         """
         Enable/start the sensor
         """
         await self.master.send_raw("enable_sensor {} {} {}"
                                    .format(self.nodeid, channel_mask,
                                            samples_per_sec),
-                                   self)
+                                   self, **kwargs)
 
-    async def get_rawframes(self, channel, num_frames):
+    async def get_rawframes(self, channel, num_frames, **kwargs):
         """
         Get raw frames from a sensor. Used for calibration
         """
         await self.master.send_raw("get_raw {} {} {}".format(
-            self.nodeid, channel, num_frames), self)
+            self.nodeid, channel, num_frames), self, **kwargs)
 
 
-    async def routes(self, routes, reset=False):
+    async def routes(self, routes, reset=False, **kwargs):
         """
         Set the routes in the network.
 
@@ -116,28 +119,34 @@ class Sensor:
                                 for dst, hop in routes.items()])
         if reset:
             await self.master.send_raw("reset_routes {} {}"
-                                       .format(self.nodeid, routestring), self)
+                                       .format(self.nodeid, routestring),
+                                       self, **kwargs)
         else:
             await self.master.send_raw("set_routes {} {}"
-                                       .format(self.nodeid, routestring), self)
+                                       .format(self.nodeid, routestring),
+                                       self, **kwargs)
 
 
-
-    async def resend_state(self):
+    async def resend_state(self, **kwargs):
         """
         Re-send the last led command, in order to recover the state
         """
         if self.last_led_command:
-            await self.master.send_raw(self.last_led_command, self)
+            await self.master.send_raw(self.last_led_command, self, **kwargs)
+        else:
+            # TODO: change 4 to 5
+            await self.led([LED.OFF] * 4)
 
-    async def led(self, ledcolors):
+
+    async def led(self, ledcolors, **kwargs):
         """
         Set the leds for the sensor
         """
         ledstring = ' '.join(ledcolors)
         self.last_led_command = "led {} {}"\
                                    .format(self.nodeid, ledstring)
-        await self.master.send_raw(self.last_led_command, self)
+        await self.master.send_raw(self.last_led_command, self, **kwargs)
+
 
     async def notify_status(self, status):
         """
@@ -167,6 +176,6 @@ class Sensor:
         """
         Remove the function from the status callbacks
         """
-        self.config.status_callbacks = [x
-                                        for x in self.config.status_callbacks
-                                        if x != cb_func]
+        self.config.status_callbacks = [
+            x for x in self.config.status_callbacks
+            if x != cb_func]
