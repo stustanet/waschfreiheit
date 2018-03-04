@@ -2,6 +2,8 @@
 Do the magic debugging stuff
 """
 import asyncio
+import re
+import sensor
 
 class DebugInterface:
     """
@@ -28,11 +30,20 @@ class DebugInterface:
             'raw': self.enable_raw,
             'unraw': self.disable_raw,
             'send': self.send_command,
+            'led': self.led,
+            'frames': self.frames,
+            'status': self.status,
+            'shutdown': self.shutdown,
         }
 
         self.raw_reader_mux_task = self.loop.create_task(
             self.raw_reader_muxer())
         self.server = None
+
+    # LED \send led
+    # raw_frames \send raw_frames
+    # raw_status \send raw_status
+    # shutdown (wartung)
 
     async def start(self):
         """
@@ -81,9 +92,9 @@ class DebugInterface:
                     if cmdstr in self.commands:
                         cmd = self.commands[cmdstr]
                         if asyncio.iscoroutine(cmd):
-                            await cmd(linestr, reader, writer)
+                            await cmd(linestr[1:], reader, writer)
                         else:
-                            cmd(linestr, reader, writer)
+                            cmd(linestr[1:], reader, writer)
                     else:
                         writer.write(b"Unknown command\n")
                 else:
@@ -127,24 +138,62 @@ Have fun.
             self._raw_mux_sockets.append(writer)
             writer.write(b"Enabled raw output for you\n")
 
-    def disable_raw(self, _, reader, writer):
+    def disable_raw(self, _, r, writer):
         """
         Remove the sing from the list of outputs
         """
         self.remove_raw_output(writer)
         writer.write(b"Disabled raw output for you\n")
 
-    def send_command(self, line, _, writer):
+    def led(self, line, reader, writer):
+        print(line)
+        self.send_command('send ' + line, reader, writer)
+
+    def frames(self, line, reader, writer):
+        command = ' '.join(line.split()[1:])
+        self.send_command('send raw_frames ' + command, reader, writer)
+
+    def status(self, line, reader, writer):
+        command = ' '.join(line.split()[1:])
+        self.send_command('send raw_status ' + command, reader, writer)
+
+    def shutdown(self, l, reader, writer):
+        writer.write(b"# I am now blanking all LEDs\n")
+        asyncio.ensure_future(writer.drain())
+        for node in self.master.sensors.values():
+            asyncio.ensure_future(node.led([sensor.LED.OFF] * 5))
+        writer.write(b"# Shutdown complete\n")
+        asyncio.ensure_future(writer.drain())
+
+
+    def send_command(self, line, r, writer):
         """
         Send a command to the master
         """
         command = ' '.join(line.split()[1:])
         serial_command = command.split()[0]
         expect_response = serial_command in [
-            "connect", "retransmit", "reset_routes", "set_routes", "cfg+sensor"
-            "enable_sensor", "raw_frames", "raw_status", "led", "routes"
+            "connect", "retransmit", "reset_routes", "set_routes", "cfg_sensor"
+            "enable_sensor", "raw_frames", "raw_status", "led"
         ]
+
+        if expect_response:
+            match = re.findall(r'(\d+)', line)
+            if match:
+                try:
+                    node = self.master.get_node(match[0])
+                except KeyError:
+                    writer.write(b"### could not find node!\n")
+                    asyncio.ensure_future(writer.drain())
+                    return
+            else:
+                writer.write(b"### please provide a target node!\n")
+                asyncio.ensure_future(writer.drain())
+                return
+        else:
+            node = None
+
         asyncio.ensure_future(self.master.send_raw(
             command,
-            None,
+            node,
             expect_response=expect_response))
