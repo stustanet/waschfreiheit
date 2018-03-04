@@ -144,5 +144,7 @@ Have fun.
             "connect", "retransmit", "reset_routes", "set_routes", "cfg+sensor"
             "enable_sensor", "raw_frames", "raw_status", "led", "routes"
         ]
-        asyncio.ensure_future(self.master.send_raw(command,
-                              expect_response=expect_response))
+        asyncio.ensure_future(self.master.send_raw(
+            command,
+            None,
+            expect_response=expect_response))
