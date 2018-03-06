@@ -232,7 +232,7 @@ static void handle_rx_cplt(void)
 	// Check the packet header
 	layer3_packet_header_t *hdr = (layer3_packet_header_t *)context.recv_buffer;
 
-	printf("Received packet for from %u for %u (%d bytes), RSSI: %i, SNR: %i\n",
+	printf("Received packet from %u for %u (%d bytes), RSSI: %i, SNR: %i\n",
 		   hdr->src, hdr->dst, (int)len,
 		   packet_info.rssi, (int)packet_info.snr);
 
