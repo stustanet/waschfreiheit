@@ -303,6 +303,7 @@ static void event_cb(netdev_t *dev, netdev_event_t event)
 		case NETDEV_EVENT_CAD_DONE:
 			// ?? Need to check if this is relevant
 			puts("NETDEV_EVENT_CAD_DONE");
+			start_listen();
 			break;
 
 		case NETDEV_EVENT_TX_TIMEOUT:
@@ -312,6 +313,7 @@ static void event_cb(netdev_t *dev, netdev_event_t event)
 
 		default:
 			printf("Unexpected netdev event received: %d\n", event);
+			start_listen();
 			break;
 	}
 }
