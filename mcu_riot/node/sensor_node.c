@@ -37,31 +37,10 @@
 #define WS2801_GPIO_CLK GPIO_PIN(PORT_B, 11)
 
 /*
- * Max number of retransmissions before the node declares the network dead and reboots.
- */
-#define MAX_STATUS_RETRANSMISSIONS 100
-
-/*
- * Timeout for the config channel in seconds
- * If no authenticated message is received for more than the specified time, the node reboots.
- * This is primary intended to avoid the network getting stuck if the routes are invalid.
- */
-#define CONFIG_CHANNEL_TIMEOUT 1800
-
-/*
  * Max time for the watchdog observing the ADC thread.
  * This is a pure software watchdog, but it is guarded by a low-level harware watchdog.
  */
 #define ADC_THREAD_WATCHDOG_TIMEOUT 10
-
-
-/*
- * Max random delay for status retransmissions.
- * Actual retransmission delay is
- * base delay + random((RETRANSMISSION_DELAY_RANDOM_FACTOR * (1 + num_of_retries / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER)
- */
-#define RETRANSMISSION_DELAY_RANDOM_FACTOR     10
-#define RETRANSMISSION_LINEAR_BACKOFF_DIVIDER   3
 
 /*
  * Number of LEDs connected.
@@ -126,6 +105,11 @@ struct
 	 * Color table for the LEDs
 	 */
 	const color_table_t *led_color_table;
+
+	/*
+	 * Various config values.
+	 */
+	const misc_config_t *misc_config;
 
 	/*
 	 * Status information for the node (STATUS_ bits)
@@ -269,7 +253,7 @@ static kernel_pid_t message_thd_pid;
  */
 
 /*
- * Returns a random number between 0 and RETRANSMISSION_DELAY_RANDOM_FACTOR
+ * Returns a random number between 0 and max
  * Every time this function is called a new random value is generated.
  */
 static uint32_t get_random_delay(uint32_t max)
@@ -280,13 +264,13 @@ static uint32_t get_random_delay(uint32_t max)
 }
 
 /*
- * Retruns the retransmission delay for a packet on the status channel based on the number
+ * Returns the retransmission delay for a packet on the status channel based on the number
  * of retransmissions and a random value.
  * Every time this function is called a new random value is generated.
  */
 static uint32_t calculate_retransmission_delay(uint32_t rt_counter)
 {
-	return get_random_delay(RETRANSMISSION_DELAY_RANDOM_FACTOR * (1 + rt_counter / RETRANSMISSION_LINEAR_BACKOFF_DIVIDER))
+	return get_random_delay(ctx.misc_config->rt_delay_random * (1 + rt_counter / ctx.misc_config->rt_delay_lin_div))
 			+ ctx.status_retransmission_base_delay;
 }
 
@@ -1487,8 +1471,8 @@ static void *message_thread(void *arg)
 		 */
 		ctx.config_channel_timeout_timer++;
 
-		if (retransmission_counter > MAX_STATUS_RETRANSMISSIONS ||
-			ctx.config_channel_timeout_timer > CONFIG_CHANNEL_TIMEOUT)
+		if (retransmission_counter > ctx.misc_config->max_status_retransmissions ||
+			ctx.config_channel_timeout_timer > ctx.misc_config->network_timeout)
 		{
 			puts("NETWORK TIMEOUT! Rebooting...");
 			pm_reboot();
@@ -1643,6 +1627,7 @@ int sensor_node_init(void)
 	memset(&ctx, 0, sizeof(ctx));
 
 	ctx.led_color_table = sensor_config_color_table();
+	ctx.misc_config = sensor_config_misc_settings();
 
 	// GPIOs for LEDs
 	gpio_init(WS2801_GPIO_CLK, GPIO_OUT);

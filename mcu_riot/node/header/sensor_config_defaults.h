@@ -38,3 +38,11 @@
 	2,              /* Spread factor */ \
 	LORA_BW_125_KHZ /* Bandwidth     */ \
 }
+
+#define DefaultMiscSettings             \
+{                                       \
+	1800,           /* Timeout             */ \
+	100,            /* Max retransmissions */ \
+	10,             /* RT random factor    */ \
+	3,              /* RT lin divider      */ \
+}

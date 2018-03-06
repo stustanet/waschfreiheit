@@ -17,6 +17,7 @@
 static const uint32_t CONFIG_NETWORK    = 0x00000001;
 static const uint32_t CONFIG_COLORTABLE = 0x00000002;
 static const uint32_t CONFIG_RF         = 0x00000004;
+static const uint32_t CONFIG_MISC       = 0x00000008;
 
 /*
  * The config data as stored in the flash.
@@ -30,6 +31,7 @@ typedef struct
 	sensor_configuration_t network;
 	color_table_t colortable;
 	meshnw_rf_config_t rf;
+	misc_config_t misc;
 } config_with_magic_t;
 
 /*
@@ -97,6 +99,25 @@ const meshnw_rf_config_t *sensor_config_rf_settings(void)
 		return &defaultConfig;
 	}
 	return &cfg->rf;
+}
+
+
+const misc_config_t *sensor_config_misc_settings(void)
+{
+	static const misc_config_t defaultMisc = DefaultMiscSettings;
+	config_with_magic_t *cfg = flashpage_addr(CONFIG_FLASH_PAGE);
+	if (cfg->magic != CONFIG_MAGIC)
+	{
+		puts("Node not configured -> Use default misc settings!\n");
+		return &defaultMisc;
+	}
+
+	if ((cfg->config_set & CONFIG_MISC) == 0)
+	{
+		puts("Misc settings not configured -> Use default!\n");
+		return &defaultMisc;
+	}
+	return &cfg->misc;
 }
 
 
@@ -264,6 +285,55 @@ static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 }
 
 
+static int misc_config(int argc, char **argv, config_with_magic_t *cfg)
+{
+	if (argc == 3 && strcmp(argv[2], "get") == 0)
+	{
+		const misc_config_t *current = sensor_config_misc_settings();
+		printf("Current misc settings:\n%lu %lu %lu %lu ",
+		       current->network_timeout,
+		       current->max_status_retransmissions,
+		       current->rt_delay_random,
+		       current->rt_delay_lin_div);
+		return 2;
+	}
+	else if (argc != 6)
+	{
+		puts("USAGE: config misc get");
+		puts("USAGE: config misc <timeout> <max_retransmissions> <rt_delay_random> <rt_delay_lin>\n");
+		puts("timeout              The timeout (in seconds) for the network before the node reboots.");
+		puts("                     The timer is reset when authenticated message arrives");
+		puts("max_retransmissions  Max number of consecutive status retransmissions");
+		puts("                     before the node reboots.");
+		puts("rt_delay_random      Factor for the random part in the retransmission delay.");
+		puts("rt_delay_lin         Divider for the number of retransmissions when calculating the delay.\n");
+		puts("Retransmission delay calculation:");
+		puts("delay = base_delay + random(0, rt_delay_random * (1 + num_retransmissions / re_delay_lin)");
+		puts("base_delay is the \"timeout\" specified on the master when connection to the node");
+		puts("num_retransmissions is the number of consecutive retransmissions.");
+		return 1;
+	}
+
+	uint32_t f = strtoul(argv[2], NULL, 10);
+
+	if (f < 10)
+	{
+		// Setting the timeout to 0 sec would soft-brick the node.
+		puts("Timeout must be > 10s");
+		return 1;
+	}
+
+	cfg->misc.network_timeout = f;
+	cfg->misc.max_status_retransmissions = strtoul(argv[3], NULL, 10);
+	cfg->misc.rt_delay_random = strtoul(argv[4], NULL, 10);
+	cfg->misc.rt_delay_lin_div = strtoul(argv[5], NULL, 10);
+
+	// set "misc configured" bit
+	cfg->config_set |= CONFIG_MISC;
+
+	return 0;
+}
+
 int sensor_config_set_cmd(int argc, char **argv)
 {
 	/*
@@ -280,6 +350,7 @@ int sensor_config_set_cmd(int argc, char **argv)
 		puts("    network  Network settings");
 		puts("    color    Colortable for the status LEDs");
 		puts("    rf       Radio configuration");
+		puts("    misc     Misc settings");
 		puts("    reset    Resets the whole config");
 		return 1;
 	}
@@ -306,6 +377,10 @@ int sensor_config_set_cmd(int argc, char **argv)
 	else if (strcmp(argv[1], "rf") == 0)
 	{
 		res = rf_config(argc, argv, &config_buffer.cfg);
+	}
+	else if (strcmp(argv[1], "misc") == 0)
+	{
+		res = misc_config(argc, argv, &config_buffer.cfg);
 	}
 	else if (strcmp(argv[1], "reset") == 0)
 	{

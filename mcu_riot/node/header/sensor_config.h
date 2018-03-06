@@ -15,6 +15,30 @@ typedef struct
 	nodeid_t my_id;
 } sensor_configuration_t;
 
+
+typedef struct
+{
+	/*
+	 * Timeout for the config channel in seconds
+	 * If no authenticated message is received for more than the specified time, the node reboots.
+	 * This is primary intended to avoid the network getting stuck if the routes are invalid.
+	 */
+	uint32_t network_timeout;
+
+	/*
+	 * Max number of retransmissions before the node declares the network dead and reboots.
+	 */
+	uint32_t max_status_retransmissions;
+
+	/*
+	 * Max random delay for status retransmissions.
+	 * Actual retransmission delay is
+	 * base delay + random((rt_delay_random * (1 + num_of_retries / rt_delay_lin_div)
+	 */
+	uint32_t rt_delay_random;
+	uint32_t rt_delay_lin_div;
+} misc_config_t;
+
 /*
  * Gets the current configuration of this node.
  * If the node is not yet configured, NULL is returned.
@@ -33,6 +57,12 @@ const color_table_t *sensor_config_color_table(void);
  * If the rf config is not set, default values are returned,
  */
 const meshnw_rf_config_t *sensor_config_rf_settings(void);
+
+/*
+ * Gets the current configuration for various parameters.
+ * If the misc config is not set, default values are returned,
+ */
+const misc_config_t *sensor_config_misc_settings(void);
 
 /*
  * Command function for an interactive command to set the config.
