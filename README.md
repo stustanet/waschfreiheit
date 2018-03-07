@@ -75,8 +75,8 @@ Alle Werte die nicht größer als ein Grenzwert ("Reject Threshold") sind und ni
 
 Beispiel:
 Angenommen der Threshold wäre 5 und der Consec count wäre 3, dann würden nur die markierten Werte verwendet werden
-3 9 8 2 7 8 9 6 3 4 9 2 1 6 7 8 9 9 9 3 4 7 8 2
-        ^ ^ ^ ^           ^ ^ ^ ^ ^ ^
+    3 9 8 2 7 8 9 6 3 4 9 2 1 6 7 8 9 9 9 3 4 7 8 2
+            ^ ^ ^ ^           ^ ^ ^ ^ ^ ^
 
 #### Durchschnittswert
 Der aktuelle Filterwert ist der Durchschnitt aller Werte im aktuellen Fenster. Werte die vom Blockfilter ignoriert werden gehen mit 0 in den Durchschnitt ein.
