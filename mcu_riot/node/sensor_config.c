@@ -410,7 +410,7 @@ int sensor_config_set_cmd(int argc, char **argv)
 		return 1;
 	}
 
-	puts("OK Config updated, changes have no effect until restart!");
+	puts("OK Config updated, some changes have no effect until restart!");
 	return 0;
 
 }
