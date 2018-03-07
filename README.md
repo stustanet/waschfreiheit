@@ -74,7 +74,8 @@ Die Stufe 2 wird einmal pro Frame aktualisiert. Die letzten "Window Size" Frame-
 Alle Werte die nicht größer als ein Grenzwert ("Reject Threshold") sind und nicht mind. "Reject Consec" Werte davor auch über dem Grenzwert liegen werden bei der Berechnung des aktuellen Wertes ignoriert.
 
 Beispiel:
-Angenommen der Threshold wäre 5 und der Consec count wäre 3, dann würden nur die markierten Werte verwendet werden
+Angenommen der Threshold wäre 5 und der "Consec count" wäre 3, dann würden nur die markierten Werte verwendet werden.
+
     3 9 8 2 7 8 9 6 3 4 9 2 1 6 7 8 9 9 9 3 4 7 8 2
             ^ ^ ^ ^           ^ ^ ^ ^ ^ ^
 
