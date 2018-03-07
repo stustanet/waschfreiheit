@@ -35,3 +35,13 @@ class WaschUplink:
                     await resp.text()
         except (aiohttp.InvalidURL, aiohttp.ClientConnectorError) as exp:
             print(exp)
+
+
+    async def heartbeat(self):
+        url = "{}/lebt/{}".format(self.base_url, self.__key)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    await resp.text()
+        except (aiohttp.InvalidURL, aiohttp.ClientConnectorError) as exp:
+            print(exp)

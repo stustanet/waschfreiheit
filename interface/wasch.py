@@ -237,6 +237,7 @@ class WaschInterface:
         else:
             self.uplink = None
 
+        self._heartbeat_task = None
         # message synchronisation to avoid multiple commands on the line at the
         # same time
         self.message_pending = False
@@ -391,13 +392,28 @@ class WaschInterface:
                         msg.result.set_exception(WaschOperationInterrupted())
 
 
+    async def heartbeat(self):
+        """
+        Send heartbeat that the system is alive to the server
+        """
+        while True:
+            if self.networkmanager.last_observer_run + \
+               self.config.networkcheckintervall * 2 \
+               > self.config < time.time():
+                # We are sad, we do not send a heartbeat
+                self.log.error("Last observer run was too old - will not send heartbeat")
+            else:
+                await self.uplink.heartbeat()
+
+            await asyncio.sleep(60)
+
     async def start(self):
         """
         Start the networking process
         """
         await self.debuginterface.start()
         await self.networkmanager.init_the_network()
-
+        self._heartbeat_task = self.loop.create_task(self.heartbeat)
 
     async def teardown(self):
         """
@@ -418,6 +434,13 @@ class WaschInterface:
         try:
             self._command_task.cancel()
             await self._command_task
+        except asyncio.CancelledError:
+            pass
+
+        try:
+            if self._heartbeat_task:
+                self._heartbeat_task.cancel()
+                await self._heartbeat_task
         except asyncio.CancelledError:
             pass
 
@@ -819,7 +842,7 @@ class NetworkManager:
         ```
         for all nodes ordered by their distance:
             if ping() successfull
-                continue
+`                continue
             else
                 connect()
 `       ```
