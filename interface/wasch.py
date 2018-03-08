@@ -397,12 +397,17 @@ class WaschInterface:
         Send heartbeat that the system is alive to the server
         """
         while True:
-            if self.networkmanager.last_observer_run + \
-               self.config.networkcheckintervall * 2 \
-               > self.config < time.time():
-                # We are sad, we do not send a heartbeat
-                self.log.error("Last observer run was too old - will not send heartbeat")
-            else:
+            skip = False
+            if self.networkmanager.last_observer_run:
+                if self.networkmanager.last_observer_run + \
+                   self.config.networkcheckintervall * 2 \
+                   > time.time():
+                    # We are sad, we do not send a heartbeat
+                    self.log.error("Last observer run was too old"
+                                   " - will not send heartbeat")
+                    skip = True
+
+            if not skip:
                 await self.uplink.heartbeat()
 
             await asyncio.sleep(60)
@@ -413,7 +418,7 @@ class WaschInterface:
         """
         await self.debuginterface.start()
         await self.networkmanager.init_the_network()
-        self._heartbeat_task = self.loop.create_task(self.heartbeat)
+        self._heartbeat_task = self.loop.create_task(self.heartbeat())
 
     async def teardown(self):
         """
@@ -469,6 +474,11 @@ class WaschInterface:
                                    "non-running message!")
                     continue
             if match[0] == 'ACK':
+                self.log.info("Received ACK for message %s", msg)
+                if msg.result.cancelled():
+                    import pdb; pdb.set_trace()
+                    self.log.info("Setting result for a cancelled message %s", msg)
+                    raise asyncio.CancelledError()
                 msg.result.set_result(match[2])
                 if msg.node:
                     msg.node.state = CONNECTED
@@ -856,21 +866,22 @@ class NetworkManager:
 
         if self.master.message_pending and self.master.running_message.node:
             timeout = self.master.running_message.node.distance \
-                      * self.config.single_hop_timeout + 2
+                      * self.config.single_hop_timeout * 2 + 2
             self.master.log.info("Waiting for a missing response for %s "
                                  "for %s seconds",
                                  self.master.running_message, timeout)
             try:
                 self.master.message_event.clear()
-                #await asyncio.wait_for(
-                #    self.master.message_event.wait(),
-                #    timeout)
-                await self.master.message_event.wait()
+                await asyncio.wait_for(
+                    self.master.message_event.wait(),
+                    timeout)
+                #await self.master.message_event.wait()
             except asyncio.TimeoutError:
                 self.master.log.error("Needed to kill a running transaction")
+                self.master.log.error("This is very bad for the whole system, "
+                                      "we are in a non-deterministic state now")
                 self.master.log.error("We need to reboot the master!")
                 sys.exit(-1)
-                self.master.message_pending = False
 
         # Do we have to raise WaschOperationInterrupted error after we're done?
         if not self.master.sensors:
@@ -946,9 +957,6 @@ class NetworkManager:
             node.state = FAILED
             self.master.log.debug("Node was already over retransmission limit")
             raise WaschTimeoutError()
-        else:
-            if self.master.message_pending:
-                #await asyncio.wait_for(self.master.message_event.wait(), 10)
-                await self.master.message_event.wait()
-            if self.master.message_pending:
-                await node.retransmit()
+        elif self.master.message_pending:
+            self.master.log.debug("Waiting for a response to arrive")
+            await self.master.message_event.wait()

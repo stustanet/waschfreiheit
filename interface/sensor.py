@@ -73,13 +73,13 @@ class Sensor:
             "connect {} {} {}".format(self.nodeid, return_hop, timeout),
             self, **kwargs)
 
-    async def retransmit(self, **kwargs):
-        """
-        Retransmits the last packet for the node again
-        Call this only after a node sent a timeout.
-        """
-        await self.master.send_raw("retransmit {}".format(self.nodeid),
-                                   self, **kwargs)
+#    async def retransmit(self, **kwargs):
+#        """
+#        Retransmits the last packet for the node again
+#        Call this only after a node sent a timeout.
+#        """
+#        await self.master.send_raw("retransmit {}".format(self.nodeid),
+#                                   self, **kwargs)
 
     async def configure(self, channel, input_filter, st_matrix,
                         wnd_sizes, reject_filter, **kwargs):
