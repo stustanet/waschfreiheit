@@ -56,6 +56,9 @@ static int cmd_routes(int argc, char **argv)
 		}
 	}
 
+#ifndef MASTER
+	meshnw_enable_forwarding();
+#endif
 	return 0;
 }
 
