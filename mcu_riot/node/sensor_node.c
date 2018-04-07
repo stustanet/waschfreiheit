@@ -21,6 +21,7 @@
 #include "utils.h"
 #include "led_ws2801.h"
 #include "watchdog.h"
+#include "flasher.h"
 
 /*
  * The max number of sensors channels.
@@ -1802,5 +1803,22 @@ int sensor_node_cmd_print_status(int argc, char **argv)
 	return 0;
 }
 
+
+int sensor_node_cmd_firmware_upgrade(int argc, char **argv)
+{
+	if (argc != 3 || strcmp(argv[1], "--start") != 0)
+	{
+		puts("USAGE: firmware_upgrade --start <baudrate>");
+		puts("Flash the MCU.");
+		puts("This command is NOT intended for interactive use. (Use flash util)");
+		puts("This way of flashing is UNSAFE! Only it if you know how to flash the controller with a STLink or through the serial bootloader!");
+		return 0;
+	}
+
+	uint32_t br = strtoul(argv[2], NULL, 10);
+
+	flasher_start(br);
+	return 0;
+}
 
 #endif

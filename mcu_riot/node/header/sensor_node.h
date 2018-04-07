@@ -37,3 +37,9 @@ int sensor_node_cmd_print_frames(int argc, char **argv);
  * Print status information
  */
 int sensor_node_cmd_print_status(int argc, char **argv);
+
+/*
+ * Firmware update (Flash) command
+ */
+int sensor_node_cmd_firmware_upgrade(int argc, char **argv);
+
