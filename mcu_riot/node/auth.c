@@ -199,6 +199,7 @@ int auth_master_make_handshake(auth_context_t *ctx, void *data, uint32_t offset,
 		return -ENOMEM;
 	}
 
+	printf("Send master handshake with challenge=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
 	memcpy(((uint8_t *)data) + offset, &(ctx->nonce), sizeof(ctx->nonce));
 
 	(*result_len) = sizeof(ctx->nonce) + offset;
@@ -252,6 +253,8 @@ int auth_master_process_handshake(auth_context_t *ctx, const void *data, uint32_
 	ctx->status |= AUTH_HANDSHAKE_CPLT;
 	ctx->status &= ~AUTH_HANDSHAKE_PEND;
 
+	printf("Process handshake from slave with nonce=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
+
 	// increment the nonce for the next sent packet
 	ctx->nonce += 2;
 
@@ -265,6 +268,8 @@ int auth_master_sign(auth_context_t *ctx, void *data, uint32_t len, uint32_t *re
 	{
 		return AUTH_WRONG_STATE;
 	}
+
+	printf("Sign packet with nonce nonce=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
 
 	// make tag with current nonce
 	return sign_message(ctx, ctx->nonce, data, len, result_len, add_data, add_datalen);
@@ -284,6 +289,8 @@ int auth_master_check_ack(auth_context_t *ctx, const void *data, uint32_t offset
 		return AUTH_WRONG_SIZE;
 	}
 
+
+	printf("Expect ack for nonce=%08lx%08lx\n", (uint32_t)(ctx->nonce >> 32), (uint32_t)ctx->nonce);
 
 	uint64_t ack_expected_nonce = ctx->nonce + 1;
 

@@ -93,6 +93,23 @@ typedef struct
 
 static meshnw_context_data_t context = { 0 };
 
+void hexdump(uint8_t *data, uint32_t cnt)
+{
+	for (uint32_t i = 0; i < cnt; i++)
+	{
+		printf("%02X ", data[i]);
+		if (i % 16 == 15)
+		{
+			puts("");
+		}
+		else if (i % 4 == 3)
+		{
+			printf(" ");
+		}
+	}
+	puts("");
+}
+
 /*
  * Gets the route to the specified destination
  * returns the next hop or MESHNW_INVALID_NODE if there is no route
@@ -141,6 +158,9 @@ static int forward_packet(void *packet, uint8_t len)
 		mutex_unlock(&context.mutex);
 		return -EBUSY;
 	}
+
+	puts("Send packet");
+	hexdump(packet, len);
 
 	// Send packet, next_hop specifies the receiver
 	struct iovec vec[1];
@@ -235,6 +255,8 @@ static void handle_rx_cplt(void)
 	printf("Received packet from %u for %u (%d bytes), RSSI: %i, SNR: %i\n",
 		   hdr->src, hdr->dst, (int)len,
 		   packet_info.rssi, (int)packet_info.snr);
+
+	hexdump(context.recv_buffer, len);
 
 	if (hdr->next_hop != context.my_node_id)
 	{
