@@ -414,8 +414,6 @@ static int setup(const meshnw_rf_config_t *config)
 	int16_t pwr = config->tx_power;
 	netdev->driver->set(netdev, NETOPT_TX_POWER, &pwr, sizeof(pwr));
 
-	start_listen();
-
 	return 0;
 }
 
@@ -471,7 +469,15 @@ int meshnw_init(nodeid_t id, const meshnw_rf_config_t *config, mesh_nw_message_c
 
 	meshnw_clear_routes();
 
-	return setup(config);
+	int res = setup(config);
+	if (res == 0)
+	{
+		start_listen();
+	}
+	return res;
+
+}
+
 
 }
 
