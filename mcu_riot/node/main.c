@@ -153,13 +153,14 @@ static void init(void)
 #include "sensor_config.h"
 
 static const shell_command_t shell_commands[] = {
-    { "config",       "Node configuration",                      sensor_config_set_cmd },
-    { "ping",         "Sends an echo reuest",                    cmd_ping },
-    { "routes",       "Sets the routes for the node",            cmd_routes },
-    { "raw",          "Enables / Disables raw data printing",    sensor_node_cmd_raw },
-    { "led",          "RGB LED test",                            sensor_node_cmd_led },
-    { "print_frames", "Enbales / Disables frame value printing", sensor_node_cmd_print_frames },
-    { "status",       "Prints node status",                      sensor_node_cmd_print_status },
+    { "config",           "Node configuration",                      sensor_config_set_cmd },
+    { "ping",             "Sends an echo reuest",                    cmd_ping },
+    { "routes",           "Sets the routes for the node",            cmd_routes },
+    { "raw",              "Enables / Disables raw data printing",    sensor_node_cmd_raw },
+    { "led",              "RGB LED test",                            sensor_node_cmd_led },
+    { "print_frames",     "Enbales / Disables frame value printing", sensor_node_cmd_print_frames },
+    { "status",           "Prints node status",                      sensor_node_cmd_print_status },
+    { "firmware_upgrade", "Firmware upgrade",                        sensor_node_cmd_firmware_upgrade },
     { NULL, NULL, NULL }
 };
 
