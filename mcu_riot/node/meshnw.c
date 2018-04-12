@@ -328,6 +328,12 @@ static void event_cb(netdev_t *dev, netdev_event_t event)
 			start_listen();
 			break;
 
+		case NETDEV_EVENT_CRC_ERROR:
+			// MUST NOT try to re-enter the listen mode when a CRC-error occured.
+			// This would result is a deadlock!
+			puts("CRC ERROR");
+			break;
+
 		case NETDEV_EVENT_TX_TIMEOUT:
 			// Something went wrong during TX -> re-enter listen mode
 			start_listen();
