@@ -226,20 +226,23 @@ static void handle_rx_cplt(void)
 {
 	netdev_t *dev = context.netdev;
 
-	size_t len;
 	netdev_sx127x_lora_packet_info_t packet_info;
 
 	mutex_lock(&context.mutex);
 
 	// First get packet length
-	len = dev->driver->recv(dev, NULL, 0, 0);
+	int len = dev->driver->recv(dev, NULL, 0, 0);
+	printf("Packet length: %i.\n", len);
 
 	// Check if length is in bounds
-	if (len < sizeof(layer3_packet_header_t) + 1 || len > sizeof(context.recv_buffer))
+	if (len < (int)sizeof(layer3_packet_header_t) + 1 || len > (int)sizeof(context.recv_buffer))
 	{
 		// I (invalid) => discard
-		printf("Discard packet with invalid size %u.\n", len);
-		dev->driver->recv(dev, NULL, len, NULL);
+		printf("Discard packet with invalid size %i.\n", len);
+		if (len > 0)
+		{
+			dev->driver->recv(dev, NULL, len, NULL);
+		}
 		mutex_unlock(&context.mutex);
 		return;
 	}
