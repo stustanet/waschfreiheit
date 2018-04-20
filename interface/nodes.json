@@ -1,9 +1,14 @@
 {
+  "retransmissionlimit_comment": "Number of times a retransmit should be tried before a node is assumed dead, and a network recovery is started",
+  "retransmissionlimit": 3,
+  "networkcheckintervall_comment": "Time in seconds, how often a network check should be performed",
+  "networkcheckintervall": 300,
   "nodes": [
     {
       "id": 0,
       "name":"MASTER",
       "channels": [],
+      "samplerate": 0,
       "routes":{
         "HSH2":"HSH16",
         "HSH7":"HSH16",
@@ -16,6 +21,7 @@
       "id": 1,
       "name_comment":"Internal config name for the node",
       "name":"HSH2",
+      "samplerate": 500,
       "channels": [
         {
           "number_comment":"left plug on the sensor",
@@ -44,6 +50,7 @@
     {
       "id": 2,
       "name":"HSH7",
+      "samplerate": 500,
       "channels": [
         {
           "number": 0,
@@ -67,8 +74,9 @@
       }
     },
     {
-      "id": 3,
+      "id": 10,
       "name":"HSH10",
+      "samplerate": 500,
       "channels": [
         {
           "number": 0,
@@ -92,8 +100,9 @@
       }
     },
     {
-      "id": 4,
+      "id": 5,
       "name":"HSH16",
+      "samplerate": 500,
       "channels": [
         {
           "number": 0,
@@ -112,7 +121,7 @@
         "MASTER":"MASTER",
         "HSH2":"HSH2",
         "HSH7":"HSH7",
-        "HSH10":"HSH10",
+        "HSH10":"HSH10"
       }
     }
   ]
