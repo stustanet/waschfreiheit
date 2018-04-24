@@ -1,7 +1,15 @@
+/*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
 #ifndef MASTER
 
-// For now, hard-code the sued page, this is the last one (one page is 1kb)
+// For now, hard-code the used page, this is the last one (one page is 1kb)
 // Obviously, this block MUST NOT CONTAIN any program data
+
 #define CONFIG_FLASH_PAGE 63
 #define CONFIG_MAGIC 0xDEADBEEF
 

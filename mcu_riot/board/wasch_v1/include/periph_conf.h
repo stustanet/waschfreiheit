@@ -4,7 +4,7 @@
  *               2018 Daniel Frejek
  *
  * This file is subject to the terms and conditions of the GNU Lesser
- * General Public License v2.1. See the file LICENSE in the top level
+ * General Public License v2.1. See the file LICENSE in the parent
  * directory for more details.
  */
 
@@ -66,8 +66,8 @@ extern "C" {
  * @{
  */
 #define ADC_CONFIG {                                     \
-    { .dev = 0, .pin = GPIO_PIN(PORT_B, 0), .chan = 0 }, \
-    { .dev = 0, .pin = GPIO_PIN(PORT_B, 1), .chan = 1 }, \
+    { .dev = 0, .pin = GPIO_PIN(PORT_B, 0), .chan = 8 }, \
+    { .dev = 0, .pin = GPIO_PIN(PORT_B, 1), .chan = 9 }, \
 }
 
 #define ADC_NUMOF           2

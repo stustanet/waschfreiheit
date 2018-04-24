@@ -1,4 +1,11 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * Structure definition for a RGB value and a 16-Element color table.
  */
 

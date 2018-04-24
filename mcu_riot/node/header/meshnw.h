@@ -1,4 +1,11 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * Mesh network stuff
  *
  * To keep things simple, only one instance of the mesh network is allowed.

@@ -1,4 +1,11 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * State estimation engine.
  *
  * This processes the raw ADC values and estimates the current machine state from it.

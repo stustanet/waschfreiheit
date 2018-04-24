@@ -1,9 +1,16 @@
+/*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
 #ifdef MASTER
 
 /*
  * MASTER SERIAL PROTOCOL
  * Requests:
- * Requests are events occuring on the node that are signalen to the host machine where the node
+ * Requests are events occuring on the node that are signaled to the host machine where the node
  * is connected to.
  * These requests have to be machine readable. In order to mark them, they are prefixed with ###.
  * Defined requests:

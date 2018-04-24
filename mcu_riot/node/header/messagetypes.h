@@ -1,4 +1,11 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * Structure definitions of the network messages.
  * The auth structures are defined in the auth module, the handshake
  * messages here only work as headers for the "real" handshake.

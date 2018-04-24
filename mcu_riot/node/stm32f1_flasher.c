@@ -1,4 +1,11 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * STM32 runtime bootloader-like programming interface.
  * The flash procedure overwrites itself so it will destroy itself while programming.
  * If anything goes wrong during flashing, this will 'brick' the device so when using this you MUST have a backup plan for recovery.

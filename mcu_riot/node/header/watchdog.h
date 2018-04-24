@@ -1,7 +1,14 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * Interface for the IWDG of a STM32F1 CPU.
  *
- * This watchdog runs completely indepenednt of the CPU. Once started, it can not be
+ * This watchdog runs completely independent of the CPU. Once started, it can not be
  * turned off until the system is reset.
  */
 

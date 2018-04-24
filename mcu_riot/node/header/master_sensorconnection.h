@@ -1,4 +1,11 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * This is an interface for managing a single master <-> sensor connection.
  *
  * The connection can only have one outstanding packet.
@@ -73,7 +80,7 @@ int sensor_connection_set_routes(sensor_connection_t *con, uint8_t reset, const 
  * The parameter format is as follows:
  * input_filter : <adjustment_speed>,<lowpass_weight>,<frame_size>
  * st_matrix    : State transition matrix, 4x4, without the diagonal (12 values total)
- *                The parameter is a comma separated list of the matrix values (row fater row)
+ *                The parameter is a comma separated list of the matrix values (row after row)
  * st_window    : Window sizes in different states, 4 comma seperated values.
  * reject_filter: <reject_threshold>,<reject_min_consec>
  */
@@ -102,7 +109,7 @@ int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, ui
 
 /*
  * Request raw status information from a node.
- * The result is sent in a spearate message. IF status data arrives, this is printed to the console.
+ * The result is sent in a spearate message. If status data arrives, this is printed to the console.
  */
 int sensor_connection_get_raw_status(sensor_connection_t *con);
 

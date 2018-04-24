@@ -1,3 +1,10 @@
+/*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
 #include "led_ws2801.h"
 #include "utils.h"
 #include <stdio.h>
