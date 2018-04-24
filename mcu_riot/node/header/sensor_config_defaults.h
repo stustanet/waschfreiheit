@@ -34,7 +34,7 @@
 {                                       \
 	433500000,      /* Frequency     */ \
 	10,             /* TX power      */ \
-	8,              /* Code rate     */ \
+	10,             /* Code rate     */ \
 	2,              /* Spread factor */ \
 	LORA_BW_125_KHZ /* Bandwidth     */ \
 }
