@@ -1,7 +1,6 @@
 #!/bin/env python3
 
 import os
-import numba
 from collections import deque
 import matplotlib.pyplot as plt
 
@@ -16,7 +15,7 @@ def format_date(curtime):
 
 
 time_per_line = 0.2 # sec per line in pp file
-line_skip = 1       # only use every n-th line/frame (faster processing)
+line_skip = 5       # only use every n-th line/frame (faster processing)
 
 # Puffer für die letzten frame werte (frameavg)
 # Für den aktuellen level Wert wird der Durchschnitt aller avgwnd Werte genommen.
@@ -69,6 +68,9 @@ plotvals1 = []
 plotvals2 = []
 plotvals3 = []
 
+
+avg = 0
+
 for line in f:
 
     if line[0] == '#':
@@ -89,6 +91,12 @@ for line in f:
 
     frameavg = float(line)
 
+    """
+    if frameavg < avg_reject_min:
+        frameavg = 0
+
+    avg = avg * (0.99) + frameavg * 0.01
+    """
     avgwnd = avgwnd + [frameavg]
 
     #avgsum = 0
@@ -123,15 +131,17 @@ for line in f:
     avg = 0
     median = 0
 
-    if (len(above_thd_vals) > 0):
+    #if (len(above_thd_vals) > 0):
         # Median der werte berechen
         # -> Sortieren
-        above_thd_vals = sorted(above_thd_vals)
+        #above_thd_vals = sorted(above_thd_vals)
         # -> Median ist der mittlere Wert
-        median = above_thd_vals[int(len(above_thd_vals) / 2)]
+        #median = above_thd_vals[int(len(above_thd_vals) / 2)]
 
         # jetzt noch anhand der Anzahl der verwendeten Werte skalieren
-        avg = (median * len(above_thd_vals)) / len(avgwnd)
+        #avg = (median * len(above_thd_vals)) / len(avgwnd)
+
+    avg = sum(above_thd_vals) / len(avgwnd)
 
     # Store frame + avg for plotting
     plotvals1.append(frameavg)
@@ -158,7 +168,6 @@ for line in f:
             current_state = 2 # avoid getting stuck
     else:
         state_end_timer = 0
-
     # Window size anpassen
     if current_state == 0 and len(avgwnd) > avg_wndsize_off:
         # reduce window size
@@ -191,7 +200,7 @@ for line in f:
         eventfile.write("%s\t%d -> %d\t%s %d\t%d\n" % (format_date(curtime), old_state, current_state, mark, state_duration, linecounter ))
         state_change_vt = curtime
 
-    outfile.write("%f\t%f\t%f\t%s %s\n" % (frameavg, median, avg, current_state, ind))
+    outfile.write("%f\t%f\t%s %s\n" % (frameavg, avg, current_state, ind))
 
 
 plt.plot(plotvals1, color='#FFE0E0')
