@@ -1,10 +1,17 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * Authentication Module
  * Used to authenticate messsages and check authenticity
  *
  * WARNING:
  * This is SELF IMPLEMENTED CRYPTO and therefore UNSAFE by definition.
- * DO NOT USE THIS FOR ANYTHING SECURITY OR PRIVARY RELEVANT!!!!
+ * DO NOT USE THIS FOR ANYTHING SECURITY OR PRIVACY RELEVANT!!!!
  *
  */
 
@@ -56,7 +63,7 @@ int auth_master_make_handshake(auth_context_t *ctx, void *data, uint32_t offset,
 /*
  * Processes the auth handshake reply from the slave
  * <data> is the received handshake message form the slave, len the message length
- * <offset> is the offset of the "real" handshake message. (Which starts after the packet haeder)
+ * <offset> is the offset of the "real" handshake message. (Which starts after the packet header)
  * (must be the same as offset parameter in auth_slave_handshake)
  * returns nonzero on error
  */
@@ -65,7 +72,7 @@ int auth_master_process_handshake(auth_context_t *ctx, const void *data, uint32_
 /*
  * Signs a message, only the master can sign
  * <data> is the message to sign, <len> is the message length.
- * The result is appended to the message, <result_len> is initially the size of the data buffer, after return <result_data>
+ * The result is appended to the message, <result_len> is initially the size of the data buffer, after return <result_len>
  * is the size of the signed message.
  * add_data is additional data that is included in the tag.
  * returns nonzero on error

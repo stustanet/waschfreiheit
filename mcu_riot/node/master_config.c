@@ -1,3 +1,10 @@
+/*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
 #ifdef MASTER
 
 #include "master_config.h"
@@ -11,7 +18,7 @@
 // Number of node entries in a flash page
 #define CONFIG_ENTRIES_PER_PAGE (FLASHPAGE_SIZE / sizeof(node_auth_keys_t))
 
-// Total number of flash pages useb dy the config
+// Total number of flash pages used by the config
 #define CONFIG_FLASH_PAGES ((((MASTER_CONFIG_NUM_NODES) - 1) / CONFIG_ENTRIES_PER_PAGE) + 1)
 
 // The config is written to the end of the flash.

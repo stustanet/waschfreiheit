@@ -1,4 +1,11 @@
 /*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+
+/*
  * Logic of a normal sensor / slave node.
  */
 
@@ -42,4 +49,3 @@ int sensor_node_cmd_print_status(int argc, char **argv);
  * Firmware update (Flash) command
  */
 int sensor_node_cmd_firmware_upgrade(int argc, char **argv);
-

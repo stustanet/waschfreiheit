@@ -3,7 +3,7 @@
  *               2017 Alexander Kurth, Sören Tempel, Tristan Bruns
  *
  * This file is subject to the terms and conditions of the GNU Lesser
- * General Public License v2.1. See the file LICENSE in the top level
+ * General Public License v2.1. See the file LICENSE in the parent
  * directory for more details.
  */
 
