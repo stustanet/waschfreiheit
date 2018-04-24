@@ -488,9 +488,6 @@ int meshnw_init(nodeid_t id, const meshnw_rf_config_t *config, mesh_nw_message_c
 }
 
 
-}
-
-
 void meshnw_enable_forwarding(void)
 {
 	context.enable_forwarding = 1;
