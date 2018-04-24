@@ -17,7 +17,7 @@ typedef uint8_t msg_type_t;
  * Part 1 of the auth handshake
  * master -> slave
  *
- * When this is sent by the master node, this also contains a temporyry route
+ * When this is sent by the master node, this also contains a temporary route
  * to the master node.
  *
  * NOTE: Anyone can send a valid HS1 even without knowing the key so this message
@@ -35,11 +35,23 @@ typedef struct
 /*
  * Part 2 of the auth handshake
  * slave -> master
+ * The HS2 is signed so the information from this message can be trusted.
+ *
+ * Some basic status information is packed into the hs2 message to reduce the overhead of a reconnect.
  */
 #define MSG_TYPE_AUTH_HS_2                  2
+
+#define MSG_HS_2_STATUS_ROUTES 1 /* [sensor -> master] Routes OK */
+#define MSG_HS_2_STATUS_SENSOR 2 /* [sensor -> master] Sensors active */
 typedef struct
 {
 	msg_type_t type;
+
+	// Node status (MSG_HS_2_STATUS_*)
+	uint8_t status;
+
+	// Sensor channels with a high measurement
+	uint16_t channels;
 } __attribute__((packed)) msg_auth_hs_2_t;
 
 

@@ -362,6 +362,24 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 	hs2->type = MSG_TYPE_AUTH_HS_2;
 
 	/*
+	 * Some basic status information is packed into the handshake reply.
+	 * This information will be signed so it should be secure (tm)
+	 */
+
+	hs2->status = 0;
+	if (ctx.status & STATUS_INIT_ROUTES)
+	{
+		hs2->status |= MSG_HS_2_STATUS_ROUTES;
+	}
+
+	if (ctx.status & STATUS_SENSORS_ACTIVE)
+	{
+		hs2->status |= MSG_HS_2_STATUS_SENSOR;
+	}
+
+	hs2->channels = ctx.current_sensor_status;
+
+	/*
 	 * Give the hs1 to the auth module.
 	 * On success the auth module will generate the hs2.
 	 * The auth module also does length checking.
@@ -501,6 +519,8 @@ static void handle_auth_master_handshake(nodeid_t src, void *data, uint8_t len)
 	}
 
 	msg_auth_hs_2_t *hs2 = (msg_auth_hs_2_t *)data;
+
+	// For now the status data from the hs2 is ignored.
 
 	/*
 	 * Give hs2 to auth. It will check, if the packet contains the signed challenge.
@@ -1464,7 +1484,7 @@ static void *message_thread(void *arg)
 	while(1)
 	{
 		WATCHDOG_FEED();
-        xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY_US);
+		xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY_US);
 		total_ticks++;
 
 		/*
