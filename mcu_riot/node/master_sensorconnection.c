@@ -46,6 +46,12 @@ static void handle_hs1(sensor_connection_t *con, uint8_t *message, uint8_t len)
 	msg_auth_hs_2_t *rep_hs = (msg_auth_hs_2_t*)rep_buffer;
 	rep_hs->type = MSG_TYPE_AUTH_HS_2;
 
+	// Currently unused
+	rep_hs->status = 0;
+
+	// Tell the node my current status
+	rep_hs->channels = con->current_status;
+
 	// Process hs1 form sensor to generate hs2 from it.
 	int res = auth_slave_handshake(&con->auth_status, message, sizeof(msg_auth_hs_1_t), len, rep_buffer, sizeof(*rep_hs), &rep_len);
 	if (res != 0)
@@ -81,6 +87,7 @@ static void handle_hs2(sensor_connection_t *con, uint8_t *message, uint8_t len)
 	}
 
 
+	msg_auth_hs_2_t *hs2 = (msg_auth_hs_2_t *)message;
 	// Process hs2 from sensor to finalize config channel buildup
 	int res = auth_master_process_handshake(&con->auth_config, message, sizeof(msg_auth_hs_2_t), len);
 
@@ -90,10 +97,16 @@ static void handle_hs2(sensor_connection_t *con, uint8_t *message, uint8_t len)
 		return;
 	}
 
-	// Handsahke OK => Channel built!
+	// Handshake OK => Channel built!
 	con->ack_outstanding = 0;
-	ISRSAFE_PRINTF("###ACK%u-0\n", con->node_id);
+	ISRSAFE_PRINTF("###ACK%u-%u\n", con->node_id, hs2->status);
 	printf("Auth handshake complete for %u\n", con->node_id);
+
+	if (hs2->channels != con->current_status)
+	{
+		// Signal status change
+		ISRSAFE_PRINTF("###STATUS%u-%u\n", con->node_id, hs2->channels);
+	}
 }
 
 
