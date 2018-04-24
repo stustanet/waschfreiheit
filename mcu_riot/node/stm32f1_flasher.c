@@ -47,6 +47,9 @@ static void flasher_function(void)
 	 */
 
 	__asm volatile ("nop");
+	__asm volatile ("nop");
+	__asm volatile ("nop");
+	__asm volatile ("nop");
 
 	// Read init sequence
 
@@ -237,6 +240,9 @@ void flasher_start(uint32_t baudrate)
 	printf("copy funtion with size %lx from %lx to %lx, align=%lx\n", (uint32_t)(flasher_function_end - flasher_function), (uint32_t)flasher_function, (uint32_t)function_buffer, align);
 	memcpy(function_buffer + align, &flasher_function, flasher_function_end - flasher_function);
 
-	// Call the function in the RAM
-	((void (*)(void))function_buffer + align)();
+	// Round addres to next 4 byte boundary, this seems to work reliable
+	uint32_t addr = ((((uint32_t)function_buffer + align) - 1) | 0x03) + 1;
+	printf("About to set pc to %lx!", addr);
+
+	__asm volatile ("mov pc, %0" : : "r" (addr));
 }
