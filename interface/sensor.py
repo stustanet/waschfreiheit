@@ -69,7 +69,7 @@ class Sensor:
         timeout: time to wait in seconds until a package needs to be
                 retransmitted
         """
-        await self.master.send_raw(
+        return await self.master.send_raw(
             "connect {} {} {}".format(self.nodeid, return_hop, timeout),
             self, **kwargs)
 
