@@ -533,7 +533,7 @@ class WaschInterface:
         except TypeError:
             # The object is already in the queue - so it is save to ignore
             pass
-        await msg.result
+        return await msg.result
 
 
     async def node(self, nodeid):
@@ -797,8 +797,14 @@ class NetworkManager:
             try:
                 timeout = self.master.config.single_hop_timeout * node.config.distance
                 nexthop = self.config.nodes[node.config.routes["MASTER"]].id
+                was_failed = node.state == FAILED
                 node.config.is_initialized = True
-                await node.connect(nexthop, timeout, is_recovery=True)
+                conres = await node.connect(nexthop, timeout, is_recovery=True)
+                if was_failed and conres == 3:
+                    # This node was already initialized and is now in the failed state.
+                    # If the result code of connect is 3, this means the node is still
+                    # fully configured therefore I skip configure step now
+                    return
 
                 if node.state == CONNECTED:
                     await node.routes(node.config.routes_id, reset=True,
