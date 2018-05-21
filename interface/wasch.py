@@ -871,8 +871,11 @@ class NetworkManager:
         self.master.log.info("Scanning Network for proper operation")
 
         if self.master.message_pending and self.master.running_message.node:
-            timeout = self.master.running_message.node.distance \
-                      * self.config.single_hop_timeout * 2 + 2
+            timeout = (self.master.running_message.node.distance
+                       * self.config.single_hop_timeout * 2
+                       * self.config.retransmissionlimit
+                       + 2)
+
             self.master.log.info("Waiting for a missing response for %s "
                                  "for %s seconds",
                                  self.master.running_message, timeout)
@@ -886,7 +889,7 @@ class NetworkManager:
                 self.master.log.error("Needed to kill a running transaction")
                 self.master.log.error("This is very bad for the whole system, "
                                       "we are in a non-deterministic state now")
-                self.master.log.error("We need to reboot the master!")
+                self.master.log.error("Performing seppuku to restart the master!")
                 sys.exit(-1)
 
         # Do we have to raise WaschOperationInterrupted error after we're done?
