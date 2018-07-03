@@ -8,6 +8,7 @@ USEMODULE += xtimer
 USEMODULE += sx1276
 USEMODULE += hashes
 USEMODULE += periph_adc
+USEMODULE += periph_flash_common
 USEMODULE += periph_flashpage
 
 

@@ -151,8 +151,9 @@ static int forward_packet(void *packet, uint8_t len)
 	mutex_lock(&context.mutex);
 
 	/*
-	 * Check the current state of the device, if this is TX or RX a transmission is
-	 * currently happening -> I should not send anything to avoid collisions.
+	 * Check the current state of the device.
+	 * If this is TX or RX a transmission is currently happening.
+	 *  => I should not send anything to avoid collisions.
 	 *
 	 * NOTE: Currently this requires a patched version of the sx127x driver to work correctly.
 	 */
@@ -170,10 +171,10 @@ static int forward_packet(void *packet, uint8_t len)
 	hexdump(packet, len);
 
 	// Send packet, next_hop specifies the receiver
-	struct iovec vec[1];
-	vec[0].iov_base = packet;
-	vec[0].iov_len = len;
-	if (context.netdev->driver->send(context.netdev, vec, 1) != 0)
+	iolist_t dat;
+	dat.iol_base = packet;
+	dat.iol_len = len;
+	if (context.netdev->driver->send(context.netdev, &dat) != 0)
 	{
 		mutex_unlock(&context.mutex);
 		puts("Unexpected failure of send call to netdev");
