@@ -85,11 +85,25 @@ class WaschConfig:
             self.name = conf['name']
             self.channels = {c['number']: WaschConfig.Node.Channel(c, cfgpath)
                              for c in conf['channels']}
-            self.routes = conf['routes']
             self.samplerate = conf['samplerate']
             self.routes_id = {}
             self.is_initialized = False
             self.distance = -1
+
+            # Load the 'extra / raw routes'
+            # Raw routes are identified as routes: {#1:#2} as a raw route from
+            # ID 1 to ID 2.
+            # This may be used to integrate devices into the network, that
+            # do not integrate as washing maschines.
+            self.routes = {}
+            for rfrom, rto in conf['routes'].items():
+                if rfrom[0] == '#' and rto[0] == '#':
+                    # Extra routes are marked with a '#' at the start
+                    self.routes_id[int(rfrom[1:])] = int(rto[1:])
+                else:
+                    # normal route -> add to route list
+                    self.routes[rfrom] = rto
+
 
     def __init__(self, fname, log=None):
         with open(fname) as configfile:
