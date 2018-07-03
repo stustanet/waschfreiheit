@@ -2,9 +2,12 @@
 import asyncio
 import argparse
 import time
-import wasch
-import machinemanager
 
+from . import wasch
+from . import machinemanager
+
+# Configured during install
+DEBUG=True #SEDMARK
 
 class WaschenInFreiheit:
     """
@@ -153,12 +156,19 @@ def main():
 
     if args.configfile:
         configfile = args.configfile
-    else:
+    elif DEBUG:
         configfile = "nodes.json"
+    else:
+        # Configured during install
+        configfile = "ETCPREFIX/nodes.json"
+
     if args.serial:
         serial_port = args.serial
-    else:
+    elif DEBUG:
         serial_port = "/tmp/waschfreiheit_pts"
+    else:
+        # Configured during install
+        serial_port = "DEFAULTTTY"
 
     waschen = WaschenInFreiheit(configfile, serial_port, loop=loop)
     try:

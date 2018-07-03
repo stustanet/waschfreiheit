@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 
-import time
-import json
-import sys
 import asyncio
-import re
-import logging
 import functools
+import json
+import logging
+import os
+import re
+import sys
+import time
 from serial import SerialException
 import serial_asyncio
 
-import sensor
-import debuginterface
-import uplink
+from . import sensor
+from . import debuginterface
+from . import uplink
 
 TRANSMITTING = 'transmitting'
 CONNECTED = 'connected'
@@ -68,22 +69,21 @@ class WaschOperationInterrupted(WaschError):
     def __repr__(self):
         return "WaschOperationInterrupted: " + self.op
 
-
 class WaschConfig:
     class Node:
         class Channel:
-            def __init__(self, conf={}):
+            def __init__(self, conf, cfgpath):
                 self.number = conf['number']
                 self.name = conf['name']
                 self.model = conf['model']
-                with open(conf['config']) as f:
+                with open(os.path.join(cfgpath, conf['config'])) as f:
                     self.config = json.load(f)
 
-        def __init__(self, conf={}):
+        def __init__(self, conf, cfgpath):
             self.status_callbacks = []
             self.id = conf['id']
             self.name = conf['name']
-            self.channels = {c['number']: WaschConfig.Node.Channel(c)
+            self.channels = {c['number']: WaschConfig.Node.Channel(c, cfgpath)
                              for c in conf['channels']}
             self.routes = conf['routes']
             self.samplerate = conf['samplerate']
@@ -94,7 +94,8 @@ class WaschConfig:
     def __init__(self, fname, log=None):
         with open(fname) as configfile:
             conf = json.load(configfile)
-
+        cfgpath = os.path.dirname(fname)
+        print("cfgpath: ", cfgpath)
         try:
             self.do_uplink = conf['webinterface_enabled']
             if self.do_uplink:
@@ -103,7 +104,7 @@ class WaschConfig:
             self.retransmissionlimit = conf['retransmissionlimit']
             self.networkcheckintervall = conf['networkcheckintervall']
             self.single_hop_timeout = conf['single_hop_timeout']
-            self.nodes = {c['name']: WaschConfig.Node(c)
+            self.nodes = {c['name']: WaschConfig.Node(c, cfgpath)
                           for c in conf['nodes']}
             # Postprocess the stuff
             for node in self.nodes.values():

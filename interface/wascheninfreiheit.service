@@ -3,7 +3,10 @@ Description=Washing machine orchestrator for wascheninfreiheit
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/alarm/waschinterface/interface/main.py -c /home/alarm/waschinterface/interface/nodes.json -s /dev/ttyUSB0
+ExecStart=/usr/bin/python3 -m PREFIX
+Restart=on-failure
+User=waschfreiheit
+Group=waschfreiheit
 
 [Install]
 WantedBy=multi-user.target
