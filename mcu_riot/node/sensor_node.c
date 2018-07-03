@@ -1004,6 +1004,29 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 	send_ack(0);
 }
 
+/*
+ * -- Config channel --
+ * Proceses a rebuild status channel request.
+ */
+static void handle_rebuild_status_channel_request(nodeid_t src, void *data, uint8_t len)
+{
+    uint32_t msglen = len;
+    if (check_auth_message(src, data, &msglen) != 0)
+    {
+        // something is wrong with the auth, can't proceed
+        return;
+    }
+
+    send_ack(0);
+
+    // Only thing I need to do is to reset the INIT bit.
+    // This causes the auth to be reinitialized on demand.
+    ctx.status &= ~STATUS_INIT_AUTH_STA;
+
+    // Just to be sure: Re-send the status
+    ctx.status |= STATUS_FORCE_UPDATE;
+}
+
 
 /*
  * -- Generic --
@@ -1085,6 +1108,9 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 			break;
 		case MSG_TYPE_LED:
 			handle_led_request(id, data, len);
+			break;
+		case MSG_TYPE_REBUILD_STATUS_CHANNEL:
+			handle_rebuild_status_channel_request(id, data, len);
 			break;
 		case MSG_TYPE_ECHO_REQUEST:
 			handle_echo_request(id, data, len);

@@ -822,6 +822,31 @@ int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds)
 }
 
 
+int sensor_connection_rebuild_status_channel(sensor_connection_t *con)
+{
+    if (con->ack_outstanding)
+    {
+        printf("Can't send rebuild_status_channel to %u, ACK for last command is still outstanding.\n", con->node_id);
+        return -EBUSY;
+    }
+
+    msg_nop_t *nopmsg = (msg_nop_t *)con->last_sent_message;
+
+    nopmsg->type = MSG_TYPE_REBUILD_STATUS_CHANNEL;
+
+    // sign and send
+    int res = sign_and_send_msg(con, sizeof(*nopmsg));
+
+    if (res != 0)
+    {
+        printf("Failed to sign rebuild_status_channel request for node %u with error %i\n", con->node_id, res);
+        return 1;
+    }
+
+    return 0;
+}
+
+
 int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, uint16_t num_frames)
 {
 	if (con->ack_outstanding)

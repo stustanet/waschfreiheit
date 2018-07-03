@@ -532,6 +532,44 @@ int master_node_cmd_led(int argc, char **argv)
 	return 0;
 }
 
+/*
+ * rebuild_status_channel <node_id>
+ *   Tell a node to rebuild its status channel.
+ */
+int master_node_cmd_rebuild_status_channel(int argc, char **argv)
+{
+    if (argc != 2)
+    {
+        puts("USAGE: rebuild_status_channel <NODE>\n");
+        puts("NODE      Address of the destination node\n");
+        puts("This needs to be called if it is not reset after reconnecting.");
+        return 1;
+    }
+
+    nodeid_t dst = utils_parse_nodeid(argv[1], 1);
+    if (dst == MESHNW_INVALID_NODE)
+    {
+        return 1;
+    }
+
+    sensor_connection_t *con = find_node(dst);
+    if (!con)
+    {
+        puts("Not connected!");
+        print_err_text();
+        return 1;
+    }
+
+    int res = sensor_connection_rebuild_status_channel(con);
+    if (res != 0)
+    {
+        printf("Send rebuild_status_channel to node %u failed with error %i\n", dst, res);
+        print_err_text();
+        return 1;
+    }
+    return 0;
+}
+
 
 static void *message_thread(void *arg)
 {

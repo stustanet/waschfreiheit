@@ -27,4 +27,4 @@ int master_node_cmd_raw_frames(int argc, char **argv);
 int master_node_cmd_raw_status(int argc, char **argv);
 int master_node_cmd_authping(int argc, char **argv);
 int master_node_cmd_led(int argc, char **argv);
-
+int master_node_cmd_rebuild_status_channel(int argc, char **argv);
