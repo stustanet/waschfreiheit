@@ -795,19 +795,21 @@ class NetworkManager:
         if node.config.name != 'MASTER':
             self.master.log.info("Connecting to node %s (%i)",
                                 node.config.name, node.nodeid)
+            skip_setup = False
             try:
                 timeout = self.master.config.single_hop_timeout * node.config.distance
                 nexthop = self.config.nodes[node.config.routes["MASTER"]].id
                 was_failed = node.state == FAILED
                 node.config.is_initialized = True
                 conres = await node.connect(nexthop, timeout, is_recovery=True)
-                if was_failed and conres == 3:
+                if was_failed and conres == '3':
                     # This node was already initialized and is now in the failed state.
                     # If the result code of connect is 3, this means the node is still
                     # fully configured therefore I skip configure step now
-                    return
+                    skip_setup = True
+                    await node.rebuild_status_channel()
 
-                if node.state == CONNECTED:
+                elif node.state == CONNECTED:
                     await node.routes(node.config.routes_id, reset=True,
                                       is_recovery=True)
             except WaschError as exp:
@@ -819,25 +821,26 @@ class NetworkManager:
                 node.state = FAILED
                 return
 
-            try:
-                # Send sensor config data,
-                bitmask = 0
-                for channel in node.config.channels.values():
-                    bitmask += 2**int(channel.number)
-                    await node.configure(
-                        channel.number,
-                        *self.parse_sensor_config(channel.config))
+            if not skip_setup:
+                try:
+                    # Send sensor config data,
+                    bitmask = 0
+                    for channel in node.config.channels.values():
+                        bitmask += 2**int(channel.number)
+                        await node.configure(
+                            channel.number,
+                            *self.parse_sensor_config(channel.config))
 
-                await node.enable(bitmask, node.config.samplerate,
-                                  is_recovery=True)
-                await node.resend_state()
-            except WaschError as exp:
-                self.master.log.warning(
-                    "Could connect to %s (%i) but not initialize: %s",
-                    node.config.name, node.nodeid, repr(exp))
-                node.state = FAILED
-            if node.state == FAILED:
-                await self.perform_networkcheck()
+                    await node.enable(bitmask, node.config.samplerate,
+                                      is_recovery=True)
+                    await node.resend_state()
+                except WaschError as exp:
+                    self.master.log.warning(
+                        "Could connect to %s (%i) but not initialize: %s",
+                        node.config.name, node.nodeid, repr(exp))
+                    node.state = FAILED
+                if node.state == FAILED:
+                    await self.perform_networkcheck()
         else:
             self.master.log.info('Initializing first round of nodes')
         # try to initialize all nodes adjacent to this one
