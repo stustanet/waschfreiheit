@@ -3,10 +3,11 @@ Description=Washing machine orchestrator for wascheninfreiheit
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 -m PREFIX
+ExecStart=/usr/bin/python3 -m waschfreiheit
 Restart=on-failure
 User=waschfreiheit
 Group=waschfreiheit
+WorkingDirectory=PREFIX/..
 
 [Install]
 WantedBy=multi-user.target
