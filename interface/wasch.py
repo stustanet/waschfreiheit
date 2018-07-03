@@ -219,7 +219,7 @@ class WaschInterface:
 
         # Setup the log
         logformat = '%(asctime)s | %(name)s | %(levelname)5s | %(message)s'
-        logging.basicConfig(format=logformat)
+        logging.basicConfig(format=logformat, filename='/var/log/wasch/activity.log')
         self.log = logging.getLogger('WiF')
         self.log.setLevel(logging.DEBUG)
         self.log.info("starting wasch interface")
