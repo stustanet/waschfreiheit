@@ -25,12 +25,15 @@ install:
 	sed -i -e "s#ETCPREFIX#$(ETCPREFIX)#g" "$(MAIN)"
 	sed -i -e "s#DEFAULTTTY#$(DEFAULTTTY)#g" "$(MAIN)"
 	cp $(SYSTEMDFILES) $(SYSTEMDPREFIX)
-	sed -i -e "s#PREFIX#$(PREFIX)/waschfreiheit#g" $(SYSTEMDPREFIX)/$(SYSTEMDFILES)
+	sed -i -e "s#PREFIX#$(PREFIX)#g" $(SYSTEMDPREFIX)/$(SYSTEMDFILES)
 
 	mkdir -p $(ETCPREFIX)
 	cp $(CONFIGFILES) $(ETCPREFIX)
 
-	useradd -c "Wascheninfreiheit user" -M -s /sbin/nologin waschfreiheit
+	useradd -c "Wascheninfreiheit user" -M -s /sbin/nologin waschfreiheit || true
+
+	mkdir -p /var/log/wasch/
+	chown waschfreiheit:waschfreiheit /var/log/wasch
 
 uninstall:
 	rm -r $(PREFIX)/waschfreiheit

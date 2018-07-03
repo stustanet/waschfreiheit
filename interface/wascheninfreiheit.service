@@ -6,8 +6,7 @@ After=network.target
 ExecStart=/usr/bin/python3 -m waschfreiheit
 Restart=on-failure
 User=waschfreiheit
-Group=waschfreiheit
-WorkingDirectory=PREFIX/..
+WorkingDirectory=PREFIX
 
 [Install]
 WantedBy=multi-user.target
