@@ -187,11 +187,22 @@ typedef struct
 	uint8_t data[0];
 } __attribute__((packed)) msg_led_t;
 
+/*
+ * Tell the node to reset and rebuild the status channel.
+ * If the master is reset and the node is not, the status channel
+ * context of the node is invalid and needs to be reinitialized.
+ */
+#define MSG_TYPE_REBUILD_STATUS_CHANNEL     12
+typedef struct
+{
+    msg_type_t type;
+} __attribute__((packed)) msg_rebuild_status_channel_t;
+
 
 /*
  * Status update message sent by the node through the status channel to the master.
  */
-#define MSG_TYPE_STATUS_UPDATE             11
+#define MSG_TYPE_STATUS_UPDATE             64
 typedef struct
 {
 	msg_type_t type;
