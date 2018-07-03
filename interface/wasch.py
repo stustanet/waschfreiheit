@@ -402,7 +402,7 @@ class WaschInterface:
             if self.networkmanager.last_observer_run:
                 if self.networkmanager.last_observer_run + \
                    self.config.networkcheckintervall * 2 \
-                   > time.time():
+                   < time.time():
                     # We are sad, we do not send a heartbeat
                     self.log.error("Last observer run was too old"
                                    " - will not send heartbeat")
