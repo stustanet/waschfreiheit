@@ -148,6 +148,14 @@ class Sensor:
         await self.master.send_raw(self.last_led_command, self, **kwargs)
 
 
+    async def rebuild_status_channel(self, **kwargs):
+        """
+        This needs to be called if the reset_routes is skipped after a reconnect
+        """
+        await self.master.send_raw("rebuild_status_channel {}".format(self.nodeid),
+                                   self, **kwargs)
+
+
     async def notify_status(self, status):
         """
         An "status" has been received with the given code
