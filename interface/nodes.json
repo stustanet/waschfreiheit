@@ -3,6 +3,10 @@
   "retransmissionlimit": 3,
   "networkcheckintervall_comment": "Time in seconds, how often a network check should be performed",
   "networkcheckintervall": 300,
+  "single_hop_timeout": 2,
+  "webinterface_enabled":"1",
+  "webinterface_basepath":"https://waschen.stusta.de",
+  "webinterface_token":"iamasecrettoken",
   "nodes": [
     {
       "id": 0,

@@ -3,7 +3,7 @@ Do the magic debugging stuff
 """
 import asyncio
 import re
-import sensor
+from . import sensor
 
 class DebugInterface:
     """

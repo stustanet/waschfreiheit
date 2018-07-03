@@ -1,8 +1,8 @@
 import asyncio
 import time
 
-import sensor
-import wasch
+from . import sensor
+from . import wasch
 
 
 class MachineManager:
