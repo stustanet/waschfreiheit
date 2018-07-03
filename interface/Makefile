@@ -1,5 +1,3 @@
-all:
-
 PREFIX ?= /usr/local/bin
 ETCPREFIX ?= /etc/waschfreiheit
 SYSTEMDPREFIX ?= /etc/systemd/system
@@ -22,7 +20,7 @@ install:
 	python3 ./testsetup.py
 	mkdir -p $(PREFIX)/waschfreiheit
 	cp $(FILES) $(PREFIX)/waschfreiheit
-	chmod +x $(PREFIX)/waschfreiheit/main.py
+	chmod +x $(PREFIX)/waschfreiheit/__main__.py
 	sed -i -e "s/DEBUG=True #SEDMARK/DEBUG=False/g" "$(MAIN)"
 	sed -i -e "s#ETCPREFIX#$(ETCPREFIX)#g" "$(MAIN)"
 	sed -i -e "s#DEFAULTTTY#$(DEFAULTTTY)#g" "$(MAIN)"
