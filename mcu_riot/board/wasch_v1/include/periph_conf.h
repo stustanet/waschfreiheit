@@ -250,13 +250,13 @@ static const spi_conf_t spi_config[] = {
 
 // Configuration for the on-board sx127x rf chip
 
-#define SX127X_PARAMS_BOARD                 { .spi       = SPI_DEV(0),        \
-                                              .nss_pin   = GPIO_PIN(0, 4),    \
-                                              .reset_pin = GPIO_PIN(2, 15),   \
-                                              .dio0_pin  = GPIO_PIN(0, 3),    \
-                                              .dio1_pin  = GPIO_PIN(0, 2),    \
-                                              .dio2_pin  = GPIO_PIN(0, 1),    \
-                                              .dio3_pin  = GPIO_PIN(0, 0) }
+#define SX127X_PARAMS                 { .spi       = SPI_DEV(0),        \
+                                        .nss_pin   = GPIO_PIN(0, 4),    \
+                                        .reset_pin = GPIO_PIN(2, 15),   \
+                                        .dio0_pin  = GPIO_PIN(0, 3),    \
+                                        .dio1_pin  = GPIO_PIN(0, 2),    \
+                                        .dio2_pin  = GPIO_PIN(0, 1),    \
+                                        .dio3_pin  = GPIO_PIN(0, 0) }
 
 /** @} */
 

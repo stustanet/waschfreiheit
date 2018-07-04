@@ -171,7 +171,7 @@ static int forward_packet(void *packet, uint8_t len)
 	hexdump(packet, len);
 
 	// Send packet, next_hop specifies the receiver
-	iolist_t dat;
+	iolist_t dat = {0};
 	dat.iol_base = packet;
 	dat.iol_len = len;
 	if (context.netdev->driver->send(context.netdev, &dat) != 0)
