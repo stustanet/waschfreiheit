@@ -32,29 +32,31 @@ class Node:
 
         self.__msgs = []
         self.__message_retry_count = 0
+        self.__allow_next_message = True
         self.__last_msg = None
-        self.__first_run = True
 
         self._status = self.connect
         self._next_state = self.connect
 
         self.sent_time = 0
 
-        self.gateway = None
-        self.routes = []
-
         self.error_state = self.connect
         self.run_command = self.void_state
         self.start_command = self.void_state
 
-        self.ack_code = 0
+    async def get_routes(self):
+        """
+        Get all routes that should be sent to this hop
+        """
+        # TODO more sanity checks!
+        return self.config['routes']
 
     def debug_state(self, indent=1, prefix=None):
         """
         Generate a short but conclusive state print to use in the debuginterface
         """
         if not prefix:
-            prefix = "[" + str(self.name) + "(" + str(self.nodeid) + ")]"
+            prefix = "[" + str(self.name) + "]"
 
         if isinstance(self._status, functools.partial):
             name = self._status.func.__name__
@@ -77,7 +79,7 @@ class Node:
                 status=name,
                 msg=self.__last_msg,
                 retry=self.__message_retry_count,
-                stalled=not self.master.allow_next_message,
+                stalled=not self.__allow_next_message,
                 led=led_state
             )
 
@@ -91,18 +93,17 @@ class Node:
 
     async def iterate(self):
         """
-        Process a newly arrived message, and afterwards tick
+        Process all newly arrived messages, and afterwards tick
         """
-        skip_iteration = False
-        if self.__msgs:
-            # Only process one message at once
-            msg = self.__msgs.pop(0)
-            print("[{}] processing: {}".format(self.name, msg.raw))
-            skip_iteration = not await self._process_message(msg)
+        for msg in self.__msgs:
+            print("[{}] received: {}".format(self.name, msg.raw))
+            await self._process_message(msg)
+        self.__msgs = []
 
-        if not skip_iteration and self.master.allow_next_message:
+        if self.__allow_next_message:
             msg = await self.tick()
             if msg:
+                self.__allow_next_message = False
                 self.__last_msg = msg
                 self.sent_time = time.time()
                 await self.master.send(msg)
@@ -113,7 +114,7 @@ class Node:
         """
         msg = None
         old_state = None
-        while self.master.allow_next_message \
+        while self.__allow_next_message \
               and msg is None \
               and self._status != old_state:
             old_state = self._status
@@ -126,28 +127,23 @@ class Node:
         Multiplex between the different types of messages and call the
         plugins accordingly
         """
-        self.ack_code = 0
         if msg.msgtype == "timeout":
             print("Retransmit")
             if self.__message_retry_count > self.config['retry_count']:
-                await self.call("on_connection_lost", msg=self.__last_msg)
+                await self.on_connection_lost(msg=self.__last_msg)
             else:
                 self.__message_retry_count += 1
                 await self.master.send(MessageCommand(self.nodeid, "retransmit"))
-            return False
+
         elif msg.msgtype == "ack":
             self.__message_retry_count = 0
-            self.ack_code = msg.result
-            self.master.allow_next_message = True
-            return True
+            self.__allow_next_message = True
         elif msg.msgtype in ["status"]:
             await self.call("on_msg_" + msg.msgtype, msg=msg)
-            return True
         elif msg.msgtype == "err":
             # something was bad
             await self.master.plugin_manager.call("on_msg_" + msg.msgtype, msg=msg)
             print("ERR")
-            return False
         else:
             raise RuntimeError("Received a message that has no known status")
 
@@ -172,28 +168,11 @@ class Node:
         When the connection is lost (aka too many timeouts)
         the state is changed into the error state.
         """
-
-        await self.mark_failed()
-
         del msg
         self._status = self.error_state
         # Reset the resend counter
-        self.master.allow_next_message = True
+        self.__allow_next_message = True
         self.__message_retry_count = 0
-
-
-    async def mark_failed(self, hard=True):
-        if self.gateway:
-            self.gateway.mark_failed(hard=False)
-
-        if hard:
-            self.hard_failed = True
-            self._status = self.connect
-            return self.connect, None
-        else:
-            self.soft_failed = True
-            self._status = self.pingtest
-            return self.pingtest, None
 
     # State Machine stuff
     async def void_state(self):
@@ -210,33 +189,15 @@ class Node:
         """
         # TODO initial hop
         self.error_state = self.connect
-        return self.connection_successful, MessageCommand(
-            self.nodeid,
-            "connect",
-            0,
-            self.config['connect_timeout'])
-
-    async def connection_successful(self):
-        if not self.__first_run && self.ack_code == 3: # TODO: Force reinit
-            return self.fast_reinit, None
-        self.__first_run = True
-        return self.route, None
-
-    async def fast_reinit(self):
-        """
-        The Node was already configured, so we only have to rebuild the status channel
-        """
-        return self.run_command, MessageCommand(self.nodeid, "rebuild_status_channel")
+        return self.route, MessageCommand(self.nodeid, "connect", 0)
 
     async def route(self):
         """
         Send the defined routes
         """
         self.error_state = self.route
-
-        routestr = ",".join("{}:{}".format(hop, dst) for hop, dst in self.routes.items())
-
-        return self.start_command, MessageCommand(self.nodeid, "reset_routes", routestr)
+        # TODO route config
+        return self.start_command, MessageCommand(self.nodeid, "set_route", 0)
 
     async def pingtest(self):
         """

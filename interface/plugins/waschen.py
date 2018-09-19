@@ -3,7 +3,6 @@ Waschen plugin to the waschnetwork
 """
 
 import time
-import math
 from functools import partial
 
 from node import Node
@@ -72,8 +71,8 @@ class WaschNode(Node):
     Implements a waschnode to connect to a waschingmachine node
     This implements especially LED status monitoring and sensor calibration
     """
-    def __init__(self, config, master, nodeid, nodename):
-        super().__init__(config, master, nodeid, nodename)
+    def __init__(self, config, sensorconfig, master):
+        super().__init__(config, master, config['id'], sensorconfig)
 
         # Configure the state machine
         try:
@@ -83,7 +82,9 @@ class WaschNode(Node):
             self.start_command = self.run
         self.run_command = self.run
 
-        self.sensor = WaschSensor(self.nodeid)
+        self.sensor = WaschSensor(config['id'])
+        # Configure internal state
+        self.is_calibrated = False
 
         self._device_led_state = []
         self._expected_led_state = []
@@ -91,6 +92,7 @@ class WaschNode(Node):
         self.error_state = self.failed
 
         configtest = [
+            config['id'],
             config['ledindex'],
             ]
         del configtest
@@ -129,9 +131,7 @@ class WaschNode(Node):
         When the LED status of any (as well as this one) has changed, do magic
         """
         idx = node.config['ledindex']
-        if idx == -1:
-            return
-
+        #import pdb; pdb.set_trace()
         if len(self._expected_led_state) <= idx:
             self._expected_led_state += [0]*(1+idx-len(self._expected_led_state))
         self._expected_led_state[idx] = state
@@ -140,7 +140,7 @@ class WaschNode(Node):
     async def calibrate(self, configiterator, channelidx=0):
         """
         Send a sensor_config message to the sensor, filled from configsection
-        Thi method has to be prefilled using functools.partial to supply the
+        This method has to be prefilled using functools.partial to supply the
         currently selected config.
 
         It expects config to be an iterator, pointing to the sensor that should
@@ -151,37 +151,27 @@ class WaschNode(Node):
         try:
             config = configiterator.__next__()
         except StopIteration:
-            # Reset the iterator
-            self.start_command = partial(self.calibrate, iter(self.config['channels']))
             return self.enable_sensor, None
 
-        input_filter = ','.join(str(e) for e in [
-        config['input_filter']['mid_adjustment_speed'],
-        config['input_filter']['lowpass_weight'],
-        config['input_filter']['frame_size']])
+        if not self.is_calibrated:
+            input_filter = ','.join(str(e) for e in [
+            config['input_filter']['mid_adjustment_speed'],
+            config['input_filter']['lowpass_weight'],
+            config['input_filter']['frame_size']])
 
-        # Omit the diagonal (always 0!)
-        mx = config['transition_matrix']
-        transition_matrix = []
-        for i in range(int(math.sqrt(len(mx)))):
-            for o in range(int(math.sqrt(len(mx)))):
-                if i == o:
-                    continue
-                transition_matrix.append(mx[i * int(math.sqrt(len(mx))) + o])
+            transition_matrix = ','.join(str(e) for e in config['transition_matrix'])
 
-        transition_matrix = ','.join([str(s) for s in transition_matrix])
+            window_sizes = ','.join(str(e) for e in config['window_sizes'])
 
-        window_sizes = ','.join(str(e) for e in config['window_sizes'])
-
-        reject_filter = ','.join(str(e) for e in [
-            config['reject_filter']['threshold'],
-            config['reject_filter']['consec_count']])
-        msg = self.sensor.configure(
-            channelidx,
-            input_filter,
-            transition_matrix,
-            window_sizes,
-            reject_filter, )
+            reject_filter = ','.join(str(e) for e in [
+                config['reject_filter']['threshold'],
+                config['reject_filter']['consec_count']])
+            msg = self.sensor.configure(
+                channelidx,
+                input_filter,
+                transition_matrix,
+                window_sizes,
+                reject_filter, )
 
         self.error_state = self.calibration_failed
         return partial(self.calibrate, configiterator, channelidx + 1), msg
@@ -201,6 +191,7 @@ class WaschNode(Node):
         """
         When the calibration timed out, we set it to "unconfigured"
         """
+        self.is_calibrated = False
         self.error_state = self.connect
         return self.connect, None
 
@@ -208,6 +199,7 @@ class WaschNode(Node):
         """
         When the calibration is successful, just continue to normal run
         """
+        self.is_calibrated = True
         self.error_state = self.route
         return self.run, None
 
@@ -223,10 +215,10 @@ class WaschNode(Node):
             print("Pingtest")
             next_state = self.pingtest
         else:
-            #print("Generating led message Should: ",
-            #      self._expected_led_state, "is", self._device_led_state)
+            print("Generating led message Should: ", self._expected_led_state, "is", self._device_led_state)
             msg = await self.generate_led_msg()
             if msg is not None:
+                print("And actually sending it")
                 next_state = self.confirm_led_state
 
         return next_state, msg
@@ -254,11 +246,15 @@ class WaschNode(Node):
         Generate the led message, return None if no update is neccessary
         """
         if self._device_led_state != self._expected_led_state:
-            print("\nLED State changed\n\n")
+            print("Changed")
             return self.sensor.led(self._expected_led_state)
 
 def init(master, config):
     """
     Plugin startup
     """
-    return None, WaschNode
+    sensors = []
+    for sensor in config['sensors']:
+        sensors.append(WaschNode(config.subconfig(sensor), sensor, master))
+
+    return None, sensors
