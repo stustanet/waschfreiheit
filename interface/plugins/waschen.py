@@ -71,8 +71,8 @@ class WaschNode(Node):
     Implements a waschnode to connect to a waschingmachine node
     This implements especially LED status monitoring and sensor calibration
     """
-    def __init__(self, config, sensorconfig, master):
-        super().__init__(config, master, config['id'], sensorconfig)
+    def __init__(self, config, master, nodeid, nodename):
+        super().__init__(config, master, nodeid, nodename)
 
         # Configure the state machine
         try:
@@ -82,7 +82,7 @@ class WaschNode(Node):
             self.start_command = self.run
         self.run_command = self.run
 
-        self.sensor = WaschSensor(config['id'])
+        self.sensor = WaschSensor(self.nodeid)
         # Configure internal state
         self.is_calibrated = False
 
@@ -92,7 +92,6 @@ class WaschNode(Node):
         self.error_state = self.failed
 
         configtest = [
-            config['id'],
             config['ledindex'],
             ]
         del configtest
@@ -140,7 +139,7 @@ class WaschNode(Node):
     async def calibrate(self, configiterator, channelidx=0):
         """
         Send a sensor_config message to the sensor, filled from configsection
-        This method has to be prefilled using functools.partial to supply the
+        Thi method has to be prefilled using functools.partial to supply the
         currently selected config.
 
         It expects config to be an iterator, pointing to the sensor that should
@@ -253,8 +252,4 @@ def init(master, config):
     """
     Plugin startup
     """
-    sensors = []
-    for sensor in config['sensors']:
-        sensors.append(WaschNode(config.subconfig(sensor), sensor, master))
-
-    return None, sensors
+    return None, WaschNode
