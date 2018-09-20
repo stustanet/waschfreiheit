@@ -40,16 +40,12 @@ class Node:
 
         self.sent_time = 0
 
+        self.gateway = None
+        self.routes = []
+
         self.error_state = self.connect
         self.run_command = self.void_state
         self.start_command = self.void_state
-
-    async def get_routes(self):
-        """
-        Get all routes that should be sent to this hop
-        """
-        # TODO more sanity checks!
-        return self.config['routes']
 
     def debug_state(self, indent=1, prefix=None):
         """
@@ -196,8 +192,10 @@ class Node:
         Send the defined routes
         """
         self.error_state = self.route
-        # TODO route config
-        return self.start_command, MessageCommand(self.nodeid, "set_route", 0)
+
+        routestr = ",".join("{}:{}".format(hop, dst) for hop, dst in self.routes.items())
+
+        return self.start_command, MessageCommand(self.nodeid, "set_route", routestr)
 
     async def pingtest(self):
         """
