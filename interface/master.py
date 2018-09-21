@@ -21,6 +21,8 @@ class Master:
         self.nodes = []
         self.pluginmanager = None
 
+        self.allow_next_message = True
+
         self._reader, self._writer = (None, None)
 
     async def run(self):
@@ -49,7 +51,7 @@ class Master:
                         print(node.debug_state())
                         await node.iterate()
 
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.001)
             except serial.SerialException as error:
                 await self.pluginmanager.call("on_serial_error",
                                               required=True,
@@ -78,16 +80,23 @@ class Master:
 
         await self.pluginmanager.call("on_serial_available")
 
-    async def send(self, msg):
+    async def send(self, msg, expect_response=True):
         """
         Send a message to the serial device.
         Does _NOT_ wait for any kind of result!
         """
+        self.message_pending = True
+
         if isinstance(msg, MessageCommand):
+            if msg.ignore_response:
+                self.message_pending = False
+
             msg = msg.to_command()
+
         if msg[-1] != "\n":
             msg += "\n"
         print("[M] Sending \"{}\"".format(msg.strip()))
+        self.allow_next_message = not expect_response
         self._writer.write(msg.encode('ascii'))
         await self._writer.drain()
 
