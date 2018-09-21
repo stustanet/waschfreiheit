@@ -39,8 +39,9 @@ class MessageCommand:
     """
     A message going to the serial connection
     """
-    def __init__(self, nodeid, command, *args, seperator=" "):
+    def __init__(self, nodeid, command, *args, seperator=" ", ignore_response=False):
         self.nodeid = nodeid
+        self.ignore_response = ignore_response
         if args:
             strargs = seperator.join([str(arg) for arg in args])
         else:
