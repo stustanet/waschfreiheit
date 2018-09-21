@@ -214,10 +214,10 @@ class WaschNode(Node):
             print("Pingtest")
             next_state = self.pingtest
         else:
-            print("Generating led message Should: ", self._expected_led_state, "is", self._device_led_state)
+            #print("Generating led message Should: ",
+            #      self._expected_led_state, "is", self._device_led_state)
             msg = await self.generate_led_msg()
             if msg is not None:
-                print("And actually sending it")
                 next_state = self.confirm_led_state
 
         return next_state, msg
@@ -245,7 +245,7 @@ class WaschNode(Node):
         Generate the led message, return None if no update is neccessary
         """
         if self._device_led_state != self._expected_led_state:
-            print("Changed")
+            print("\nLED State changed\n\n")
             return self.sensor.led(self._expected_led_state)
 
 def init(master, config):

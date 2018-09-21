@@ -7,12 +7,11 @@ class BasePlugin:
         self.config = config
 
     async def on_serial_available(self):
-        import pdb; pdb.set_trace()
         # first generate the routes
         routes = self.master.pluginmanager.master_routes
         msg = ",".join(["{}:{}".format(dst, hop) for dst, hop in routes.items()])
 
-        await self.master.send("routes " + msg + "\n")
+        await self.master.send("routes " + msg + "\n", expect_response=False)
 
     async def on_serial_error(self, error):
         print("Serial error occurred: ", error)
