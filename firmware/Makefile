@@ -3,7 +3,7 @@ PROJECT = wasch_v2
 BUILDDIR = build
 BINDIR = bin
 
-include source/Makefile.include
-include freertos.include
+include source/node.mk
+include freertos.mk
 include tinyprintf.mk
 include Makefile.include
