@@ -19,6 +19,8 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
+#include "tinyprintf.h"
+
 // Clock for the STM32F401
 const struct rcc_clock_scale hse_8_84mhz =
 {
@@ -38,11 +40,37 @@ const struct rcc_clock_scale hse_8_84mhz =
 #define CLOCK_SETTINGS hse_8_84mhz
 
 
+static void tpf_putcf(void *ptr, char c)
+{
+	(void)ptr;
+	usart_send_blocking(USART1, c);
+}
+
+
+static void init_usart(void)
+{
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_USART1);
+
+	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO9 | GPIO10);
+
+	gpio_set_af(GPIOA, GPIO_AF7, GPIO9 | GPIO10);
+
+	usart_set_baudrate(USART1, 115200);
+	usart_set_mode(USART1, USART_MODE_TX | USART_MODE_RX);
+	usart_enable(USART1);
+}
+
 int main(void)
 {
 	cm_disable_interrupts();
 	rcc_clock_setup_hse_3v3(&CLOCK_SETTINGS);
 
+	init_usart();
+	init_printf(NULL, &tpf_putcf);
+
+
+	printf("Hello world");
 	//init();
 
 	vTaskStartScheduler();
