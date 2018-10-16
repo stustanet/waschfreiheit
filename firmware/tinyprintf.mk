@@ -1,0 +1,7 @@
+vpath %.c tinyprintf
+
+TGT_CFLAGS += -Itinyprintf
+TGT_CFLAGS += -DTINYPRINTF_DEFINE_TFP_PRINTF
+TGT_CFLAGS += -DTINYPRINTF_OVERRIDE_LIBC
+
+OBJS += tinyprintf.o
