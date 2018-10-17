@@ -4,67 +4,79 @@
  * in the LICENSE file.
  */
 
+#include "serial_getchar_dma.h"
 
-/*
- * This is a minimal getchar() implementation using DMA
- * This only works on STM32F1
- */
+#include <libopencm3/stm32/usart.h>
+#include <libopencm3/stm32/dma.h>
+#include <libopencm3/stm32/rcc.h>
 
-#include <periph/dev_enums.h>
-#include <periph/uart.h>
-#include "utils.h"
-#include "board.h"
 
-#define GETCHAR_USART USART1
-#define GETCHAR_USART_DMA_CHANNEL DMA1_Channel5
+#if defined(STM32F1)
+// FIXME
+#define SERIAL_GETCHAR_DMA DMA1
+#define SERIAL_GETCHAR_DMA_RCC RCC_DMA1
+#define SERIAL_GETCHAR_DMA_CHANNEL DMA1_Channel5
+#elif defined(STM32F4)
+#define SERIAL_GETCHAR_DMA DMA2
+#define SERIAL_GETCHAR_DMA_RCC RCC_DMA2
+#define SERIAL_GETCHAR_DMA_STREAM 2
+#define SERIAL_GETCHAR_DMA_CHANNEL DMA_SxCR_CHSEL_4
+#else
+#error "Unknown CPU"
+#endif
 
-#define GETCHAR_DMA_BUFFERSIZE 32
+#define SERIAL_GETCHAR_USART USART1
+#define SERIAL_GETCHAR_DMA_BUFFERSIZE 32
 
-static uint8_t dma_buffer[GETCHAR_DMA_BUFFERSIZE];
+static uint8_t dma_buffer[SERIAL_GETCHAR_DMA_BUFFERSIZE];
 static uint16_t last_read_index;
 
 
 void serial_getchar_dma_init(void)
 {
-	if (uart_config[UART_STDIO_DEV].dev != GETCHAR_USART)
-	{
-		puts("STDIO USART is not the same as dma getchar");
-		return;
-	}
-		
 	// Enable DMA controller
-	RCC->AHBENR |= RCC_AHBENR_DMA1EN;
-
-	// Init the DMA for the USART1
-	GETCHAR_USART_DMA_CHANNEL->CPAR = (uint32_t)&(GETCHAR_USART->DR);
-	GETCHAR_USART_DMA_CHANNEL->CMAR = (uint32_t)dma_buffer;
-	GETCHAR_USART_DMA_CHANNEL->CNDTR = sizeof(dma_buffer);
+	rcc_periph_clock_enable(SERIAL_GETCHAR_DMA_RCC);
 
 	last_read_index = 0;
 
-	// No Mem2Mem, Low Prio, 8bit mem, 8bit peri, Memory Increment, circular, read from periph, no interrupts, enable channel
-	GETCHAR_USART_DMA_CHANNEL->CCR = DMA_CCR_MINC | DMA_CCR_CIRC | DMA_CCR_EN;
+	// Init the DMA for the USART1
+#if defined(STM32F1)
+#error TODO
+#else
+	dma_stream_reset(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM);
+	dma_enable_memory_increment_mode(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM);
+	dma_set_transfer_mode(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM, DMA_SxCR_DIR_PERIPHERAL_TO_MEM);
+	dma_set_peripheral_size(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM, DMA_SxCR_PSIZE_8BIT);
+	dma_set_memory_size(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM, DMA_SxCR_MSIZE_8BIT);
+
+	dma_channel_select(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM, SERIAL_GETCHAR_DMA_CHANNEL);
+
+	dma_set_number_of_data(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM, sizeof(dma_buffer));
+
+	dma_set_peripheral_address(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM, (uint32_t)&USART_DR(SERIAL_GETCHAR_USART));
+	dma_set_memory_address(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM, (uint32_t)dma_buffer);
+
+	dma_enable_circular_mode(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM);
+	dma_enable_stream(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM);
+#endif
 
 	// Enable RX DMA for USART
-	GETCHAR_USART->CR3 |= USART_CR3_DMAR;
+	usart_enable_rx_dma(SERIAL_GETCHAR_USART);
 }
 
 
-int getchar(void)
+int16_t serial_getchar(void)
 {
-	for (;;)
+	uint16_t current = sizeof(dma_buffer) - (uint16_t)(dma_get_number_of_data(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM));
+	if (current != last_read_index)
 	{
-		uint16_t current = sizeof(dma_buffer) - (uint16_t)(GETCHAR_USART_DMA_CHANNEL->CNDTR);
-		if (current != last_read_index)
+		uint8_t r = dma_buffer[last_read_index];
+		last_read_index++;
+		if (last_read_index >= sizeof(dma_buffer))
 		{
-			int r = dma_buffer[last_read_index];
-			last_read_index++;
-			if (last_read_index >= sizeof(dma_buffer))
-			{
-				last_read_index = 0;
-			}
-			return r;
+			last_read_index = 0;
 		}
+		return r;
 	}
-	return -1;
+	return INT16_MIN;
 }

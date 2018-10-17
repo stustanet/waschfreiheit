@@ -20,6 +20,7 @@
 #include <task.h>
 
 #include "tinyprintf.h"
+#include "serial_getchar_dma.h"
 #include "cli.h"
 
 // Clock for the STM32F401
@@ -48,6 +49,7 @@ const struct rcc_clock_scale hse_8_84mhz =
 #define CLI_CMD_BUFFER_LENGTH 200
 
 #define USART_CLI USART1
+#define USART_CLI_RCC RCC_USART1
 
 StaticTask_t cliTaskBuffer;
 StackType_t cliTaskStack[CLI_TASK_STACK_SIZE];
@@ -62,15 +64,15 @@ static void tpf_putcf(void *ptr, char c)
 static void init_usart(void)
 {
 	rcc_periph_clock_enable(RCC_GPIOA);
-	rcc_periph_clock_enable(RCC_USART1);
+	rcc_periph_clock_enable(USART_CLI_RCC);
 
 	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO9 | GPIO10);
 
 	gpio_set_af(GPIOA, GPIO_AF7, GPIO9 | GPIO10);
 
-	usart_set_baudrate(USART1, 115200);
-	usart_set_mode(USART1, USART_MODE_TX | USART_MODE_RX);
-	usart_enable(USART1);
+	usart_set_baudrate(USART_CLI, 115200);
+	usart_set_mode(USART_CLI, USART_MODE_TX | USART_MODE_RX);
+	usart_enable(USART_CLI);
 }
 
 
@@ -101,7 +103,14 @@ static void cliTask(void *arg)
 
 	while (1)
 	{
-		char c = usart_recv_blocking(USART_CLI);
+		int16_t c = serial_getchar();
+
+		if (c == INT16_MIN)
+		{
+			taskYIELD();
+			continue;
+		}
+
 		if (c == '\r' || c == '\n' || buffer_pos >= (CLI_CMD_BUFFER_LENGTH - 1))
 		{
 			if (buffer_pos)
@@ -126,6 +135,7 @@ int main(void)
 	rcc_clock_setup_hse_3v3(&CLOCK_SETTINGS);
 
 	init_usart();
+	serial_getchar_dma_init();
 	init_printf(NULL, &tpf_putcf);
 	cli_set_commandlist(cli_commands);
 
