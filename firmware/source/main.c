@@ -20,6 +20,7 @@
 #include <task.h>
 
 #include "tinyprintf.h"
+#include "cli.h"
 
 // Clock for the STM32F401
 const struct rcc_clock_scale hse_8_84mhz =
@@ -39,11 +40,22 @@ const struct rcc_clock_scale hse_8_84mhz =
 
 #define CLOCK_SETTINGS hse_8_84mhz
 
+// Stack size in words for the CLI task
+#define CLI_TASK_STACK_SIZE 200
+
+// Number of bytes in the command buffer for the CLI
+// This resides on the stack of the CLI task so keep the stack size in mind when changing this!
+#define CLI_CMD_BUFFER_LENGTH 200
+
+#define USART_CLI USART1
+
+StaticTask_t cliTaskBuffer;
+StackType_t cliTaskStack[CLI_TASK_STACK_SIZE];
 
 static void tpf_putcf(void *ptr, char c)
 {
 	(void)ptr;
-	usart_send_blocking(USART1, c);
+	usart_send_blocking(USART_CLI, c);
 }
 
 
@@ -61,6 +73,53 @@ static void init_usart(void)
 	usart_enable(USART1);
 }
 
+
+static void test_func(int argc, char **argv)
+{
+	printf("Called test command with the following %i arguments:\n", argc);
+	for (int i = 0; i < argc; i++)
+	{
+		printf("%s\n", argv[i]);
+	}
+	printf("---------\n");
+}
+
+
+static cli_command_t cli_commands [] =
+{
+	{"test", "test command", test_func},
+	{}
+};
+
+
+static void cliTask(void *arg)
+{
+	(void) arg;
+
+	char buffer[CLI_CMD_BUFFER_LENGTH];
+	size_t buffer_pos = 0;
+
+	while (1)
+	{
+		char c = usart_recv_blocking(USART_CLI);
+		if (c == '\r' || c == '\n' || buffer_pos >= (CLI_CMD_BUFFER_LENGTH - 1))
+		{
+			if (buffer_pos)
+			{
+				buffer[buffer_pos] = 0;
+				cli_evaluate(buffer);
+				buffer_pos = 0;
+			}
+		}
+		else
+		{
+			buffer[buffer_pos] = c;
+			buffer_pos++;
+		}
+	}
+}
+
+
 int main(void)
 {
 	cm_disable_interrupts();
@@ -68,10 +127,20 @@ int main(void)
 
 	init_usart();
 	init_printf(NULL, &tpf_putcf);
+	cli_set_commandlist(cli_commands);
 
 
 	printf("Hello world");
 	//init();
+
+	xTaskCreateStatic(
+		&cliTask,
+		"CLI",
+		CLI_TASK_STACK_SIZE,
+		NULL,
+		tskIDLE_PRIORITY,
+		cliTaskStack,
+		&cliTaskBuffer);
 
 	vTaskStartScheduler();
 
