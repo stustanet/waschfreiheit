@@ -22,6 +22,7 @@
 #include "tinyprintf.h"
 #include "serial_getchar_dma.h"
 #include "cli.h"
+#include "sx127x.h"
 
 // Clock for the STM32F401
 const struct rcc_clock_scale hse_8_84mhz =
@@ -90,6 +91,7 @@ static void test_func(int argc, char **argv)
 static cli_command_t cli_commands [] =
 {
 	{"test", "test command", test_func},
+	{"sx127x", "RF module test command", sx127x_test_cmd},
 	{}
 };
 
@@ -137,6 +139,17 @@ int main(void)
 	init_usart();
 	serial_getchar_dma_init();
 	init_printf(NULL, &tpf_putcf);
+
+	const sx127x_rf_config_t lora_cfg = {
+		.frequency = 433500000,
+		.tx_power = 10,
+		.lora_spread_factor = 10,
+		.lora_coderate = 2,
+		.lora_bandwidth = 7
+	};
+
+	sx127x_init(&lora_cfg);
+
 	cli_set_commandlist(cli_commands);
 
 
