@@ -4,3 +4,6 @@
 [submodule "firmware/tinyprintf"]
 	path = firmware/tinyprintf
 	url = https://github.com/cjlano/tinyprintf.git
+[submodule "firmware/cifra"]
+	path = firmware/cifra
+	url = https://github.com/ctz/cifra
