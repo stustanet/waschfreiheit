@@ -214,7 +214,7 @@ static void handle_rx_cplt(uint8_t *packet, uint8_t len)
  * The receiving thread.
  * This thread polls new packtes from the modem
  */
-static void *recv_thread(void *arg)
+static void recv_thread(void *arg)
 {
 	(void)arg;
 
