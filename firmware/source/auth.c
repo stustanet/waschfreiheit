@@ -7,8 +7,9 @@
 #include "auth.h"
 #include <errno.h>
 #include <string.h>
-#include <stdio.h>
-#include <hashes/sha256.h>
+#include "tinyprintf.h"
+#include "sha2.h"
+#include "hmac.h"
 
 #define AUTH_MASTER         1
 #define AUTH_SLAVE          2
@@ -88,22 +89,22 @@ static uint8_t timesafe_memeq(const void *a, const void *b, uint32_t length)
 
 static auth_number_t generate_tag(const auth_context_t *ctx, uint64_t nonce, const void *data1, uint32_t len1, const void *data2, uint32_t len2)
 {
-	hmac_context_t hash_ctx;
-	uint8_t digest[SHA256_DIGEST_LENGTH];
+	cf_hmac_ctx hash_ctx;
+	uint8_t digest[CF_SHA256_HASHSZ];
 
-	hmac_sha256_init(&hash_ctx, ctx->key, AUTH_KEY_LEN);
+	cf_hmac_init(&hash_ctx, &cf_sha256, ctx->key, AUTH_KEY_LEN);
 
 	if (len1 != 0)
 	{
-		hmac_sha256_update(&hash_ctx, data1, len1);
+		cf_hmac_update(&hash_ctx, data1, len1);
 	}
 
 	if (len2 != 0)
 	{
-		hmac_sha256_update(&hash_ctx, data2, len2);
+		cf_hmac_update(&hash_ctx, data2, len2);
 	}
-	hmac_sha256_update(&hash_ctx, &nonce, sizeof(nonce));
-	hmac_sha256_final(&hash_ctx, digest);
+	cf_hmac_update(&hash_ctx, &nonce, sizeof(nonce));
+	cf_hmac_finish(&hash_ctx, digest);
 
 	return (*(auth_number_t *)digest);
 }
@@ -115,7 +116,7 @@ static auth_number_t generate_tag(const auth_context_t *ctx, uint64_t nonce, con
  * The message footer of a normal authenticated message contains a 60 bit tag
  * and the last 4 bit of the current nonce.
  */
-int sign_message(const auth_context_t *ctx, uint64_t nonce, void *data, uint32_t len, uint32_t *result_len, const void *add_data, uint32_t add_datalen)
+static int sign_message(const auth_context_t *ctx, uint64_t nonce, void *data, uint32_t len, uint32_t *result_len, const void *add_data, uint32_t add_datalen)
 {
 	if ((*result_len) < len + sizeof(auth_number_t))
 	{
@@ -140,7 +141,7 @@ int sign_message(const auth_context_t *ctx, uint64_t nonce, void *data, uint32_t
 /*
  * Checks if message is signed with given nonce
  */
-int check_message_tag(const auth_context_t *ctx, uint64_t nonce, const void *data, uint32_t *len, const void *add_data, uint32_t add_datalen)
+static int check_message_tag(const auth_context_t *ctx, uint64_t nonce, const void *data, uint32_t *len, const void *add_data, uint32_t add_datalen)
 {
 	if (*len < sizeof(auth_number_t))
 	{
