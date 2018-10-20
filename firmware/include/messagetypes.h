@@ -15,7 +15,7 @@
 
 #include <stdint.h>
 #include <meshnw.h>
-#include <state_estimation.h>
+#include "state_estimation_params.h"
 
 
 typedef uint8_t msg_type_t;

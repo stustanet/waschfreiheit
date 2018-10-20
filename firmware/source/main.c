@@ -22,7 +22,8 @@
 #include "tinyprintf.h"
 #include "serial_getchar_dma.h"
 #include "cli.h"
-#include "sx127x.h"
+#include "commands_common.h"
+#include "meshnw.h"
 
 // Clock for the STM32F401
 const struct rcc_clock_scale hse_8_84mhz =
@@ -92,6 +93,8 @@ static cli_command_t cli_commands [] =
 {
 	{"test", "test command", test_func},
 	{"sx127x", "RF module test command", sx127x_test_cmd},
+	{"routes", "Set the local routes", cmd_routes},
+	{"ping", "Ping a node", cmd_ping},
 	{}
 };
 
@@ -131,6 +134,12 @@ static void cliTask(void *arg)
 }
 
 
+static void test_recv_cb(nodeid_t src, void *data, uint8_t len)
+{
+	printf("Got packet from %u with len %u and type %02x\n", src, len, ((uint8_t*)data)[0]);
+}
+
+
 int main(void)
 {
 	cm_disable_interrupts();
@@ -148,7 +157,7 @@ int main(void)
 		.lora_bandwidth = 7
 	};
 
-	sx127x_init(&lora_cfg);
+	meshnw_init(10, &lora_cfg, &test_recv_cb);
 
 	cli_set_commandlist(cli_commands);
 

@@ -349,6 +349,12 @@ uint64_t sx127x_get_random(void)
 	return res;
 }
 
+void sx127x_get_last_pkt_stats(uint8_t *rssi, int8_t *snr)
+{
+	*rssi = sx127x_get_reg(SX127x_RegPktRssiValue);
+	*snr = (int8_t)sx127x_get_reg(SX127x_RegPktSnrValue);
+}
+
 
 void sx127x_test_cmd(int argc, char **argv)
 {

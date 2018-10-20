@@ -4,13 +4,14 @@
  * in the LICENSE file.
  */
 
+#pragma once
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
 
-typedef struct
+typedef struct _sx127x_rf_config
 {
 	uint32_t frequency;
 	uint8_t tx_power;
@@ -29,6 +30,13 @@ uint8_t sx127x_recv(uint8_t *buffer, uint8_t max);
 bool sx127x_send(const uint8_t *data, uint8_t len);
 bool sx127x_is_busy(void);
 uint64_t sx127x_get_random(void);
+
+/*
+ * Reads the snr and the rssi value for the last received packet
+ * RSSI: <rssi> - 157 dB
+ * SNR:  <snr> / 4 dB
+ */
+void sx127x_get_last_pkt_stats(uint8_t *rssi, int8_t *snr);
 
 
 void sx127x_test_cmd(int argc, char **argv);

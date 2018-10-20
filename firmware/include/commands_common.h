@@ -4,6 +4,8 @@
  * in the LICENSE file.
  */
 
+#pragma once
 
-int cmd_routes(int argc, char **argv);
-int cmd_ping(int argc, char **argv)
+#include "messagetypes.h"
+void cmd_routes(int argc, char **argv);
+void cmd_ping(int argc, char **argv);

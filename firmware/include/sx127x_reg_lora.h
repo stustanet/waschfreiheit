@@ -1,3 +1,11 @@
+/*
+ * Copyright 2018 Daniel Frejek
+ * This source code is licensed under the MIT license that can be found
+ * in the LICENSE file.
+ */
+
+#pragma once
+
 #define SX127x_WriteReg               0x80
 
 #define SX127x_RegFifo                0x00 // FIFO read/write access

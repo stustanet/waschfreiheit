@@ -5,18 +5,24 @@
  */
 
 
+#include "commands_common.h"
+
+#include "tinyprintf.h"
+#include "meshnw.h"
+#include "messagetypes.h"
+#include "utils.h"
+
 /*
  * master_routes <DST1>:<HOP1>,<DST2>:<HOP2>,...
  *   Set the master routes
  */
-static int cmd_routes(int argc, char **argv)
+void cmd_routes(int argc, char **argv)
 {
 	if (argc != 2)
 	{
-		puts("USAGE: routes <DST1>:<HOP1>,<DST2><HOP2>,...\n\n");
-
-		puts("DSTn:HOPn Packets with destination address DSTn will be sent to HOPn\n\n");
-		return 1;
+		printf("USAGE: routes <DST1>:<HOP1>,<DST2><HOP2>,...\n\n"
+			   "DSTn:HOPn Packets with destination address DSTn will be sent to HOPn\n\n");
+		return;
 	}
 
 	const char *routes = argv[1];
@@ -27,7 +33,7 @@ static int cmd_routes(int argc, char **argv)
 		nodeid_t hop;
 		if (utils_parse_route(&routes, &dst, &hop) != 0)
 		{
-			return 1;
+			return;
 		}
 
 		meshnw_set_route(dst, hop);
@@ -36,7 +42,7 @@ static int cmd_routes(int argc, char **argv)
 		if (routes[0] != 0 && routes[0] != ',')
 		{
 			printf("Unexpected route delim: %i(%c)\n", routes[0], routes[0]);
-			return 1;
+			return;
 		}
 
 		if (routes[0] == ',')
@@ -48,7 +54,6 @@ static int cmd_routes(int argc, char **argv)
 #ifndef MASTER
 	meshnw_enable_forwarding();
 #endif
-	return 0;
 }
 
 
@@ -56,19 +61,19 @@ static int cmd_routes(int argc, char **argv)
  * ping <node_id>
  *   Debug ping to any node
  */
-int cmd_ping(int argc, char **argv)
+void cmd_ping(int argc, char **argv)
 {
 	if (argc != 2)
 	{
-		puts("USAGE: ping <NODE>\n");
-		puts("NODE      Address of the destination node\n");
-		return 1;
+		printf("USAGE: ping <NODE>\n"
+			   "NODE      Address of the destination node\n");
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 0);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	// send ping
@@ -79,7 +84,6 @@ int cmd_ping(int argc, char **argv)
 	if (res != 0)
 	{
 		printf("Send ping request to node %u failed with error %i\n", dst, res);
-		return 1;
+		return;
 	}
-	return 0;
 }

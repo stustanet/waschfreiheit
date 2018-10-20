@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdio.h>
+#include "tinyprintf.h"
 
 /*
  * Parses a single hex char and returs the number value

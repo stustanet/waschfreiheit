@@ -18,6 +18,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "sx127x.h"
 
 typedef uint8_t nodeid_t;
 
@@ -26,15 +27,6 @@ typedef uint8_t nodeid_t;
 #define MESHNW_MAX_PACKET_SIZE 64
 
 static const nodeid_t MESHNW_INVALID_NODE = MESHNW_MAX_NODEID + 1;
-
-typedef struct
-{
-	uint32_t frequency;
-	uint8_t tx_power;
-	uint8_t lora_spread_factor;
-	uint8_t lora_coderate;
-	uint8_t lora_bandwidth;
-} meshnw_rf_config_t;
 
 /*
  * Callback for incoming data
@@ -51,7 +43,7 @@ typedef void (*mesh_nw_message_cb_t)(nodeid_t src, void *data, uint8_t len);
  * returns 0 on success
  * NOTE: At initial states there are no routes so all send calls will fail (route is unknown)
  */
-int meshnw_init(nodeid_t id, const meshnw_rf_config_t *config, mesh_nw_message_cb_t cb);
+bool meshnw_init(nodeid_t id, const sx127x_rf_config_t *config, mesh_nw_message_cb_t cb);
 
 /*
  * Enables the message forwarding. (Disabled after init)
@@ -64,7 +56,7 @@ void meshnw_enable_forwarding(void);
  * Packets with the <destination> will be forwarded to <next_hop>
  * returns 0 on success
  */
-int meshnw_set_route(nodeid_t destination, nodeid_t next_hop);
+bool meshnw_set_route(nodeid_t destination, nodeid_t next_hop);
 
 /*
  * Clears all routes
@@ -77,7 +69,7 @@ void meshnw_clear_routes(void);
  * if the radio is busy crrently, this fails with -EBUSY
  * returns 0 on success
  */
-int meshnw_send(nodeid_t dst, void *data, uint8_t len);
+bool meshnw_send(nodeid_t dst, void *data, uint8_t len);
 
 
 /*
