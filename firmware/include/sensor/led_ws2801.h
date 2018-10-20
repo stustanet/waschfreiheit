@@ -4,14 +4,14 @@
  * in the LICENSE file.
  */
 
+#pragma once
 
 /*
  * Minimalistic driver for a WS2801 RGB LED strip
  */
 
-#include <periph/gpio.h>
 #include <stdint.h>
 #include "rgbcolor.h"
 
 
-void led_ws2801_set(gpio_t clk, gpio_t data, const rgb_data_t *rgb, uint32_t count);
+void led_ws2801_set(uint32_t port, uint16_t clk, uint16_t data, const rgb_data_t *rgb, uint32_t count);

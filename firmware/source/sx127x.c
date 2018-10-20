@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <libopencm3/stm32/spi.h>
+#include <libopencm3/stm32/gpio.h>
 #include "tinyprintf.h"
 #include "sx127x_config.h"
 #include "sx127x_reg_lora.h"

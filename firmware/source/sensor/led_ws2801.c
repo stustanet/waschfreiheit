@@ -6,11 +6,12 @@
 
 
 #include "led_ws2801.h"
+
+#include <libopencm3/stm32/gpio.h>
 #include "utils.h"
-#include <stdio.h>
 
 
-void led_ws2801_set(gpio_t clk, gpio_t data, const rgb_data_t *rgb, uint32_t count)
+void led_ws2801_set(uint32_t port, uint16_t clk, uint16_t data, const rgb_data_t *rgb, uint32_t count)
 {
 	uint8_t *raw = (uint8_t *)rgb;
 	count *= sizeof(rgb[0]) * 8;
@@ -20,17 +21,17 @@ void led_ws2801_set(gpio_t clk, gpio_t data, const rgb_data_t *rgb, uint32_t cou
 		// Set data lane
 		if (utils_bit_is_set(raw, i))
 		{
-			gpio_set(data);
+			gpio_set(port, data);
 		}
 		else
 		{
-			gpio_clear(data);
+			gpio_clear(port, data);
 		}
 
 		// Now set clock to high
-		gpio_set(clk);
+		gpio_set(port, clk);
 
 		// Set clock to low again
-		gpio_clear(clk);
+		gpio_clear(port, clk);
 	}
 }
