@@ -4,20 +4,17 @@
  * in the LICENSE file.
  */
 
-
-// Don't build this if i'm compiling the master
-#ifndef MASTER
-
 #include "sensor_node.h"
 #include <string.h>
 #include <strings.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <xtimer.h>
-#include <thread.h>
-#include <periph/pm.h>
-#include <periph/adc.h>
-#include <mutex.h>
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/stm32/adc.h>
+#include <libopencm3/stm32/rcc.h>
+
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
 
 #include "meshnw.h"
 #include "state_estimation.h"
@@ -28,20 +25,15 @@
 #include "led_ws2801.h"
 #include "watchdog.h"
 #include "flasher.h"
+#include "tinyprintf.h"
+#include "sensor_adc.h"
 
-/*
- * The max number of sensors channels.
- * This should be equal to the number of channles as supported by the hardware.
- * The ADC channel used for every sensor channel is equal th the channels' number.
- *
- * Every sensor channel uses a lot of RAM for the state estimation context so this
- * limits the max number of channels.
- */
-#define NUM_OF_SENSORS 2
 
 // GPIO B, Pin 10 and 11
-#define WS2801_GPIO_DATA GPIO_PIN(PORT_B, 10)
-#define WS2801_GPIO_CLK GPIO_PIN(PORT_B, 11)
+#define WS2801_GPIO_PORT GPIOB
+#define WS2801_GPIO_PORT_RCC RCC_GPIOB
+#define WS2801_GPIO_DATA GPIO10
+#define WS2801_GPIO_CLK GPIO11
 
 /*
  * Max time for the watchdog observing the ADC thread.
@@ -106,7 +98,8 @@ struct
 	auth_context_t auth_config;
 
 	// Mutex for accessing context values
-	mutex_t mutex;
+	SemaphoreHandle_t mutex;
+	StaticSemaphore_t mutexBuffer;
 
 	/*
 	 * Color table for the LEDs
@@ -127,7 +120,7 @@ struct
 	/*
 	 * Delay in us for the adc loop.
 	 */
-	uint32_t sensor_loop_delay_us;
+	uint32_t sensor_loop_delay_ms;
 
 	/*
 	 * Incremented every second in the mesage thread, reset when an authenticated message is received.
@@ -144,7 +137,7 @@ struct
 	 * Delay value for the raw mode.
 	 * Set this to 0 for normal operation.
 	 */
-	uint32_t debug_raw_mode_delay_us;
+	uint32_t debug_raw_mode_delay_ms;
 
 	/*
 	 * The bits specify the active / enabled sensor channels.
@@ -219,11 +212,17 @@ struct
 } ctx;
 
 // Stuff for the threads
-static char adc_thd_stack[1024];
-static kernel_pid_t adc_thd_pid;
+// Stack size of the adc thread (in words)
+#define ADC_THD_STACK_SIZE 256
 
-static char message_thd_stack[512 * 3];
-static kernel_pid_t message_thd_pid;
+// Stack size of the message thread (in words)
+#define MESSAGE_THD_STACK_SIZE 512
+
+StaticTask_t adc_thd_buffer;;
+StackType_t adc_thd_stack[ADC_THD_STACK_SIZE];
+
+StaticTask_t message_thd_buffer;;
+StackType_t message_thd_stack[MESSAGE_THD_STACK_SIZE];
 
 
 /*
@@ -289,14 +288,14 @@ static uint16_t calculate_adc_sps(void)
 {
 	uint16_t sps;
 
-	if (ctx.sensor_loop_delay_us == 0)
+	if (ctx.sensor_loop_delay_ms == 0)
 	{
 		// 0 us delay, this is bad, simply default to 1
 		sps = 1;
 	}
 	else
 	{
-		sps = 1000000 / ctx.sensor_loop_delay_us;
+		sps = 1000 / ctx.sensor_loop_delay_ms;
 
 		if (sps == 0)
 		{
@@ -328,7 +327,7 @@ static void reset(void)
 	ctx.active_sensor_channels = 0;
 
 	// reset sensor loop delay to 1s
-	ctx.sensor_loop_delay_us = 1000000;
+	ctx.sensor_loop_delay_ms = 1000;
 
 	ctx.status |= STATUS_FORCE_UPDATE;
 }
@@ -346,7 +345,7 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 	{
 		printf("%02x", ((uint8_t *)data)[i]);
 	}
-	puts("");
+	printf("\n");
 
 	// Buffer for the hs2 reply
 	uint8_t out_buffer[MESHNW_MAX_PACKET_SIZE];
@@ -403,7 +402,7 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 	{
 		printf("%02x", out_buffer[i]);
 	}
-	puts("");
+	printf("\n");
 
 
 	/*
@@ -453,7 +452,7 @@ static void init_status_auth(void)
 	// Need routes for this
 	if ((ctx.status & STATUS_INIT_ROUTES) == 0)
 	{
-		puts("Called init_status_auth() befrore route setup");
+		printf("Called init_status_auth() befrore route setup\n");
 		return;
 	}
 
@@ -506,21 +505,21 @@ static void handle_auth_master_handshake(nodeid_t src, void *data, uint8_t len)
 {
 	if ((ctx.status & STATUS_INIT_ROUTES) == 0)
 	{
-		puts("Received hs2 before route setup");
+		printf("Received hs2 before route setup\n");
 		return;
 	}
 
 	// Only valid if I'm actually waiting for the hs2.
 	if ((ctx.status & STATUS_INIT_AUTH_STA_PEND) == 0)
 	{
-		puts("Received hs2 but handshake is not pending");
+		printf("Received hs2 but handshake is not pending\n");
 		return;
 	}
 
 	// Only the master may send the hs2.
 	if (src != ctx.master_node)
 	{
-		puts("Got hs2 from a node that is not the current master");
+		printf("Got hs2 from a node that is not the current master\n");
 		return;
 	}
 
@@ -556,7 +555,7 @@ static void send_ack(uint8_t ack_result)
 	// Need config auth to ack anything
 	if ((ctx.status & STATUS_INIT_AUTH_CFG) == 0)
 	{
-		puts("Called send_ack() but auth is not init");
+		printf("Called send_ack() but auth is not init\n");
 		return;
 	}
 
@@ -605,14 +604,14 @@ static void handle_auth_master_ack(nodeid_t src, void *data, uint8_t len)
 	// Need status auth for this
 	if ((ctx.status & STATUS_INIT_AUTH_STA) == 0)
 	{
-		puts("Received ack before status auth init");
+		printf("Received ack before status auth init\n");
 		return;
 	}
 
 	// Must only come from master.
 	if (src != ctx.master_node)
 	{
-		puts("Got ack from a node that is not the current master");
+		printf("Got ack from a node that is not the current master\n");
 		return;
 	}
 
@@ -633,7 +632,7 @@ static void handle_auth_master_ack(nodeid_t src, void *data, uint8_t len)
 	// Check if I was expecting an ack
 	if (ctx.last_status_msg_was_acked)
 	{
-		printf("unexpected status ack! there is no outstanding packet!");
+		printf("unexpected status ack! there is no outstanding packet!\n");
 	}
 	else
 	{
@@ -657,7 +656,7 @@ static int check_auth_message(nodeid_t src, void *data, uint32_t *len)
 	// Can't check anything without config auth
 	if ((ctx.status & STATUS_INIT_AUTH_CFG) == 0)
 	{
-		puts("Received authenticated message but cfg auth not initialized");
+		printf("Received authenticated message but cfg auth not initialized\n");
 		return -1;
 	}
 
@@ -691,7 +690,7 @@ static int check_auth_message(nodeid_t src, void *data, uint32_t *len)
 		 * This happens when an ACK has been lost and the master retransmitts the packet.
 		 * In this case the last ACK is sent again with the re-ack bit set.
 		 */
-		puts("Received message with old nonce -> re-ack");
+		printf("Received message with old nonce -> re-ack\n");
 
 		// set re-ack bit and ack
 		send_ack(ctx.last_ack_result | 0x80);
@@ -857,11 +856,11 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 	if (start_msg->adc_samples_per_sec == 0)
 	{
 		// 1 sec delay is max
-		ctx.sensor_loop_delay_us = 1000000;
+		ctx.sensor_loop_delay_ms = 1000;
 	}
 	else
 	{
-		ctx.sensor_loop_delay_us = 1000000 / start_msg->adc_samples_per_sec;
+		ctx.sensor_loop_delay_ms = 1000 / start_msg->adc_samples_per_sec;
 	}
 
 	// Update the sample rate for all channels
@@ -1070,11 +1069,11 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 
 	if (len < sizeof(msg->type))
 	{
-		puts("received too small message in layer 4");
+		printf("received too small message in layer 4\n");
 		return;
 	}
 
-	mutex_lock(&ctx.mutex);
+	xSemaphoreTake(ctx.mutex, portMAX_DELAY);
 	printf("Handle message with type %u\n", msg->type);
 	switch (msg->type)
 	{
@@ -1121,8 +1120,8 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 		default:
 			printf("Received message with unexpected type %u\n", msg->type);
 	}
-	mutex_unlock(&ctx.mutex);
-	puts("Message handled");
+	xSemaphoreGive(ctx.mutex);
+	printf("Message handled\n");
 }
 
 
@@ -1133,16 +1132,13 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
  * will know when something has changes and can send a message in this case.
  * It will also send raw data messages if raw data has been requested.
  */
-static void *adc_thread(void *arg)
+static void adc_thread(void *arg)
 {
 	(void) arg;
-	/*
-	 * Initialize all channels first.
-	 */
-	for (uint8_t adc = 0; adc < NUM_OF_SENSORS; adc++)
-	{
-		adc_init(adc);
-	}
+
+	// Init the channels
+	uint16_t dma_buffer[NUM_OF_SENSORS] = {};
+	sensor_adc_init_dma(dma_buffer);
 
 	// buffer for sending raw frame values
 	uint8_t rf_buffer[MESHNW_MAX_PACKET_SIZE];
@@ -1152,7 +1148,7 @@ static void *adc_thread(void *arg)
 	uint8_t raw_values_in_msg = 0;
 
 
-	xtimer_ticks32_t last = xtimer_now();
+    TickType_t last = xTaskGetTickCount();
 
 	while (1)
 	{
@@ -1161,10 +1157,10 @@ static void *adc_thread(void *arg)
 		// Loop over all channels
 		for (uint8_t adc = 0; adc < NUM_OF_SENSORS; adc++)
 		{
-			if (ctx.debug_raw_mode_delay_us != 0)
+			if (ctx.debug_raw_mode_delay_ms != 0)
 			{
 				// raw mode: print data for all channels
-				uint16_t val = adc_sample(adc, ADC_RES_12BIT);
+				uint16_t val = dma_buffer[adc];
 				printf("*%u=%u ", adc, val);
 				continue;
 			}
@@ -1182,7 +1178,7 @@ static void *adc_thread(void *arg)
 			}
 
 			// Sample the channel
-			uint16_t val = adc_sample(adc, ADC_RES_12BIT);
+			uint16_t val = dma_buffer[adc];
 
 			// Update satte estimation
 			state_update_result_t res = stateest_update(&ctx.sensors[adc], val);
@@ -1225,10 +1221,10 @@ static void *adc_thread(void *arg)
 				if (stateest_get_frame(&ctx.sensors[adc]) != 0xffffffff)
 				{
 					// This is a frame of the input filter
-					uint16_t val = (uint16_t) stateest_get_frame(&ctx.sensors[adc]);
-					printf("Raw value: %u\n", val);
+					uint16_t v = (uint16_t) stateest_get_frame(&ctx.sensors[adc]);
+					printf("Raw value: %u\n", v);
 
-					u16_to_unaligned(&raw_frame_vals->values[raw_values_in_msg], val);
+					u16_to_unaligned(&raw_frame_vals->values[raw_values_in_msg], v);
 
 					raw_values_in_msg++;
 					ctx.debug_raw_frame_transmission_counter--;
@@ -1253,21 +1249,19 @@ static void *adc_thread(void *arg)
 		}
 
 		// Wait for next cycle
-		if (ctx.debug_raw_mode_delay_us != 0)
+		if (ctx.debug_raw_mode_delay_ms != 0)
 		{
 			// Line feed at end of row
-			puts("");
+			printf("\n");
 			// Use raw mode delay
-			xtimer_periodic_wakeup(&last, ctx.debug_raw_mode_delay_us);
+			vTaskDelayUntil(&last, ctx.debug_raw_mode_delay_ms);
 		}
 		else
 		{
 			// Use normal delay
-			xtimer_periodic_wakeup(&last, ctx.sensor_loop_delay_us);
+			vTaskDelayUntil(&last, ctx.sensor_loop_delay_ms);
 		}
 	}
-
-	return NULL;
 }
 
 
@@ -1279,7 +1273,7 @@ static void send_status_update_message(uint16_t status)
 	// Needs status auth
 	if ((ctx.status & STATUS_INIT_AUTH_STA) == 0)
 	{
-		puts("Called send_status_update_message() before status channel has been built!");
+		printf("Called send_status_update_message() before status channel has been built!\n");
 		return;
 	}
 
@@ -1331,7 +1325,7 @@ static void send_status_update_message(uint16_t status)
 /*
  * Sends a message containing the raw status of the node.
  */
-void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
+static void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 {
 	msg_raw_status_t *rs;
 
@@ -1344,7 +1338,7 @@ void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 	rs->type = MSG_TYPE_RAW_STATUS;
 
 	u32_to_unaligned(&rs->node_status, ctx.status);
-	u32_to_unaligned(&rs->sensor_loop_delay, ctx.sensor_loop_delay_us);
+	u32_to_unaligned(&rs->sensor_loop_delay, ctx.sensor_loop_delay_ms);
 	u32_to_unaligned(&rs->retransmission_counter, rt_counter);
 	u32_to_unaligned(&rs->uptime, uptime);
 	u16_to_unaligned(&rs->channel_status, ctx.current_sensor_status);
@@ -1370,9 +1364,9 @@ void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 /*
  * Prints the current status on the serial console.
  */
-void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_timer, uint16_t master_sensor_status)
+static void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_timer, uint16_t master_sensor_status)
 {
-	puts("Node status");
+	printf("Node status\n");
 	printf("Node id:               %4u\n", ctx.current_node);
 	printf("Master node:           %4u\n", ctx.master_node);
 	printf("Status:          0x%08lX\n", ctx.status);
@@ -1381,7 +1375,7 @@ void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_timer, u
 	printf("Channel enabled:     0x%04X\n", ctx.active_sensor_channels);
 	printf("Retransmissions:   %8lu\n", rt_counter);
 	printf("Uptime:            %8lu\n", uptime);
-	printf("ADC loop delay:    %8lu\n", ctx.sensor_loop_delay_us);
+	printf("ADC loop delay:    %8lu\n", ctx.sensor_loop_delay_ms);
 	printf("RT base delay:         %4u\n", ctx.status_retransmission_base_delay);
 	printf("RT timer:          %8lu\n", rt_timer);
 	printf("Last message:      %8lu\n", ctx.config_channel_timeout_timer);
@@ -1420,7 +1414,7 @@ static void do_led_animation(uint32_t ticks)
 		leds[2].b = (ctx.current_node & 0x04) ? 255 : 0;
 		leds[3].b = (ctx.current_node & 0x08) ? 255 : 0;
 		leds[4].b = (ctx.current_node & 0x10) ? 255 : 0;
-		led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
+		led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
 		return;
 	}
 	else if (ticks & 0x01)
@@ -1467,7 +1461,7 @@ static void do_led_animation(uint32_t ticks)
 	}
 
 	// finally set the LEDs
-	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
+	led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
 }
 
 
@@ -1478,11 +1472,11 @@ static void do_led_animation(uint32_t ticks)
  *   - Sending status updates when a change is detected
  *   - Resetting the MCU if the retransmission limit or the config timeout is reached.
  */
-static void *message_thread(void *arg)
+static void message_thread(void *arg)
 {
 	(void) arg;
 	// The message loop runs once per second.
-	static const uint32_t MESSAGE_LOOP_DELAY_US = 1000000;
+	static const uint32_t MESSAGE_LOOP_DELAY_MS = 1000;
 
 
 	/*
@@ -1510,13 +1504,13 @@ static void *message_thread(void *arg)
 	uint32_t total_ticks = 0;
 
 
-	xtimer_ticks32_t last = xtimer_now();
+    TickType_t last = xTaskGetTickCount();
 
 
 	while(1)
 	{
 		WATCHDOG_FEED();
-		xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY_US);
+		vTaskDelayUntil(&last, MESSAGE_LOOP_DELAY_MS);
 		total_ticks++;
 
 		/*
@@ -1527,15 +1521,15 @@ static void *message_thread(void *arg)
 		if (retransmission_counter > ctx.misc_config->max_status_retransmissions ||
 			ctx.config_channel_timeout_timer > ctx.misc_config->network_timeout)
 		{
-			puts("NETWORK TIMEOUT! Rebooting...");
-			pm_reboot();
+			printf("NETWORK TIMEOUT! Rebooting...\n");
+			while(1); // Waait for the wdt reset
 		}
 
 		ctx.adc_thread_watchdog++;
 		if (ctx.adc_thread_watchdog > ADC_THREAD_WATCHDOG_TIMEOUT)
 		{
-			puts("ADC THREAD DIED! Rebooting...");
-			pm_reboot();
+			printf("ADC THREAD DIED! Rebooting...\n");
+			while(1); // Waait for the wdt reset
 		}
 
 		if ((ctx.status & STATUS_LED_SET) == 0)
@@ -1546,7 +1540,7 @@ static void *message_thread(void *arg)
 		else
 		{
 			// Set LEDs to defined colors
-			led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, NUM_OF_LED);
+			led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, NUM_OF_LED);
 		}
 
 		if (ctx.debug_raw_status_requested)
@@ -1567,7 +1561,7 @@ static void *message_thread(void *arg)
 			}
 		}
 
-		mutex_lock(&ctx.mutex);
+		xSemaphoreTake(ctx.mutex, portMAX_DELAY);
 
 		if ((ctx.status & STATUS_INIT_AUTH_STA) == 0)
 		{
@@ -1590,7 +1584,7 @@ static void *message_thread(void *arg)
 				}
 			}
 
-			mutex_unlock(&ctx.mutex);
+			xSemaphoreGive(ctx.mutex);
 
 			// can't do more without status channel
 			continue;
@@ -1662,11 +1656,9 @@ static void *message_thread(void *arg)
 			printf("Status message sent, rt_t=%lu, rt_c=%lu\n", retransmission_timer, retransmission_counter);
 		}
 
-		mutex_unlock(&ctx.mutex);
+		xSemaphoreGive(ctx.mutex);
 
 	}
-
-	return NULL;
 }
 
 
@@ -1683,15 +1675,18 @@ int sensor_node_init(void)
 	ctx.misc_config = sensor_config_misc_settings();
 
 	// GPIOs for LEDs
-	gpio_init(WS2801_GPIO_CLK, GPIO_OUT);
-	gpio_init(WS2801_GPIO_DATA, GPIO_OUT);
+	rcc_periph_clock_enable(WS2801_GPIO_PORT_RCC);
+	gpio_mode_setup(WS2801_GPIO_PORT,
+					GPIO_MODE_OUTPUT,
+					GPIO_PUPD_NONE,
+					WS2801_GPIO_CLK | WS2801_GPIO_DATA);
 
 	// This resets the LEDs
 	do_led_animation(0);
 
 	// Start sample loop at 1 per sec.
 	// At initial state this loop will do nothing, because the channels are configured later.
-	ctx.sensor_loop_delay_us = 1000000;
+	ctx.sensor_loop_delay_ms = 1000;
 
 	// The initial state is 0 for both sides -> Don't expect an ack for this.
 	ctx.last_status_msg_was_acked = 1;
@@ -1701,31 +1696,30 @@ int sensor_node_init(void)
 	/*
 	 * Need to run this thread with maximum priority due to bug in xtimer_periodic_wakeup
 	 */
-	adc_thd_pid = thread_create(adc_thd_stack, sizeof(adc_thd_stack), 0,
-	                          THREAD_CREATE_STACKTEST, adc_thread, NULL,
-	                          "node_adc_thread");
 
-	if (adc_thd_pid <= KERNEL_PID_UNDEF)
-	{
-		puts("Creation of adc thread failed");
-		return SN_ERROR_THREAD_START;
-	}
+	xTaskCreateStatic(
+		&adc_thread,
+		"ADC",
+	    ADC_THD_STACK_SIZE,
+		NULL,
+		tskIDLE_PRIORITY + 4,
+		adc_thd_stack,
+		&adc_thd_buffer);
 
-	message_thd_pid = thread_create(message_thd_stack, sizeof(message_thd_stack), THREAD_PRIORITY_MAIN - 1,
-	                          THREAD_CREATE_STACKTEST, message_thread, NULL,
-	                          "node_message_thread");
+	xTaskCreateStatic(
+		&message_thread,
+		"MESSAGE",
+	    MESSAGE_THD_STACK_SIZE,
+		NULL,
+		tskIDLE_PRIORITY + 3,
+		message_thd_stack,
+		&message_thd_buffer);
 
-
-	if (message_thd_pid <= KERNEL_PID_UNDEF)
-	{
-		puts("Creation of mssage thread failed");
-		return SN_ERROR_THREAD_START;
-	}
 	// Init the network
 	const sensor_configuration_t *cfg = sensor_config_get();
 	if (!cfg)
 	{
-		puts("Network not configured, init aborted!");
+		printf("Network not configured, init aborted!\n");
 		return SN_ERROR_NOT_CONFIGURED;
 	}
 
@@ -1764,26 +1758,26 @@ int sensor_node_cmd_raw(int argc, char **argv)
 {
 	if (argc != 2)
 	{
-		puts("USAGE: raw <delay>");
-		puts("       Enables / disables raw value printing on the serial terminal.");
-		puts("       Raw values for all channels are printed every <delay> us.");
-		puts("       Set <delay> to zero to disbale raw mode.");
-		puts("       While the node is in raw mode all status updates are disabled.");
-		puts("       NOTE: If the delay is too small the data can't be processed fast");
-		puts("             enough and the serial terminal gets stuck.");
+		printf("USAGE: raw <delay>\n"
+			   "       Enables / disables raw value printing on the serial terminal.\n"
+			   "       Raw values for all channels are printed every <delay> us.\n"
+			   "       Set <delay> to zero to disbale raw mode.\n"
+			   "       While the node is in raw mode all status updates are disabled.\n"
+			   "       NOTE: If the delay is too small the data can't be processed fast\n"
+			   "             enough and the serial terminal gets stuck.");
 		return 1;
 	}
 
-	ctx.debug_raw_mode_delay_us = strtoul(argv[1], NULL, 10);
-	if (ctx.debug_raw_mode_delay_us != 0)
+	ctx.debug_raw_mode_delay_ms = strtoul(argv[1], NULL, 10);
+	if (ctx.debug_raw_mode_delay_ms != 0)
 	{
 		ctx.status |= STATUS_SERIALDEBUG;
-		printf("Enter raw mode with delay: %lu\n", ctx.debug_raw_mode_delay_us);
+		printf("Enter raw mode with delay: %lu\n", ctx.debug_raw_mode_delay_ms);
 	}
 	else
 	{
 		ctx.status &= ~STATUS_SERIALDEBUG;
-		puts("Raw mode disabled");
+		printf("Raw mode disabled\n");
 	}
 	return 0;
 }
@@ -1793,8 +1787,8 @@ int sensor_node_cmd_led(int argc, char **argv)
 {
 	if (argc < 2 || argc > 1 + NUM_OF_LED)
 	{
-		puts("USAGE: led <r,g,b> ...");
-		puts("       Set the LED RGB colors");
+		printf("USAGE: led <r,g,b> ...\n"
+			   "       Set the LED RGB colors");
 		return 1;
 	}
 
@@ -1804,20 +1798,20 @@ int sensor_node_cmd_led(int argc, char **argv)
 		ctx.led_buffer[i].r = strtoul(argv[i + 1], &end, 10);
 		if (!end[0])
 		{
-			puts("Invalid RGB!");
+			printf("Invalid RGB!\n");
 			return 1;
 		}
 		ctx.led_buffer[i].g = strtoul(end + 1, &end, 10);
 		if (!end[0])
 		{
-			puts("Invalid RGB!");
+			printf("Invalid RGB!\n");
 			return 1;
 		}
 		ctx.led_buffer[i].b = strtoul(end + 1, NULL, 10);
 	}
 
 	ctx.status |= STATUS_LED_SET;
-	led_ws2801_set(WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, argc - 1);
+	led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, argc - 1);
 	return 0;
 }
 
@@ -1826,9 +1820,9 @@ int sensor_node_cmd_print_frames(int argc, char **argv)
 {
 	if (argc != 2)
 	{
-		puts("USAGE: print_frames TRUE|FALSE");
-		puts("Enables / Disables printing of the sensor state.");
-		puts("If enbaled, the state estimation state is printed every frame.");
+		printf("USAGE: print_frames TRUE|FALSE\n"
+			   "Enables / Disables printing of the sensor state.\n"
+			   "If enbaled, the state estimation state is printed every frame.");
 		return 1;
 	}
 
@@ -1850,20 +1844,21 @@ int sensor_node_cmd_print_status(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
-	puts("Requested status data");
+	printf("Requested status data\n");
 	ctx.debug_raw_status_requested = ~0;
 	return 0;
 }
 
 
+#ifndef WASCHV2
 int sensor_node_cmd_firmware_upgrade(int argc, char **argv)
 {
 	if (argc != 3 || strcmp(argv[1], "--start") != 0)
 	{
-		puts("USAGE: firmware_upgrade --start <baudrate>");
-		puts("Flash the MCU.");
-		puts("This command is NOT intended for interactive use. (Use flash util)");
-		puts("This way of flashing is UNSAFE! Only it if you know how to flash the controller with a STLink or through the serial bootloader!");
+		printf("USAGE: firmware_upgrade --start <baudrate>\n"
+			   "Flash the MCU.\n"
+			   "This command is NOT intended for interactive use. (Use flash util)\n"
+			   "This way of flashing is UNSAFE! Only it if you know how to flash the controller with a STLink or through the serial bootloader!");
 		return 0;
 	}
 
@@ -1872,5 +1867,4 @@ int sensor_node_cmd_firmware_upgrade(int argc, char **argv)
 	flasher_start(br);
 	return 0;
 }
-
 #endif

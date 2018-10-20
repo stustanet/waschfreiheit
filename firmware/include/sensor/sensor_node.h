@@ -45,7 +45,11 @@ int sensor_node_cmd_print_frames(int argc, char **argv);
  */
 int sensor_node_cmd_print_status(int argc, char **argv);
 
+
+#ifndef WASCHV2
 /*
  * Firmware update (Flash) command
  */
 int sensor_node_cmd_firmware_upgrade(int argc, char **argv);
+
+#endif
