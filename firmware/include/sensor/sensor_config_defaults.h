@@ -12,7 +12,6 @@
 
 #pragma once
 #include "rgbcolor.h"
-#include "net/lora.h"
 
 /*
  * This is the default color map for the leds.
@@ -39,17 +38,17 @@
 
 #define DefaultRFSettings               \
 {                                       \
-	433500000,      /* Frequency     */ \
-	10,             /* TX power      */ \
-	10,             /* Code rate     */ \
-	2,              /* Spread factor */ \
-	LORA_BW_125_KHZ /* Bandwidth     */ \
+     .frequency = 433500000,            \
+	 .tx_power = 10,                    \
+	 .lora_spread_factor = 10,          \
+	 .lora_coderate = 2,                \
+	 .lora_bandwidth = 7                \
 }
 
 #define DefaultMiscSettings             \
 {                                       \
-	1800,           /* Timeout             */ \
-	100,            /* Max retransmissions */ \
-	10,             /* RT random factor    */ \
-	3,              /* RT lin divider      */ \
+	.network_timeout            = 1800,	\
+	.max_status_retransmissions =  100, \
+	.rt_delay_random            =   10, \
+	.rt_delay_lin_div           =    3  \
 }

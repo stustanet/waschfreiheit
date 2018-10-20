@@ -7,20 +7,32 @@
 
 #ifndef MASTER
 
-// For now, hard-code the used page, this is the last one (one page is 1kb)
+// For now, hard-code the used page.
 // Obviously, this block MUST NOT CONTAIN any program data
 
-#define CONFIG_FLASH_PAGE 63
+#define FLASH_START 0x08000000
 #define CONFIG_MAGIC 0xDEADBEEF
 
+#ifdef WASCHV2
+// Second page for new boards
+#define CONFIG_FLASH_PAGE 1
+#define CONFIG_FLASH_ADDR (FLASH_START + 16384)
+#else
+
+// Last page for legacy boards
+#define CONFIG_FLASH_PAGE 63
+#define CONFIG_FLASH_ADDR (FLASH_START + 1024 * CONFIG_FLASH_PAGE)
+#endif
+
 #include "sensor_config.h"
-#include <periph/flashpage.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <libopencm3/stm32/flash.h>
 #include "sensor_config_defaults.h"
-#include "meshnw_config.h"
+#include "sx127x.h"
+#include "sx127x_config.h"
 #include "utils.h"
+#include "tinyprintf.h"
 
 static const uint32_t CONFIG_NETWORK    = 0x00000001;
 static const uint32_t CONFIG_COLORTABLE = 0x00000002;
@@ -38,33 +50,23 @@ typedef struct
 	uint32_t config_set;
 	sensor_configuration_t network;
 	color_table_t colortable;
-	meshnw_rf_config_t rf;
+	sx127x_rf_config_t rf;
 	misc_config_t misc;
 } config_with_magic_t;
-
-/*
- * The data needs to be padded so that is fills an entire flash page.
- * Otherwise i can't write the flash because the write funtion expects full pages.
- */
-typedef struct
-{
-	config_with_magic_t cfg;
-	uint8_t filler[FLASHPAGE_SIZE -  sizeof(config_with_magic_t)];
-} on_flash_config_t;
 
 
 const sensor_configuration_t *sensor_config_get(void)
 {
-	config_with_magic_t *cfg = flashpage_addr(CONFIG_FLASH_PAGE);
+	config_with_magic_t *cfg = (config_with_magic_t *)CONFIG_FLASH_ADDR;
 	if (cfg->magic != CONFIG_MAGIC)
 	{
-		puts("WRONG CONFIG MAGIC!\n");
+		printf("WRONG CONFIG MAGIC!\n");
 		return NULL;
 	}
 
 	if ((cfg->config_set & CONFIG_NETWORK) == 0)
 	{
-		puts("NETWORK NOT CONFIGURED!\n");
+		printf("NETWORK NOT CONFIGURED!\n");
 		return NULL;
 	}
 	return &cfg->network;
@@ -75,35 +77,35 @@ const sensor_configuration_t *sensor_config_get(void)
 const color_table_t *sensor_config_color_table(void)
 {
 	static const color_table_t defaultTable = DefaultColorMap;
-	config_with_magic_t *cfg = flashpage_addr(CONFIG_FLASH_PAGE);
+	config_with_magic_t *cfg = (config_with_magic_t *)CONFIG_FLASH_ADDR;
 	if (cfg->magic != CONFIG_MAGIC)
 	{
-		puts("Node not configured -> Use default colormap!\n");
+		printf("Node not configured -> Use default colormap!\n");
 		return &defaultTable;
 	}
 
 	if ((cfg->config_set & CONFIG_COLORTABLE) == 0)
 	{
-		puts("Colortable not configured -> Use default colormap!\n");
+		printf("Colortable not configured -> Use default colormap!\n");
 		return &defaultTable;
 	}
 	return &cfg->colortable;
 }
 
 
-const meshnw_rf_config_t *sensor_config_rf_settings(void)
+const sx127x_rf_config_t *sensor_config_rf_settings(void)
 {
-	static const meshnw_rf_config_t defaultConfig = DefaultRFSettings;
-	config_with_magic_t *cfg = flashpage_addr(CONFIG_FLASH_PAGE);
+	static const sx127x_rf_config_t defaultConfig = DefaultRFSettings;
+	config_with_magic_t *cfg = (config_with_magic_t *)CONFIG_FLASH_ADDR;
 	if (cfg->magic != CONFIG_MAGIC)
 	{
-		puts("Node not configured -> Use default rf config!\n");
+		printf("Node not configured -> Use default rf config!\n");
 		return &defaultConfig;
 	}
 
 	if ((cfg->config_set & CONFIG_RF) == 0)
 	{
-		puts("RF parameters not configured -> Use default!\n");
+		printf("RF parameters not configured -> Use default!\n");
 		return &defaultConfig;
 	}
 	return &cfg->rf;
@@ -113,16 +115,16 @@ const meshnw_rf_config_t *sensor_config_rf_settings(void)
 const misc_config_t *sensor_config_misc_settings(void)
 {
 	static const misc_config_t defaultMisc = DefaultMiscSettings;
-	config_with_magic_t *cfg = flashpage_addr(CONFIG_FLASH_PAGE);
+	config_with_magic_t *cfg = (config_with_magic_t *)CONFIG_FLASH_ADDR;
 	if (cfg->magic != CONFIG_MAGIC)
 	{
-		puts("Node not configured -> Use default misc settings!\n");
+		printf("Node not configured -> Use default misc settings!\n");
 		return &defaultMisc;
 	}
 
 	if ((cfg->config_set & CONFIG_MISC) == 0)
 	{
-		puts("Misc settings not configured -> Use default!\n");
+		printf("Misc settings not configured -> Use default!\n");
 		return &defaultMisc;
 	}
 	return &cfg->misc;
@@ -133,23 +135,23 @@ static int network_config(int argc, char **argv, config_with_magic_t *cfg)
 {
 	if (argc != 5)
 	{
-		puts("USAGE: config network <node_id> <key_status> <key_config>\n");
-		puts("node_id     The id of this node (decimal)");
-		puts("key_status  Key used for status messages (outgoing traffic)");
-		puts("key_config  Key used for config messages (incoming traffic)");
-		puts("Both keys must be exactly 128 bit long and encoded in hex format.");
+		printf("USAGE: config network <node_id> <key_status> <key_config>\n\n"
+			   "node_id     The id of this node (decimal)\n"
+			   "key_status  Key used for status messages (outgoing traffic)\n"
+			   "key_config  Key used for config messages (incoming traffic)\n"
+			   "Both keys must be exactly 128 bit long and encoded in hex format.\n");
 		return 1;
 	}
 
 	if (strlen(argv[3]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[3], AUTH_KEY_LEN * 2, cfg->network.key_status))
 	{
-		puts("Invalid status key, expected status key to be 32 hex chars (128 bit)!");
+		printf("Invalid status key, expected status key to be 32 hex chars (128 bit)!\n");
 		return 1;
 	}
 
 	if (strlen(argv[4]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[4], AUTH_KEY_LEN * 2, cfg->network.key_config))
 	{
-		puts("Invalid config key, expected status key to be 32 hex chars (128 bit)!");
+		printf("Invalid config key, expected status key to be 32 hex chars (128 bit)!\n");
 		return 1;
 	}
 
@@ -167,20 +169,20 @@ static int color_config(int argc, char **argv, config_with_magic_t *cfg)
 	if (argc == 3 && strcmp(argv[2], "get") == 0)
 	{
 		const color_table_t *current = sensor_config_color_table();
-		puts("Current color table:");
+		printf("Current color table:\n");
 		for (int i = 0; i < 16; i++)
 		{
 			printf("%u,%u,%u ", (*current)[i].r, (*current)[i].g, (*current)[i].b);
 		}
-		puts("");
+		printf("\n");
 		return 2;
 	}
 	else if (argc != 18)
 	{
-		puts("USAGE: config color get");
-		puts("USAGE: config color r0,g0,b0 r1,g1,b2 ... r15,g15,b15\n");
-		puts("All 16 RBG values are set at once.");
-		puts("Each RGB value is composed of 3 8-bit decimal numbers seperated by a comma.");
+		printf("USAGE: config color get\n"
+			   "USAGE: config color r0,g0,b0 r1,g1,b2 ... r15,g15,b15\n\n"
+			   "All 16 RBG values are set at once.\n"
+			   "Each RGB value is composed of 3 8-bit decimal numbers seperated by a comma.\n");
 		return 1;
 	}
 
@@ -203,7 +205,7 @@ static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 {
 	if (argc == 3 && strcmp(argv[2], "get") == 0)
 	{
-		const meshnw_rf_config_t *current = sensor_config_rf_settings();
+		const sx127x_rf_config_t *current = sensor_config_rf_settings();
 		printf("Current rf configuration:\n%lu %u %u %u ",
 		       current->frequency,
 		       current->tx_power,
@@ -211,32 +213,34 @@ static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 		       current->lora_coderate);
 		switch (current->lora_bandwidth)
 		{
-			case LORA_BW_125_KHZ: puts("125"); break;
-			case LORA_BW_250_KHZ: puts("250"); break;
-			case LORA_BW_500_KHZ: puts("500"); break;
+			case 7: printf("125\n"); break;
+			case 8: printf("250\n"); break;
+			case 9: printf("500\n"); break;
 		}
 		return 2;
 	}
 	else if (argc != 7)
 	{
-		puts("USAGE: config rf get");
-		puts("USAGE: config rf <frequency> <tx_power> <spread_factor> <coderate> <bandwidth>\n");
-		puts("frequency     Carrier frequency of the LoRa modem");
-		puts("              Valid range: "
-		                                   TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MIN)
-		                                   " - "
-		                                   TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MAX));
-		puts("tx_power      LoRa modem tx power in dB");
-		puts("              Max value: " TOSTRING(SX127X_CONFIG_LORA_POWER_MAX));
-		puts("spread_factor LoRa spreading factor");
-		puts("              Valid range: "
-		                                   TOSTRING(SX127X_CONFIG_LORA_SPREAD_MIN)
-		                                   " - "
-		                                   TOSTRING(SX127X_CONFIG_LORA_SPREAD_MAX));
-		puts("coderate      LoRa coderate");
-		puts("              Max value: " TOSTRING(SX127X_CONFIG_LORA_CODERATE_MAX));
-		puts("bandwidth     Signal bandwith");
-		puts("              Allowed values: 125, 250, 500");
+		printf("USAGE: config rf get\n"
+			   "USAGE: config rf <frequency> <tx_power> <spread_factor> <coderate> <bandwidth>\n\n"
+			   "frequency     Carrier frequency of the LoRa modem\n"
+			   "              Valid range: "
+			   TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MIN)
+			   " - "
+			   TOSTRING(SX127X_CONFIG_LORA_FREQUENCY_MAX)
+			   "\n"
+			   "tx_power      LoRa modem tx power in dB\n"
+			   "              Max value: " TOSTRING(SX127X_CONFIG_LORA_POWER_MAX) "\n"
+			   "spread_factor LoRa spreading factor\n"
+			   "              Valid range: "
+			   TOSTRING(SX127X_CONFIG_LORA_SPREAD_MIN)
+			   " - "
+			   TOSTRING(SX127X_CONFIG_LORA_SPREAD_MAX)
+			   "\n"
+			   "coderate      LoRa coderate\n"
+			   "              Max value: " TOSTRING(SX127X_CONFIG_LORA_CODERATE_MAX) "\n"
+			   "bandwidth     Signal bandwith\n"
+			   "              Allowed values: 125, 250, 500\n");
 		return 1;
 	}
 
@@ -244,14 +248,14 @@ static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 	if (f < SX127X_CONFIG_LORA_FREQUENCY_MIN ||
 	    f > SX127X_CONFIG_LORA_FREQUENCY_MAX)
 	{
-		puts("Frequency out of range!");
+		printf("Frequency out of range!\n");
 		return 1;
 	}
 
 	uint32_t p = strtoul(argv[3], NULL, 10);
 	if (p > SX127X_CONFIG_LORA_POWER_MAX)
 	{
-		puts("Tx power out of range!");
+		printf("Tx power out of range!\n");
 		return 1;
 	}
 
@@ -259,25 +263,25 @@ static int rf_config(int argc, char **argv, config_with_magic_t *cfg)
 	if (sf > SX127X_CONFIG_LORA_SPREAD_MAX ||
 	    sf < SX127X_CONFIG_LORA_SPREAD_MIN)
 	{
-		puts("Spreading factor out of range!");
+		printf("Spreading factor out of range!\n");
 		return 1;
 	}
 
 	uint32_t cr = strtoul(argv[5], NULL, 10);
 	if (cr > SX127X_CONFIG_LORA_CODERATE_MAX)
 	{
-		puts("Invalid coderate!");
+		printf("Invalid coderate!\n");
 		return 1;
 	}
 
 	uint32_t bw = strtoul(argv[6], NULL, 10);
 	switch (bw)
 	{
-		case 125: cfg->rf.lora_bandwidth = LORA_BW_125_KHZ; break;
-		case 250: cfg->rf.lora_bandwidth = LORA_BW_250_KHZ; break;
-		case 500: cfg->rf.lora_bandwidth = LORA_BW_500_KHZ; break;
+		case 125: cfg->rf.lora_bandwidth = 7; break;
+		case 250: cfg->rf.lora_bandwidth = 8; break;
+		case 500: cfg->rf.lora_bandwidth = 9; break;
 		default:
-			puts("Invalid LoRa bandwitth");
+			printf("Invalid LoRa bandwitth\n");
 			return 1;
 	}
 
@@ -307,18 +311,18 @@ static int misc_config(int argc, char **argv, config_with_magic_t *cfg)
 	}
 	else if (argc != 6)
 	{
-		puts("USAGE: config misc get");
-		puts("USAGE: config misc <timeout> <max_retransmissions> <rt_delay_random> <rt_delay_lin>\n");
-		puts("timeout              The timeout (in seconds) for the network before the node reboots.");
-		puts("                     The timer is reset when authenticated message arrives");
-		puts("max_retransmissions  Max number of consecutive status retransmissions");
-		puts("                     before the node reboots.");
-		puts("rt_delay_random      Factor for the random part in the retransmission delay.");
-		puts("rt_delay_lin         Divider for the number of retransmissions when calculating the delay.\n");
-		puts("Retransmission delay calculation:");
-		puts("delay = base_delay + random(0, rt_delay_random * (1 + num_retransmissions / re_delay_lin)");
-		puts("base_delay is the \"timeout\" specified on the master when connection to the node");
-		puts("num_retransmissions is the number of consecutive retransmissions.");
+		printf("USAGE: config misc get\n"
+			   "USAGE: config misc <timeout> <max_retransmissions> <rt_delay_random> <rt_delay_lin>\n\n"
+			   "timeout              The timeout (in seconds) for the network before the node reboots.\n"
+			   "                     The timer is reset when authenticated message arrives\n"
+			   "max_retransmissions  Max number of consecutive status retransmissions\n"
+			   "                     before the node reboots.\n"
+			   "rt_delay_random      Factor for the random part in the retransmission delay.\n"
+			   "rt_delay_lin         Divider for the number of retransmissions when calculating the delay.\n\n"
+			   "Retransmission delay calculation:\n"
+			   "delay = base_delay + random(0, rt_delay_random * (1 + num_retransmissions / re_delay_lin)\n"
+			   "base_delay is the \"timeout\" specified on the master when connection to the node\n"
+			   "num_retransmissions is the number of consecutive retransmissions.\n");
 		return 1;
 	}
 
@@ -327,7 +331,7 @@ static int misc_config(int argc, char **argv, config_with_magic_t *cfg)
 	if (f < 10)
 	{
 		// Setting the timeout to 0 sec would soft-brick the node.
-		puts("Timeout must be > 10s");
+		printf("Timeout must be > 10s\n");
 		return 1;
 	}
 
@@ -344,57 +348,53 @@ static int misc_config(int argc, char **argv, config_with_magic_t *cfg)
 
 int sensor_config_set_cmd(int argc, char **argv)
 {
-	/*
-	 * This is the buffer for read-write-modify operations on the config page.
-	 */
-	static on_flash_config_t config_buffer;
-	_Static_assert(sizeof(config_buffer) == FLASHPAGE_SIZE, "Config buffer must have flash page size");
-
 	if (argc < 2)
 	{
-		puts("USAGE: config <type> ...\n");
-		puts("Configures this node.");
-		puts("Config types:");
-		puts("    network  Network settings");
-		puts("    color    Colortable for the status LEDs");
-		puts("    rf       Radio configuration");
-		puts("    misc     Misc settings");
-		puts("    reset    Resets the whole config");
+		printf("USAGE: config <type> ...\n\n"
+			   "Configures this node.\n"
+			   "Config types:\n"
+			   "    network  Network settings\n"
+			   "    color    Colortable for the status LEDs\n"
+			   "    rf       Radio configuration\n"
+			   "    misc     Misc settings\n"
+			   "    reset    Resets the whole config\n");
 		return 1;
 	}
 
+	config_with_magic_t newCfg;
+	config_with_magic_t *cfg = (config_with_magic_t *)CONFIG_FLASH_ADDR;
 
 	// copy old flash page into buffer
-	memcpy(&config_buffer, flashpage_addr(CONFIG_FLASH_PAGE), sizeof(config_buffer));
-	if (config_buffer.cfg.magic != CONFIG_MAGIC)
+	memcpy(&newCfg, cfg, sizeof(newCfg));
+	if (newCfg.magic != CONFIG_MAGIC)
 	{
 		// invalid magic -> reset all "configured" bits
-		config_buffer.cfg.config_set = 0;
+		newCfg.config_set = 0;
 	}
 
 	int res;
 
 	if (strcmp(argv[1], "network") == 0)
 	{
-		res = network_config(argc, argv, &config_buffer.cfg);
+		res = network_config(argc, argv, &newCfg);
 	}
 	else if (strcmp(argv[1], "color") == 0)
 	{
-		res = color_config(argc, argv, &config_buffer.cfg);
+		res = color_config(argc, argv, &newCfg);
 	}
 	else if (strcmp(argv[1], "rf") == 0)
 	{
-		res = rf_config(argc, argv, &config_buffer.cfg);
+		res = rf_config(argc, argv, &newCfg);
 	}
 	else if (strcmp(argv[1], "misc") == 0)
 	{
-		res = misc_config(argc, argv, &config_buffer.cfg);
+		res = misc_config(argc, argv, &newCfg);
 	}
 	else if (strcmp(argv[1], "reset") == 0)
 	{
-		puts("Reset config!");
+		printf("Reset config!");
 		// zero the whole config
-		memset(&config_buffer, 0, sizeof(config_buffer));
+		memset(&newCfg, 0, sizeof(newCfg));
 
 		res = 0;
 	}
@@ -410,15 +410,14 @@ int sensor_config_set_cmd(int argc, char **argv)
 	}
 
 	// set valid magic
-	config_buffer.cfg.magic = CONFIG_MAGIC;
+	newCfg.magic = CONFIG_MAGIC;
 
-	if (flashpage_write_and_verify(CONFIG_FLASH_PAGE, &config_buffer) != FLASHPAGE_OK)
-	{
-		puts("Flash verification failed!");
-		return 1;
-	}
+	flash_unlock();
+	flash_erase_sector(CONFIG_FLASH_PAGE, FLASH_CR_PROGRAM_X32);
+	flash_program(CONFIG_FLASH_ADDR, (uint8_t*)&newCfg, sizeof(newCfg));
+	flash_lock();
 
-	puts("OK Config updated, some changes have no effect until restart!");
+	printf("OK Config updated, some changes have no effect until restart!\n");
 	return 0;
 
 }

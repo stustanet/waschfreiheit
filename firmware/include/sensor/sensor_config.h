@@ -63,7 +63,7 @@ const color_table_t *sensor_config_color_table(void);
  * Gets the current RF configuration.
  * If the rf config is not set, default values are returned,
  */
-const meshnw_rf_config_t *sensor_config_rf_settings(void);
+const sx127x_rf_config_t *sensor_config_rf_settings(void);
 
 /*
  * Gets the current configuration for various parameters.
