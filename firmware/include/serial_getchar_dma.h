@@ -5,6 +5,8 @@
  */
 
 
+#pragma once
+
 /*
  * This provides serial_getchar() that reads a char from the USART1 using DMA.
  * The DMA comes with it's own 32-byte buffer. This will buffer any input, even if
