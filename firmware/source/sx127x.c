@@ -230,8 +230,17 @@ bool sx127x_init(const sx127x_rf_config_t *cfg)
 
 uint8_t sx127x_recv(uint8_t *buffer, uint8_t max)
 {
-	uint8_t mode = sx127x_get_reg(SX127x_RegOpMode);
-	if ((mode & SX127x_RegOpMode_Mode_Mask) != SX127x_RegOpMode_Mode_RXSINGLE)
+	uint8_t modereg = sx127x_get_reg(SX127x_RegOpMode);
+	uint8_t mode = modereg & SX127x_RegOpMode_Mode_Mask;
+
+	if (mode == SX127x_RegOpMode_Mode_TX ||
+		mode == SX127x_RegOpMode_Mode_FSTX)
+	{
+		// Currently in tx mode
+		return 0;
+	}
+
+	if (mode != SX127x_RegOpMode_Mode_RXSINGLE)
 	{
 		// Not in rx mode -> Check, if we got data
 		uint8_t irqflags = sx127x_get_reg(SX127x_RegIrqFlags);
@@ -258,7 +267,7 @@ uint8_t sx127x_recv(uint8_t *buffer, uint8_t max)
 		}
 
 		// Not in rx mode and no RxDone Interrupt -> re-enter rx mode
-		mode = (mode & ~SX127x_RegOpMode_Mode_Mask) | SX127x_RegOpMode_Mode_RXSINGLE;
+		mode = (modereg & ~SX127x_RegOpMode_Mode_Mask) | SX127x_RegOpMode_Mode_RXSINGLE;
 		printf("Set mode to %02x for RX\n", mode);
 		sx127x_set_reg(SX127x_RegOpMode, mode);
 	}
