@@ -12,7 +12,7 @@
  * turned off until the system is reset.
  */
 
-#include "board.h"
+#include <libopencm3/stm32/iwdg.h>
 
 #define WATCHDOG_KEY_UNLOCK 0x5555
 #define WATCHDOG_KEY_FEED   0xAAAA
@@ -22,7 +22,7 @@
 /*
  * Feed the IWDG by writing AAAA into the key register
  */
-#define WATCHDOG_FEED() IWDG->KR = WATCHDOG_KEY_FEED
+#define WATCHDOG_FEED() IWDG_KR = WATCHDOG_KEY_FEED
 
 /*
  * Init the hardware watchdog with a 32 prescaler and the maximum reload value (4095).
@@ -33,14 +33,14 @@ static inline void watchdog_init(void)
 	/*
 	 * In order to access these registers, I need to unlock them first.
 	 */
-	IWDG->KR = WATCHDOG_KEY_UNLOCK;
-	IWDG->PR = 3;      // 32 Prescaler
-	IWDG->RLR = 0xFFF; // 4095, the max value
+	IWDG_KR = WATCHDOG_KEY_UNLOCK;
+	IWDG_PR = 3;      // 32 Prescaler
+	IWDG_RLR = 0xFFF; // 4095, the max value
 
 	// Now feed the WD, this re-locks the registers.
 	WATCHDOG_FEED();
 
 	// Finally start the WD
-	IWDG->KR = WATCHDOG_KEY_START;
+	IWDG_KR = WATCHDOG_KEY_START;
 
 }

@@ -16,35 +16,43 @@
  * The following code might not work in future compiler versions!
  */
 
-#include <periph/flashpage.h>
-#include <periph/uart.h>
+#include "flasher.h"
+#include <libopencm3/stm32/usart.h>
+#include <libopencm3/stm32/flash.h>
+#include <libopencm3/stm32/rcc.h>
+#include <libopencm3/cm3/cortex.h>
 
 #include <stdint.h>
 #include <string.h>
-#include "irq.h"
-#include "watchdog.h"
 #include "utils.h"
-#include "board.h"
+#include "watchdog.h"
+#include "tinyprintf.h"
 
-#define NUM_PAGES_TO_FLASH (FLASHPAGE_NUMOF - 1)
+// Write everything but the config page
+#define NUM_PAGES_TO_FLASH 63
 
 // 128 16-bit per block
 #define FLASHER_BLOCK_SIZE 128
 
+#define FLASH_KEY1 0x45670123
+#define FLASH_KEY2 0xCDEF89AB
+
 /*
  * Need to use macros instead of function calls to avoid addressing problems
  */
-#define READCHAR()   ({ while ((USART1->SR & USART_SR_RXNE) == 0); USART1->DR; })
-#define READCHAR_NORST()   ({ while ((USART1->SR & USART_SR_RXNE) == 0) WATCHDOG_FEED(); USART1->DR; })
-#define WRITECHAR(C) while ((USART1->SR & USART_SR_TXE) == 0); USART1->DR = C
-#define FLASH_WAIT() while ((FLASH->SR & FLASH_SR_BSY) != 0) WATCHDOG_FEED()
+#define READCHAR()   ({ while ((USART_SR(USART1) & USART_SR_RXNE) == 0); USART_DR(USART1); })
+#define READCHAR_NORST()   ({ while ((USART_SR(USART1) & USART_SR_RXNE) == 0) WATCHDOG_FEED(); USART_DR(USART1); })
+#define WRITECHAR(C) while ((USART_SR(USART1) & USART_SR_TXE) == 0); USART_DR(USART1) = C
+#define FLASH_WAIT() while ((FLASH_SR & FLASH_SR_BSY) != 0) WATCHDOG_FEED()
 
 
 /*
  * The total number of loop cycles.
  * In each cycle FLASHER_BLOCK_SIZE * 2 bytes are written
  */
-#define NUM_FLASH_LOOP_CYCLES ((NUM_PAGES_TO_FLASH * FLASHPAGE_SIZE) / FLASHER_BLOCK_SIZE / 2)
+#define NUM_FLASH_LOOP_CYCLES ((NUM_PAGES_TO_FLASH * 1024) / FLASHER_BLOCK_SIZE / 2)
+
+#define FLASH_START 0x08000000
 
 static void flasher_function(void)
 {
@@ -74,8 +82,8 @@ static void flasher_function(void)
 
 
 	// Unlock the flash controller
-	FLASH->KEYR = FLASH_KEY1;
-	FLASH->KEYR = FLASH_KEY2;
+	FLASH_KEYR = FLASH_KEY1;
+	FLASH_KEYR = FLASH_KEY2;
 
 	uint16_t buffer[FLASHER_BLOCK_SIZE];
 
@@ -86,19 +94,19 @@ static void flasher_function(void)
 		if (cmd == 'e')
 		{
 			FLASH_WAIT();
-			FLASH->CR |= FLASH_CR_MER;
-			FLASH->CR |= FLASH_CR_STRT;
+			FLASH_CR |= FLASH_CR_MER;
+			FLASH_CR |= FLASH_CR_STRT;
 			FLASH_WAIT();
-			FLASH->CR &= ~FLASH_CR_MER;
+			FLASH_CR &= ~FLASH_CR_MER;
 			WRITECHAR('E');
 		}
 		else if (cmd == 'w')
 		{
-			uint16_t *flash = (uint16_t *)CPU_FLASH_BASE;
+			uint16_t *flash = (uint16_t *)FLASH_START;
 			uint32_t counter = NUM_FLASH_LOOP_CYCLES;
 
 			// Activate write mode
-			FLASH->CR |= FLASH_CR_PG;
+			FLASH_CR |= FLASH_CR_PG;
 
 			while (counter--)
 			{
@@ -121,12 +129,12 @@ static void flasher_function(void)
 				}
 			}
 			// Disable write mode
-			FLASH->CR &= ~FLASH_CR_PG;
+			FLASH_CR &= ~FLASH_CR_PG;
 			WRITECHAR('W');
 		}
 		else if (cmd == 'v')
 		{
-			uint16_t *flash = (uint16_t *)CPU_FLASH_BASE;
+			uint16_t *flash = (uint16_t *)FLASH_START;
 			uint32_t counter = NUM_FLASH_LOOP_CYCLES;
 
 			uint8_t failed = 0;
@@ -209,27 +217,24 @@ void flasher_start(uint32_t baudrate)
 
 	if (((size_t)&flasher_function_end) < ((size_t)&flasher_function))
 	{
-		puts("Wrong function order for flasher function!");
+		printf("Wrong function order for flasher function!\n1");
 		return;
 	}
 
 
 	printf("About to change the baudrate for flashing to %lu.\nSee you on the other side.\n", baudrate);
 	// We dont want any interrupt to interfere with our flasher
-	irq_disable();
+	cm_disable_interrupts();
 
 	// Stop the USART DMA
-	USART1->CR3 &= ~USART_CR3_DMAR;
+	USART1_CR3 &= ~USART_CR3_DMAR;
 
 	// Turn on the LSI, this is needed for flashing
-	RCC->CR |= (RCC_CR_HSION);
-	while (!(RCC->CR & RCC_CR_HSIRDY)) {}
+	RCC_CR |= (RCC_CR_HSION);
+	while (!(RCC_CR & RCC_CR_HSIRDY)) {}
 
 	// Change the baudrate for flashing
-	uart_init(UART_DEV(0), baudrate, &dummy_rx_cb, NULL);
-
-	// Disable the interrupt again (just in case uart_init enables them)
-	irq_disable();
+	usart_set_baudrate(USART1, baudrate);
 
 	// Wait some time to allow host to change baudrate
 	for (uint32_t volatile i = 0; i < 5000000; i++);
