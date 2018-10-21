@@ -16,7 +16,10 @@
 #include <semphr.h>
 
 #include "tinyprintf.h"
+
+#ifndef MASTER
 #include "led_status.h"
+#endif
 
 #define MESHNW_MSG_QUEUE   (16U)
 #define NETDEV_ISR_EVENT_MESSAGE   (0x3456)
@@ -137,7 +140,9 @@ static bool forward_packet(void *packet, uint8_t len)
 		return false;
 	}
 
+#ifndef MASTER
 	led_status_system(LED_STATUS_SYSTEM_TX);
+#endif
 
 	xSemaphoreTake(context.mutex, portMAX_DELAY);
 
@@ -175,7 +180,9 @@ static void handle_rx_cplt(uint8_t *packet, uint8_t len)
 		return;
 	}
 
+#ifndef MASTER
 	led_status_system(LED_STATUS_SYSTEM_RX);
+#endif
 
 	// Check the packet header
 	layer3_packet_header_t *hdr = (layer3_packet_header_t *)packet;
