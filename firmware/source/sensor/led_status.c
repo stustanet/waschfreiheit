@@ -34,7 +34,7 @@ typedef struct _grb_data
 #include "i2s_rgb.h"
 #endif
 
-#define COPY_CONVERT_RGB(dst, src) dst.r = (src.r >> 6); dst.g = (src.g >> 6); dst.b = (src.b >> 2)
+#define COPY_CONVERT_RGB(dst, src) dst.r = (src.r >> 5); dst.g = (src.g >> 5); dst.b = (src.b >> 5)
 
 #if NUM_SYSTEM_LEDS != 0
 static struct
@@ -64,8 +64,8 @@ static struct
 
 
 #if NUM_CHANNEL_LEDS != 0
-static const rgb_data_t CHANNEL_LED_ON      = {.r = 0x00, .g = 0xff, .b = 0x00};
-static const rgb_data_t CHANNEL_LED_OFF     = {.r = 0xff, .g = 0x00, .b = 0x00};
+static const rgb_data_t CHANNEL_LED_ON      = {.r = 0xff, .g = 0x00, .b = 0x00};
+static const rgb_data_t CHANNEL_LED_OFF     = {.r = 0x00, .g = 0xff, .b = 0x00};
 static const rgb_data_t CHANNEL_LED_DISALED = {.r = 0x00, .g = 0x00, .b = 0x00};
 #endif
 
@@ -73,7 +73,7 @@ static LED_COLOR_STRUCT led_buffer[NUM_OF_LEDS];
 
 
 #if NUM_SYSTEM_LEDS != 0
-static rgb_data_t system_led_original_colors[NUM_SYSTEM_LEDS];
+static LED_COLOR_STRUCT system_led_original_colors[NUM_SYSTEM_LEDS];
 static uint8_t system_led_temp_status = 0;
 
 SemaphoreHandle_t led_buffer_mutex;
@@ -109,7 +109,7 @@ void led_status_system(enum LED_STATUS_SYSTEM status)
 		{
 			// Save the old color (if not already saved)
 			system_led_temp_status |= 1 << led;
-			COPY_CONVERT_RGB(system_led_original_colors[led], led_buffer[led]);
+			system_led_original_colors[led] = led_buffer[led];
 		}
 
 		COPY_CONVERT_RGB(led_buffer[led], status_color_table[status].color);
@@ -124,7 +124,7 @@ void led_status_system(enum LED_STATUS_SYSTEM status)
 		else
 		{
 			// Event color -> set the original color
-			system_led_original_colors[led] = status_color_table[status].color;
+			COPY_CONVERT_RGB(system_led_original_colors[led], status_color_table[status].color);
 		}
 	}
 
@@ -138,13 +138,14 @@ void led_status_channels(uint16_t enable, uint16_t status)
 {
 #if NUM_CHANNEL_LEDS != 0
 
+
 	for (uint8_t i = 0; i < NUM_CHANNEL_LEDS; i++)
 	{
-		if ((enable << i) == 0)
+		if ((enable & (1 << i)) == 0)
 		{
 			COPY_CONVERT_RGB(led_buffer[NUM_SYSTEM_LEDS + i], CHANNEL_LED_DISALED);
 		}
-		else if ((status << i) == 0)
+		else if ((status & (1 << i)) == 0)
 		{
 			COPY_CONVERT_RGB(led_buffer[NUM_SYSTEM_LEDS + i], CHANNEL_LED_OFF);
 		}
@@ -200,7 +201,7 @@ void led_status_update(void)
 	{
 		if (system_led_temp_status  & (1 << i))
 		{
-			COPY_CONVERT_RGB(led_buffer[i], system_led_original_colors[i]);
+			led_buffer[i] = system_led_original_colors[i];
 		}
 	}
 

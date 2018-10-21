@@ -15,10 +15,19 @@
  *      USed to display some information (like a global status) to the users.
  */
 
+#ifdef WASCHV1
+
+#define NUM_SYSTEM_LEDS 0
+#define NUM_CHANNEL_LEDS 0
+#define NUM_EXTERNAL_LEDS 5
+
+#else
 
 #define NUM_SYSTEM_LEDS 2
 #define NUM_CHANNEL_LEDS 4
 #define NUM_EXTERNAL_LEDS 5
+
+#endif
 
 #define NUM_OF_LEDS (NUM_SYSTEM_LEDS + NUM_CHANNEL_LEDS + NUM_EXTERNAL_LEDS)
 
