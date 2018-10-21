@@ -21,13 +21,12 @@
  * -- Config channel --
  * Sends the packet in the last packet buffer to the node and resets the timeout
  */
-static int send_last_packet(sensor_connection_t *con)
+static bool send_last_packet(sensor_connection_t *con)
 {
-	int res = meshnw_send(con->node_id, con->last_sent_message, con->last_sent_message_len);
-
-	if (res != 0)
+	bool res = meshnw_send(con->node_id, con->last_sent_message, con->last_sent_message_len);
+	if (!res)
 	{
-		printf("Failed to send message to node %u with error %i\n", con->node_id, res);
+		printf("Failed to send message to node %u.\n", con->node_id);
 	}
 
 	con->timeout_counter= 0;
@@ -65,12 +64,9 @@ static void handle_hs1(sensor_connection_t *con, uint8_t *message, uint8_t len)
 	}
 
 	// send hs2 directly (not through the retransmission buffer)
-
-	res = meshnw_send(con->node_id, rep_buffer, rep_len);
-
-	if (res != 0)
+	if (!meshnw_send(con->node_id, rep_buffer, rep_len))
 	{
-		printf("Failed to send hs2 message to node %u with error %i\n", con->node_id, res);
+		printf("Failed to send hs2 message to node %u.\n", con->node_id);
 	}
 }
 
@@ -173,11 +169,9 @@ static void ack_status_message(sensor_connection_t *con)
 	}
 
 	// ... and send it directly.
-	res = meshnw_send(con->node_id, ack_buffer, ack_len);
-
-	if (res != 0)
+	if (!meshnw_send(con->node_id, ack_buffer, ack_len))
 	{
-		printf("Failed to send ack to node %u with error %i\n", con->node_id, res);
+		printf("Failed to send ack to node %u.\n", con->node_id);
 	}
 }
 

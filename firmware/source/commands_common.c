@@ -80,10 +80,9 @@ void cmd_ping(int argc, char **argv)
 	msg_echo_request_t ping;
 	ping.type = MSG_TYPE_ECHO_REQUEST;
 
-	int res = meshnw_send(dst, &ping, sizeof(ping));
-	if (res != 0)
+	if (!meshnw_send(dst, &ping, sizeof(ping)))
 	{
-		printf("Send ping request to node %u failed with error %i\n", dst, res);
+		printf("Send ping request to node %u failed.\n", dst);
 		return;
 	}
 }

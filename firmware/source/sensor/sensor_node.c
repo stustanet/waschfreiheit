@@ -430,11 +430,9 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 	}
 
 	// Finally send the hs2 to the master.
-	res = meshnw_send(src, out_buffer, rep_msg_len);
-
-	if (res != 0)
+	if (!meshnw_send(src, out_buffer, rep_msg_len))
 	{
-		printf("sending slave handshake reply failed with error %i\n", res);
+		printf("sending slave handshake reply failed\n");
 		return;
 	}
 
@@ -480,11 +478,9 @@ static void init_status_auth(void)
 	}
 
 	// Send the hs1 to the master.
-	res = meshnw_send(ctx.master_node, out_buffer, rep_msg_len);
-
-	if (res != 0)
+	if (!meshnw_send(ctx.master_node, out_buffer, rep_msg_len))
 	{
-		printf("sending master handshake failed with error %i\n", res);
+		printf("sending master handshake failed\n");
 		return;
 	}
 
@@ -584,11 +580,9 @@ static void send_ack(uint8_t ack_result)
 	}
 
 	// Send the ack to the master.
-	res = meshnw_send(ctx.master_node, out_buffer, rep_msg_len);
-
-	if (res != 0)
+	if (!meshnw_send(ctx.master_node, out_buffer, rep_msg_len))
 	{
-		printf("sending slave ack reply failed with error %i\n", res);
+		printf("sending slave ack reply failed\n");
 	}
 
 	// Store ack result for the case i need to do a retransmission.
@@ -1042,10 +1036,9 @@ static void handle_echo_request(nodeid_t src, void *data, uint8_t len)
 	msg_echo_reply_t echo_rep_msg;
 	echo_rep_msg.type = MSG_TYPE_ECHO_REPLY;
 
-	int res = meshnw_send(src, &echo_rep_msg, sizeof(echo_rep_msg));
-	if (res != 0)
+	if (!meshnw_send(src, &echo_rep_msg, sizeof(echo_rep_msg)))
 	{
-		printf("Failed to send echo reply, error: %i\n", res);
+		printf("Failed to send echo reply\n");
 	}
 }
 
@@ -1233,13 +1226,9 @@ static void adc_thread(void *arg)
 					{
 						// Message full or no more data to send => send the message
 						uint8_t len = raw_values_in_msg * sizeof(raw_frame_vals->values[0]) + sizeof(*raw_frame_vals);
-						int res = meshnw_send(ctx.master_node,
-						                      rf_buffer,
-						                      len);
-
-						if (res != 0)
+						if (!meshnw_send(ctx.master_node, rf_buffer, len))
 						{
-							printf("Failed to send raw frame values with error %i\n", res);
+							printf("Failed to send raw frame values.\n");
 						}
 
 						raw_values_in_msg = 0;
@@ -1313,11 +1302,9 @@ static void send_status_update_message(uint16_t status)
 	}
 
 	// ... and send it.
-	res = meshnw_send(ctx.master_node, out_buffer, status_msg_len);
-
-	if (res != 0)
+	if (!meshnw_send(ctx.master_node, out_buffer, status_msg_len))
 	{
-		printf("sending status update failed with error %i\n", res);
+		printf("sending status update failed.\n");
 	}
 }
 
@@ -1354,10 +1341,9 @@ static void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 		rs->channels[i].current_status = stateest_get_current_state(&ctx.sensors[i]);
 	}
 
-	int res = meshnw_send(ctx.master_node, out_buffer, sizeof(out_buffer));
-	if (res != 0)
+	if (!meshnw_send(ctx.master_node, out_buffer, sizeof(out_buffer)))
 	{
-		printf("sending raw status failed with error %i\n", res);
+		printf("sending raw status failed.\n");
 	}
 }
 
@@ -1736,7 +1722,7 @@ int sensor_node_init(void)
 	ctx.current_node = cfg->my_id;
 
 	// Need to init RF network before crypto because i need random numbers for crypto init
-	if (meshnw_init(cfg->my_id, sensor_config_rf_settings(), &mesh_message_received) != 0)
+	if (!meshnw_init(cfg->my_id, sensor_config_rf_settings(), &mesh_message_received))
 	{
 		return SN_ERROR_MESHNW_INIT;
 	}
