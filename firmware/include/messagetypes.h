@@ -200,6 +200,26 @@ typedef struct
 
 
 /*
+ * Configure an LED to blink on a status change.
+ * The number of channels to configure is defined by the message size.
+ * The idea is that the LED starts to blink when the change occures to signal
+ * a status change is being processed by the system. When the change message arrives
+ * at the master, it will send a LED color command which will reset the blink status.
+ */
+#define MSG_TYPE_CONFIGURE_STATUS_CHANGE_INDICATOR     13
+typedef struct
+{
+	msg_type_t type;
+	struct
+	{
+		uint8_t led;
+		uint8_t color : 4;
+		uint8_t channel : 4;
+	} __attribute__((packed)) data[0];
+} __attribute__((packed)) msg_configure_status_change_indicator_t;
+
+
+/*
  * Status update message sent by the node through the status channel to the master.
  */
 #define MSG_TYPE_STATUS_UPDATE             64
