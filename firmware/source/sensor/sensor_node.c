@@ -79,6 +79,18 @@
 // This is cleared when a LED message arrives.
 #define STATUS_NO_LED_UPDATE      0x000000400
 
+// If this bit is set, all sensor configure requests are rejected.
+// Also, no status updates are sent.
+// While this mode is active, the network timeout is NOT reset, therefore the node will reset itself after the specified timeout.
+// This can only be cleared by a restart of the node or by the reset request
+#define STATUS_SENSOR_TEST        0x000000800
+
+
+#ifndef BOARD_WASCH_V1
+static void init_channel_test_mode(void);
+#endif
+
+
 /*
  * This struct contains all the runtime-data for the node logic
  */
@@ -389,7 +401,7 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 		hs2->status |= MSG_HS_2_STATUS_ROUTES;
 	}
 
-	if (ctx.status & STATUS_SENSORS_ACTIVE)
+	if ((ctx.status & STATUS_SENSORS_ACTIVE) && !(ctx.status & STATUS_SENSOR_TEST))
 	{
 		hs2->status |= MSG_HS_2_STATUS_SENSOR;
 	}
@@ -715,10 +727,13 @@ static int check_auth_message(nodeid_t src, void *data, uint32_t *len)
 		return res;
 	}
 
-	/*
-	 * Reset the timeout for receiving config messages.
-	 */
-	ctx.config_channel_timeout_timer = 0;
+	if (!(ctx.status & STATUS_SENSOR_TEST))
+	{
+		/*
+		 * Reset the timeout for receiving config messages.
+		 */
+		ctx.config_channel_timeout_timer = 0;
+	}
 	return 0;
 }
 
@@ -813,6 +828,13 @@ static void handle_sensor_cfg_request(nodeid_t src, void *data, uint8_t len)
 		return;
 	}
 
+	if (ctx.status & STATUS_SENSOR_TEST)
+	{
+		printf("Rejecting sensor configure request while in SENSOR_TEST mode\n");
+		send_ack(3);
+		return;
+	}
+
 	// Get the current samples per second
 	uint16_t sps = calculate_adc_sps();
 
@@ -852,6 +874,14 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 		// Wrong size
 		printf("Received sensor start message with wrong size %lu\n", msglen);
 		send_ack(1);
+		return;
+	}
+
+
+	if (ctx.status & STATUS_SENSOR_TEST)
+	{
+		printf("Rejecting sensor start request while in SENSOR_TEST mode\n");
+		send_ack(3);
 		return;
 	}
 
@@ -1697,6 +1727,13 @@ static void message_thread(void *arg)
 			}
 		}
 
+
+		if (ctx.status & STATUS_SENSOR_TEST)
+		{
+			// No status updates if in test mode
+			continue;
+		}
+
 		xSemaphoreTake(ctx.mutex, portMAX_DELAY);
 
 		if ((ctx.status & STATUS_INIT_AUTH_STA) == 0)
@@ -2014,4 +2051,55 @@ void sensor_node_cmd_firmware_upgrade(int argc, char **argv)
 	flasher_start(br);
 	return;
 }
+
+#else
+
+
+void sensor_node_cmd_channel_test(int argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
+
+	init_channel_test_mode();
+	return 0;
+}
+
+
+/*
+ * Configures and enables all channels with a test config
+ */
+static void init_channel_test_mode(void)
+{
+	static const state_estimation_params_t TEST_PARAMS =
+	{
+		.input_filter =
+		{
+			.mid_value_adjustment_speed = 65535,
+			.lowpass_weight = 10,
+			.num_samples = 250
+		},
+		.state_filter =
+		{
+			.transition_matrix = {0, 1100, 0, 0, 0, 0, -900, 0, 0, 0, 0, 0}, // in 0 above 1100 to 2; in 2 below 900 to 0
+			.window_sizes = {3, 3, 3, 3},
+			.reject_threshold = 0,
+			.reject_consec_count = 0
+		}
+	};
+
+
+	printf("STARTING CHANNEL TEST MODE\n");
+
+	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	{
+		stateest_init(&ctx.sensors[i], &TEST_PARAMS, 500);
+		ctx.active_sensor_channels |= 1 << i;
+	}
+	ctx.sensor_loop_delay_ms = 1000 / 500;
+
+	xSemaphoreTake(ctx.mutex, portMAX_DELAY);
+	ctx.status |= STATUS_SENSOR_TEST | STATUS_SENSORS_ACTIVE;
+	xSemaphoreGive(ctx.mutex);
+}
+
 #endif

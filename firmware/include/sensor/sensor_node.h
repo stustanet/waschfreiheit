@@ -50,4 +50,11 @@ void sensor_node_cmd_print_status(int argc, char **argv);
  */
 void sensor_node_cmd_firmware_upgrade(int argc, char **argv);
 
+#else
+
+/*
+ * Channel test command
+ */
+void sensor_node_cmd_channel_test(int argc, char **argv);
+
 #endif

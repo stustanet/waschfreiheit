@@ -33,6 +33,8 @@ const cli_command_t cli_commands[] = {
     { "status",           "Prints node status",                      sensor_node_cmd_print_status },
 #ifdef WASCHV1
     { "firmware_upgrade", "Firmware upgrade",                        sensor_node_cmd_firmware_upgrade },
+#else
+    { "channel_test",     "Enter channel testing mode",              sensor_node_cmd_channel_test },
 #endif
     { NULL, NULL, NULL }
 };
