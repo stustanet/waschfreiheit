@@ -11,10 +11,10 @@
  * Obvoíously, this should only be used for short prints.
  */
 
-#include "irq.h"
+#include <libopencm3/cm3/cortex.h>
 #define ISRSAFE_PRINTF(...)         \
 {                                   \
-	int state = irq_disable();      \
+	cm_disable_interrupts();        \
 	printf(__VA_ARGS__);            \
-	irq_restore(state);             \
+	cm_enable_interrupts();         \
 }

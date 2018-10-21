@@ -7,6 +7,9 @@
 
 #include "master_node.h"
 #include "master_config.h"
+#include "cli.h"
+#include "commands_common.h"
+#include "tinyprintf.h"
 
 
 /*
@@ -29,7 +32,7 @@
  * routes <DST1>:<HOP1>,<DST2>:<HOP2>,...
  *   Set the master routes
  */
-static const shell_command_t shell_commands[] = {
+const cli_command_t cli_commands[] = {
     { "config",        "Node configuration",                   master_config_set_cmd },
     { "connect",       "Connect to a node",                    master_node_cmd_connect },
     { "retransmit",    "Re-sent timeouted packet",             master_node_cmd_retransmit },
@@ -48,7 +51,8 @@ static const shell_command_t shell_commands[] = {
 };
 
 
-static void init(void)
+// Defined in the common main
+void node_init(void)
 {
 	int mni = master_node_init();
 	if (mni != 0)

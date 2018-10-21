@@ -4,12 +4,8 @@
  * in the LICENSE file.
  */
 
-
-#ifdef MASTER
-
 #include "master_sensorconnection.h"
 #include <string.h>
-#include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 
@@ -17,6 +13,7 @@
 #include "meshnw.h"
 #include "messagetypes.h"
 #include "utils.h"
+#include "tinyprintf.h"
 #include "isrsafe_printf.h"
 
 
@@ -89,7 +86,7 @@ static void handle_hs2(sensor_connection_t *con, uint8_t *message, uint8_t len)
 	{
 		// The hs2 is treated like an ack, so ack_outstanding must be set.
 		// Otherwise this means we got a hs2 without asking for it.
-		puts("Received unexpected hs2");
+		printf("Received unexpected hs2\n");
 		return;
 	}
 
@@ -127,7 +124,7 @@ static void handle_ack(sensor_connection_t *con, uint8_t *message, uint8_t len)
 	if (!con->ack_outstanding)
 	{
 		// Was not waiting for an ACK
-		puts("Received unexpected ack");
+		printf("Received unexpected ack\n");
 		return;
 	}
 
@@ -402,7 +399,7 @@ int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t nod
 	if (((uint32_t) con) & 0x01)
 	{
 		// This should never happen ^^
-		puts("Misaligned context parameter");
+		printf("Misaligned context parameter\n");
 		return -EINVAL;
 	}
 
@@ -540,7 +537,7 @@ int sensor_connection_retransmit(sensor_connection_t *con)
 	if (!con->ack_outstanding || con->timeout_counter <= con->timeout)
 	{
 		// should not be called in this case
-		puts("Illegal call to sensor_connection_retransmit!");
+		printf("Illegal call to sensor_connection_retransmit!\n");
 		return 1;
 	}
 
@@ -608,7 +605,7 @@ int sensor_connection_set_routes(sensor_connection_t *con, uint8_t reset, const 
 
 	if (current == 0)
 	{
-		puts("No routes specified!");
+		printf("No routes specified!\n");
 		return 1;
 	}
 
@@ -911,4 +908,3 @@ nodeid_t sensor_connection_node(const sensor_connection_t *con)
 {
 	return con->node_id;
 }
-#endif

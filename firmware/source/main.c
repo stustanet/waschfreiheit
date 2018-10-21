@@ -14,6 +14,7 @@
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/stm32/timer.h>
 #include <libopencm3/stm32/flash.h>
+#include <libopencm3/stm32/adc.h>
 #include <libopencm3/cm3/cortex.h>
 
 #include <FreeRTOS.h>
@@ -24,7 +25,9 @@
 #include "cli.h"
 #include "commands_common.h"
 #include "meshnw.h"
+//#include "sensor_node.h"
 
+#ifdef WASCHV2
 // Clock for the STM32F401
 const struct rcc_clock_scale hse_8_84mhz =
 {
@@ -42,6 +45,7 @@ const struct rcc_clock_scale hse_8_84mhz =
 };
 
 #define CLOCK_SETTINGS hse_8_84mhz
+#endif
 
 // Stack size in words for the CLI task
 #define CLI_TASK_STACK_SIZE 200
@@ -56,6 +60,9 @@ const struct rcc_clock_scale hse_8_84mhz =
 StaticTask_t cliTaskBuffer;
 StackType_t cliTaskStack[CLI_TASK_STACK_SIZE];
 
+void node_init(void);
+extern cli_command_t cli_commands [];
+
 static void tpf_putcf(void *ptr, char c)
 {
 	(void)ptr;
@@ -68,9 +75,12 @@ static void init_usart(void)
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(USART_CLI_RCC);
 
+#ifdef WASCHV2
 	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO9 | GPIO10);
-
 	gpio_set_af(GPIOA, GPIO_AF7, GPIO9 | GPIO10);
+#else
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
+#endif
 
 	usart_set_baudrate(USART_CLI, 115200);
 	usart_set_mode(USART_CLI, USART_MODE_TX | USART_MODE_RX);
@@ -89,14 +99,6 @@ static void test_func(int argc, char **argv)
 }
 
 
-static cli_command_t cli_commands [] =
-{
-	{"test", "test command", test_func},
-	{"sx127x", "RF module test command", sx127x_test_cmd},
-	{"routes", "Set the local routes", cmd_routes},
-	{"ping", "Ping a node", cmd_ping},
-	{}
-};
 
 
 static void cliTask(void *arg)
@@ -105,6 +107,8 @@ static void cliTask(void *arg)
 
 	char buffer[CLI_CMD_BUFFER_LENGTH];
 	size_t buffer_pos = 0;
+
+	cli_set_commandlist(cli_commands);
 
 	while (1)
 	{
@@ -143,27 +147,18 @@ static void test_recv_cb(nodeid_t src, void *data, uint8_t len)
 int main(void)
 {
 	cm_disable_interrupts();
+#ifdef WASCHV2
 	rcc_clock_setup_hse_3v3(&CLOCK_SETTINGS);
+#else
+	rcc_clock_setup_in_hse_8mhz_out_72mhz();
+#endif
 
 	init_usart();
 	serial_getchar_dma_init();
 	init_printf(NULL, &tpf_putcf);
 
-	const sx127x_rf_config_t lora_cfg = {
-		.frequency = 433500000,
-		.tx_power = 10,
-		.lora_spread_factor = 10,
-		.lora_coderate = 2,
-		.lora_bandwidth = 7
-	};
-
-	meshnw_init(10, &lora_cfg, &test_recv_cb);
-
-	cli_set_commandlist(cli_commands);
-
-
 	printf("Hello world");
-	//init();
+	node_init();
 
 	xTaskCreateStatic(
 		&cliTask,
@@ -173,6 +168,7 @@ int main(void)
 		tskIDLE_PRIORITY,
 		cliTaskStack,
 		&cliTaskBuffer);
+
 
 	vTaskStartScheduler();
 

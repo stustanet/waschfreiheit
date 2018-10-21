@@ -4,9 +4,6 @@
  * in the LICENSE file.
  */
 
-
-#ifdef MASTER
-
 /*
  * MASTER SERIAL PROTOCOL
  * Requests:
@@ -53,27 +50,33 @@
  *   Set the master routes
  */
 
+#include "master_node.h"
+
 #include <stdint.h>
 #include <string.h>
-#include <stdio.h>
-#include <xtimer.h>
-#include <thread.h>
 #include <stdlib.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
+
 #include "meshnw.h"
 #include "master_sensorconnection.h"
 #include "messagetypes.h"
 #include "utils.h"
-#include "net/lora.h"
+#include "tinyprintf.h"
 #include "isrsafe_printf.h"
 
 #define MAX_ACTIVE_SENSORS 32
 
 #define MASTER_NODE ((nodeid_t)0)
 
-#define MESSAGE_LOOP_DELAY 1000000 // 1s
+#define MESSAGE_LOOP_DELAY 1000 // 1s
 
-static char message_thd_stack[THREAD_STACKSIZE_DEFAULT];
-static kernel_pid_t message_thd_pid;
+// Stack size of the maaaster thread (in words)
+#define MESSAGE_THD_STACK_SIZE 512
+
+StaticTask_t message_thd_buffer;;
+StackType_t message_thd_stack[MESSAGE_THD_STACK_SIZE];
 
 struct
 {
@@ -141,10 +144,10 @@ int master_node_cmd_connect(int argc, char **argv)
 {
 	if (argc != 4)
 	{
-		puts("USAGE: connect <NODE> <FIRST_HOP> <TIMEOUT>\n");
-		puts("NODE      The address of the node");
-		puts("FIRST_HOP First hop in the answer path of the node");
-		puts("TIMEOUT   Timeout for this connection");
+		printf("USAGE: connect <NODE> <FIRST_HOP> <TIMEOUT>\n\n"
+			   "NODE      The address of the node\n"
+			   "FIRST_HOP First hop in the answer path of the node\n"
+			   "TIMEOUT   Timeout for this connection\n");
 		return 1;
 	}
 
@@ -164,7 +167,7 @@ int master_node_cmd_connect(int argc, char **argv)
 	sensor_connection_t *con = find_or_init_node(dst);
 	if (!con)
 	{
-		puts("Connection limit reached!");
+		printf("Connection limit reached!\n");
 		print_err_text();
 		return 1;
 	}
@@ -190,9 +193,9 @@ int master_node_cmd_retransmit(int argc, char **argv)
 {
 	if (argc != 2)
 	{
-		puts("USAGE: retransmit <NODE>\n");
-		puts("NODE      The address of the node");
-		puts("This command can only be used if a TIMEOUT occured for this node!");
+		printf("USAGE: retransmit <NODE>\n\n"
+			   "NODE      The address of the node\n"
+			   "This command can only be used if a TIMEOUT occured for this node!\n");
 		return 1;
 	}
 
@@ -205,7 +208,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -231,13 +234,13 @@ int master_node_cmd_node_routes(int argc, char **argv)
 {
 	if (argc != 3)
 	{
-		puts("USAGE: reset_routes <NODE> <DST1>:<HOP1>,<DST2><HOP2>,...");
-		puts("       set_routes   <NODE> <DST1>:<HOP1>,<DST2><HOP2>,...\n");
+		printf("USAGE: reset_routes <NODE> <DST1>:<HOP1>,<DST2><HOP2>,...\n"
+			   "       set_routes   <NODE> <DST1>:<HOP1>,<DST2><HOP2>,...\n\n"
 
-		puts("NODE      Address of the node");
-		puts("DSTn:HOPn Packets with destination address DSTn will be sent to HOPn\n");
-		puts("The reset_routes command will reset the node and than add new routes while the");
-		puts("set_routes command updates the current routes");
+			   "NODE      Address of the node\n"
+			   "DSTn:HOPn Packets with destination address DSTn will be sent to HOPn\n\n"
+			   "The reset_routes command will reset the node and than add new routes while the\n"
+			   "set_routes command updates the current routes\n");
 		return 1;
 	}
 
@@ -250,7 +253,7 @@ int master_node_cmd_node_routes(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -280,19 +283,18 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 {
 	if (argc != 7)
 	{
-		puts("USAGE: configure_sensor <NODE> <CHANNEL> <IF> <MAT> <WND> <RF>\n");
-
-		puts("NODE      Address of the node");
-		puts("CHANNEL   Channel index");
-		puts("IF        Input filter parameters");
-		puts("          <MID_ADJ_SPEED>,<LOWPASS_WEIGTH>,<NUM_SAMPLES>");
-		puts("MAT       State transition matrix");
-		puts("          12 signed 16 bit values");
-		puts("WND       Window sizes in different states");
-		puts("          4 values, max 1536");
-		puts("RF        Reject filter parameters");
-		puts("          <REJECT_THRESHOLD>,<REJECT_CONSEC>");
-		puts("See the documentation for details on the parameters.");
+		printf("USAGE: configure_sensor <NODE> <CHANNEL> <IF> <MAT> <WND> <RF>\n\n"
+			   "NODE      Address of the node\n"
+			   "CHANNEL   Channel index\n"
+			   "IF        Input filter parameters\n"
+			   "          <MID_ADJ_SPEED>,<LOWPASS_WEIGTH>,<NUM_SAMPLES>\n"
+			   "MAT       State transition matrix\n"
+			   "          12 signed 16 bit values\n"
+			   "WND       Window sizes in different states\n"
+			   "          4 values, max 1536\n"
+			   "RF        Reject filter parameters\n"
+			   "          <REJECT_THRESHOLD>,<REJECT_CONSEC>\n"
+			   "See the documentation for details on the parameters.\n");
 
 		return 1;
 	}
@@ -306,7 +308,7 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -332,11 +334,10 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 {
 	if (argc != 4)
 	{
-		puts("USAGE: enable_sensor <NODE> <CHANNELS> <SPS>\n");
-
-		puts("NODE      Address of the node");
-		puts("CHANNELS  Active channels");
-		puts("SPS       Samples per second");
+		printf("USAGE: enable_sensor <NODE> <CHANNELS> <SPS>\n\n"
+			   "NODE      Address of the node\n"
+			   "CHANNELS  Active channels\n"
+			   "SPS       Samples per second\n");
 
 		return 1;
 	}
@@ -350,7 +351,7 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -382,11 +383,10 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 {
 	if (argc != 4)
 	{
-		puts("USAGE: raw_frames <NODE> <CHANNEL> <COUNT>\n");
-
-		puts("NODE      Address of the node");
-		puts("CHANNEL   Channel to measure");
-		puts("COUNT     Number of frames to send");
+		printf("USAGE: raw_frames <NODE> <CHANNEL> <COUNT>\n\n"
+			   "NODE      Address of the node\n"
+			   "CHANNEL   Channel to measure\n"
+			   "COUNT     Number of frames to send\n");
 
 		return 1;
 	}
@@ -400,7 +400,7 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -429,8 +429,8 @@ int master_node_cmd_raw_status(int argc, char **argv)
 {
 	if (argc != 2)
 	{
-		puts("USAGE: raw_status <NODE>\n");
-		puts("NODE      Address of the destination node");
+		printf("USAGE: raw_status <NODE>\n\n"
+			   "NODE      Address of the destination node\n");
 		return 1;
 	}
 
@@ -443,7 +443,7 @@ int master_node_cmd_raw_status(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -467,8 +467,8 @@ int master_node_cmd_authping(int argc, char **argv)
 {
 	if (argc != 2)
 	{
-		puts("USAGE: authping <NODE>\n");
-		puts("NODE      Address of the destination node");
+		printf("USAGE: authping <NODE>\n\n"
+			   "NODE      Address of the destination node\n");
 		return 1;
 	}
 
@@ -481,7 +481,7 @@ int master_node_cmd_authping(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -501,10 +501,10 @@ int master_node_cmd_led(int argc, char **argv)
 {
 	if (argc < 3)
 	{
-		puts("USAGE: led <NODE> <LED1> ... <LEDn>.\n");
-		puts("NODE      Address of the destination node");
-		puts("LEDx      Color mode of the LED.");
-		puts("          See the color table of the node for details.");
+		printf("USAGE: led <NODE> <LED1> ... <LEDn>.\n\n"
+			   "NODE      Address of the destination node\n"
+			   "LEDx      Color mode of the LED.\n"
+			   "          See the color table of the node for details.\n");
 		return 1;
 	}
 
@@ -517,7 +517,7 @@ int master_node_cmd_led(int argc, char **argv)
 	sensor_connection_t *con = find_node(dst);
 	if (!con)
 	{
-		puts("Not connected!");
+		printf("Not connected!\n");
 		print_err_text();
 		return 1;
 	}
@@ -540,9 +540,9 @@ int master_node_cmd_rebuild_status_channel(int argc, char **argv)
 {
     if (argc != 2)
     {
-        puts("USAGE: rebuild_status_channel <NODE>\n");
-        puts("NODE      Address of the destination node\n");
-        puts("This needs to be called if it is not reset after reconnecting.");
+        printf("USAGE: rebuild_status_channel <NODE>\n\n"
+			   "NODE      Address of the destination node\n\n"
+			   "This needs to be called if it is not reset after reconnecting.\n");
         return 1;
     }
 
@@ -555,7 +555,7 @@ int master_node_cmd_rebuild_status_channel(int argc, char **argv)
     sensor_connection_t *con = find_node(dst);
     if (!con)
     {
-        puts("Not connected!");
+        printf("Not connected!\n");
         print_err_text();
         return 1;
     }
@@ -571,14 +571,14 @@ int master_node_cmd_rebuild_status_channel(int argc, char **argv)
 }
 
 
-static void *message_thread(void *arg)
+static void message_thread(void *arg)
 {
 	(void) arg;
-    xtimer_ticks32_t last = xtimer_now();
+    TickType_t last = xTaskGetTickCount();
 
 	while(1)
 	{
-        xtimer_periodic_wakeup(&last, MESSAGE_LOOP_DELAY);
+		vTaskDelayUntil(&last, MESSAGE_LOOP_DELAY);
 
 		// update all connections
 		for (uint8_t i = 0; i < ARRAYSIZE(master.nodes); i++)
@@ -625,21 +625,18 @@ int master_node_init(void)
 	printf("Start node in MASTER mode, id = %u\n", MASTER_NODE);
 	memset(master.nodes, 0, sizeof(master.nodes));
 
-	static const meshnw_rf_config_t rf_config = { 433500000, 10 , 10, 2, LORA_BW_125_KHZ};
+	static const sx127x_rf_config_t rf_config = { 433500000, 10 , 10, 2, 7 };
 
 	meshnw_init(MASTER_NODE, &rf_config, message_callback);
 
-	message_thd_pid = thread_create(message_thd_stack, sizeof(message_thd_stack), THREAD_PRIORITY_MAIN - 1,
-	                          THREAD_CREATE_STACKTEST, message_thread, NULL,
-	                          "node_message_thread");
-
-	if (message_thd_pid <= KERNEL_PID_UNDEF)
-	{
-		puts("Creation of mssage thread failed");
-		return 1;
-	}
+	xTaskCreateStatic(
+		&message_thread,
+		"MESSAGE",
+	    MESSAGE_THD_STACK_SIZE,
+		NULL,
+		tskIDLE_PRIORITY + 3,
+		message_thd_stack,
+		&message_thd_buffer);
 
 	return 0;
 }
-
-#endif
