@@ -1699,6 +1699,8 @@ int sensor_node_init(void)
 
 	// Start the threads
 
+	ctx.mutex = xSemaphoreCreateMutexStatic(&ctx.mutexBuffer);
+
 	/*
 	 * Need to run this thread with maximum priority due to bug in xtimer_periodic_wakeup
 	 */
