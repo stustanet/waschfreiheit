@@ -1,5 +1,5 @@
-ifeq ($(NODE),"MASTER")
-#include source/master/master.mk
+ifeq ($(NODE),MASTER)
+include source/master/master.mk
 else
 include source/sensor/sensor.mk
 endif

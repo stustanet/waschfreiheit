@@ -5,8 +5,6 @@
  */
 
 
-#ifndef MASTER
-
 // For now, hard-code the used page.
 // Obviously, this block MUST NOT CONTAIN any program data
 
@@ -413,7 +411,11 @@ int sensor_config_set_cmd(int argc, char **argv)
 	newCfg.magic = CONFIG_MAGIC;
 
 	flash_unlock();
+#ifdef WASCHV2
 	flash_erase_sector(CONFIG_FLASH_PAGE, FLASH_CR_PROGRAM_X32);
+#else
+	flash_erase_page(CONFIG_FLASH_PAGE);
+#endif
 	flash_program(CONFIG_FLASH_ADDR, (uint8_t*)&newCfg, sizeof(newCfg));
 	flash_lock();
 
@@ -421,5 +423,3 @@ int sensor_config_set_cmd(int argc, char **argv)
 	return 0;
 
 }
-
-#endif

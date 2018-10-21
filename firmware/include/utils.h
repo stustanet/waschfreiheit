@@ -16,6 +16,10 @@
 #include "meshnw.h"
 #include "rgbcolor.h"
 
+#ifdef WASCHV1
+#include <libopencm3/stm32/flash.h>
+#endif
+
 /*
  * Use TOSTRING to convert a number to a string by the preprocessor
  */
@@ -112,3 +116,23 @@ static inline void utils_set_bit(uint8_t *buf, uint32_t bit_num)
 {
 	buf[bit_num >> 3] |= (0x80 >> (bit_num & 0x07));
 }
+
+#ifdef WASCHV1
+static inline void flash_program(uint32_t addr, uint8_t *data, size_t len)
+{
+	for (size_t i = 0; i < (len >> 1); i++)
+	{
+		uint16_t buf;
+		((uint8_t *)&buf)[0] = data[(i <<  1)];
+		((uint8_t *)&buf)[1] = data[(i <<  1) + 1];
+		flash_program_half_word(addr + (i << 1), buf);
+	}
+
+	if (len & 0x01)
+	{
+		// program last byte
+		uint16_t buf = data[len - 1];
+		flash_program_half_word(addr + len - 1, buf);
+	}
+}
+#endif

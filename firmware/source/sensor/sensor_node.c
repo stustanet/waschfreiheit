@@ -1676,10 +1676,16 @@ int sensor_node_init(void)
 
 	// GPIOs for LEDs
 	rcc_periph_clock_enable(WS2801_GPIO_PORT_RCC);
+
+#ifdef WASCHV2
 	gpio_mode_setup(WS2801_GPIO_PORT,
 					GPIO_MODE_OUTPUT,
 					GPIO_PUPD_NONE,
 					WS2801_GPIO_CLK | WS2801_GPIO_DATA);
+#else
+
+	gpio_set_mode(WS2801_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, WS2801_GPIO_CLK | WS2801_GPIO_DATA);
+#endif
 
 	// This resets the LEDs
 	do_led_animation(0);

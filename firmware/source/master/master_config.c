@@ -5,25 +5,39 @@
  */
 
 
-#ifdef MASTER
-
 #include "master_config.h"
-#include <periph/flashpage.h>
-#include <stdio.h>
+#include <libopencm3/stm32/flash.h>
 #include <string.h>
 #include <stdlib.h>
 #include "utils.h"
 
+#include "tinyprintf.h"
+
+#define FLASH_START 0x08000000
+#define SIZE_OF_ENTRY (sizeof(node_auth_keys_t))
+
+#ifdef WASCHV2
+#define FLASHPAGE_SIZE 16384
+_Static_assert((SIZE_OF_ENTRY * MASTER_CONFIG_NUM_NODES <= FLASHPAGE_SIZE), "All config must fit into one page");
+#define CONFIG_FLASH_PAGE_START 1
+#define CONFIG_FLASH_ADDR (FLASH_START + 16384)
+#define CONFIG_ENTRIES_PER_PAGE MASTER_CONFIG_NUM_NODES
+#else
+
+#define FLASHPAGE_SIZE 1024
 
 // Number of node entries in a flash page
-#define CONFIG_ENTRIES_PER_PAGE (FLASHPAGE_SIZE / sizeof(node_auth_keys_t))
+#define CONFIG_ENTRIES_PER_PAGE (FLASHPAGE_SIZE / SIZE_OF_ENTRY)
 
 // Total number of flash pages used by the config
 #define CONFIG_FLASH_PAGES ((((MASTER_CONFIG_NUM_NODES) - 1) / CONFIG_ENTRIES_PER_PAGE) + 1)
 
 // The config is written to the end of the flash.
 // Obviously, this space must not be used by program code!
-#define CONFIG_FLASH_PAGE_START (FLASHPAGE_NUMOF - (CONFIG_FLASH_PAGES))
+#define CONFIG_FLASH_PAGE_START (64 - (CONFIG_FLASH_PAGES))
+
+#define CONFIG_FLASH_ADDR (FLASH_START + CONFIG_FLASH_PAGE_START * FLASHPAGE_SIZE)
+#endif
 
 /*
  * Layout of a flash page.
@@ -39,7 +53,7 @@ typedef struct
  * Returns the pointer to the page.
  * Entry is set to the key pair's index in the page.
  */
-static config_page_t *get_config_entry(uint8_t id, uint8_t *entry)
+static const config_page_t *get_config_entry(uint8_t id, uint8_t *entry)
 {
 
 	// Need #if here to avoid warnings
@@ -53,14 +67,14 @@ static config_page_t *get_config_entry(uint8_t id, uint8_t *entry)
 	(*entry) = id % CONFIG_ENTRIES_PER_PAGE;
 
 	// Because the flash is memory-mapped, i can simply return a pointer to the page.
-	return flashpage_addr(CONFIG_FLASH_PAGE_START + id / CONFIG_ENTRIES_PER_PAGE);
+	return (const config_page_t *)(CONFIG_FLASH_ADDR + (id / CONFIG_ENTRIES_PER_PAGE) * FLASHPAGE_SIZE);
 }
 
 
 const node_auth_keys_t *master_config_get_keys(uint8_t id)
 {
 	uint8_t entry_idx;
-	config_page_t *page = get_config_entry(id, &entry_idx);
+	const config_page_t *page = get_config_entry(id, &entry_idx);
 	if (!page)
 	{
 		// Invalid id
@@ -75,18 +89,17 @@ const node_auth_keys_t *master_config_get_keys(uint8_t id)
 int master_config_set_cmd(int argc, char **argv)
 {
 	// Buffer for read-modify-write the config entries
-	// This is 1k, so I definitely don't want this on the stack!
+	// This is up to a full page, so I definitely don't want this on the stack!
 	static config_page_t config_buffer;
-	_Static_assert(sizeof(config_buffer) == FLASHPAGE_SIZE, "Config buffer must have flash page size");
 
 
 	if (argc != 4)
 	{
-		puts("USAGE: config <node_id> <key_status> <key_config>\n");
-		puts("node_id     The id of the node to configure (decimal)");
-		puts("key_status  Key used for status messages (incoming traffic)");
-		puts("key_config  Key used for config messages (outgoing traffic)");
-		puts("Both keys must be exactly 128 bit long and encoded in hex format.");
+		printf("USAGE: config <node_id> <key_status> <key_config>\n\n"
+			   "node_id     The id of the node to configure (decimal)\n"
+			   "key_status  Key used for status messages (incoming traffic)\n"
+			   "key_config  Key used for config messages (outgoing traffic)\n"
+			   "Both keys must be exactly 128 bit long and encoded in hex format.\n");
 		return 1;
 	}
 
@@ -99,11 +112,11 @@ int master_config_set_cmd(int argc, char **argv)
 	}
 
 	uint8_t entry_idx;
-	config_page_t *current = get_config_entry(node_id, &entry_idx);
+	const config_page_t *current = get_config_entry(node_id, &entry_idx);
 
 	if (current == NULL)
 	{
-		puts("Failed to get page for node");
+		printf("Failed to get page for node\n");
 		return 1;
 	}
 
@@ -114,27 +127,30 @@ int master_config_set_cmd(int argc, char **argv)
 	// modify entry
 	if (strlen(argv[2]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[2], AUTH_KEY_LEN * 2, config_buffer.keys[entry_idx].key_status))
 	{
-		puts("Invalid status key, expected status key to be 32 hex chars (128 bit)!");
+		printf("Invalid status key, expected status key to be 32 hex chars (128 bit)!\n");
 		return 1;
 	}
 
 	if (strlen(argv[3]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[3], AUTH_KEY_LEN * 2, config_buffer.keys[entry_idx].key_config))
 	{
-		puts("Invalid config key, expected status key to be 32 hex chars (128 bit)!");
+		printf("Invalid config key, expected status key to be 32 hex chars (128 bit)!\n");
 		return 1;
 	}
 
-	// Finally write it back.
-	if (flashpage_write_and_verify(flashpage_page(current) , &config_buffer) != FLASHPAGE_OK)
-	{
-		puts("Flash verification failed!");
-		return 1;
-	}
+	uint8_t page = node_id / CONFIG_ENTRIES_PER_PAGE;
+
+	flash_unlock();
+
+#ifdef WASCHV2
+	flash_erase_sector(CONFIG_FLASH_PAGE_START + page, FLASH_CR_PROGRAM_X32);
+#else
+	flash_erase_page(CONFIG_FLASH_PAGE_START + page);
+#endif
+	flash_program(CONFIG_FLASH_ADDR + page * FLASHPAGE_SIZE, (uint8_t*)&config_buffer, sizeof(config_buffer));
+	flash_lock();
 
 	// Everything done
 	printf("OK, updated config for node %u\n", node_id);
 	return 0;
 
 }
-
-#endif

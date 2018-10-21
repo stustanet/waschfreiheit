@@ -30,7 +30,6 @@
 #define ADC_CHANNEL_GPIO_LIST (GPIO0 | GPIO1)
 #define ADC_GPIO_PORT GPIOB
 #define ADC_GPIO_RCC RCC_GPIOB
-#error TODO
 #endif
 
 

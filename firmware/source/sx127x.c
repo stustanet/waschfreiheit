@@ -23,7 +23,7 @@ static const uint32_t LORA_BANDWIDTH_TABLE[] = {7800, 10400, 15600, 20800, 31200
 static void sx127x_read(uint8_t addr, uint8_t *data, size_t len)
 {
 	addr &= ~SX127x_WriteReg;
-	gpio_clear(SX127X_SPI_GPIO_PORT, SX127X_GPIO_PIN_NSS);
+	gpio_clear(SX127X_SPI_GPIO_PORT, SX127X_SPI_GPIO_PIN_NSS);
 
 	spi_xfer(SX127X_SPI, addr);
 
@@ -32,13 +32,13 @@ static void sx127x_read(uint8_t addr, uint8_t *data, size_t len)
 		data[i] = spi_xfer(SX127X_SPI, 0);
 	}
 
-	gpio_set(SX127X_SPI_GPIO_PORT, SX127X_GPIO_PIN_NSS);
+	gpio_set(SX127X_SPI_GPIO_PORT, SX127X_SPI_GPIO_PIN_NSS);
 }
 
 static void sx127x_write(uint8_t addr, const uint8_t *data, size_t len)
 {
 	addr |= SX127x_WriteReg;
-	gpio_clear(SX127X_SPI_GPIO_PORT, SX127X_GPIO_PIN_NSS);
+	gpio_clear(SX127X_SPI_GPIO_PORT, SX127X_SPI_GPIO_PIN_NSS);
 
 	spi_xfer(SX127X_SPI, addr);
 
@@ -47,7 +47,7 @@ static void sx127x_write(uint8_t addr, const uint8_t *data, size_t len)
 		spi_xfer(SX127X_SPI, data[i]);
 	}
 
-	gpio_set(SX127X_SPI_GPIO_PORT, SX127X_GPIO_PIN_NSS);
+	gpio_set(SX127X_SPI_GPIO_PORT, SX127X_SPI_GPIO_PIN_NSS);
 }
 
 static uint8_t sx127x_get_reg(uint8_t reg)
@@ -67,6 +67,14 @@ static void init_io(void)
 	rcc_periph_clock_enable(SX127X_SPI_GPIO_RCC);
 	rcc_periph_clock_enable(SX127X_SPI_RCC);
 
+#if defined(WASCHV1)
+	gpio_set_mode(SX127X_SPI_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, SX127X_SPI_GPIO_PIN_MOSI);
+	gpio_set_mode(SX127X_SPI_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, SX127X_SPI_GPIO_PIN_SCK);
+	gpio_set_mode(SX127X_SPI_GPIO_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, SX127X_SPI_GPIO_PIN_MISO);
+
+	gpio_set_mode(SX127X_SPI_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, SX127X_SPI_GPIO_PIN_NSS);
+	gpio_set_mode(SX127X_RESET_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, SX127X_RESET_GPIO_PIN);
+#else
 	gpio_mode_setup(SX127X_SPI_GPIO_PORT,
 					GPIO_MODE_AF,
 					GPIO_PUPD_NONE,
@@ -79,9 +87,15 @@ static void init_io(void)
 	gpio_mode_setup(SX127X_SPI_GPIO_PORT,
 					GPIO_MODE_OUTPUT,
 					GPIO_PUPD_NONE,
-					SX127X_GPIO_PIN_RESET | SX127X_GPIO_PIN_NSS);
+					SX127X_SPI_GPIO_PIN_NSS);
 
-	gpio_set_af(GPIOA, GPIO_AF7, GPIO9 | GPIO10);
+	gpio_mode_setup(SX127X_RESET_GPIO_PORT,
+					GPIO_MODE_OUTPUT,
+					GPIO_PUPD_NONE,
+					SX127X_RESET_GPIO_PIN);
+
+#endif
+
 	spi_init_master(SX127X_SPI,
 					SX127X_SPI_BAUDRATE,
 					SPI_CR1_CPOL_CLK_TO_0_WHEN_IDLE,
@@ -221,9 +235,9 @@ bool sx127x_init(const sx127x_rf_config_t *cfg)
 	init_io();
 
 	// Reset the module
-	gpio_clear(SX127X_SPI_GPIO_PORT, SX127X_GPIO_PIN_RESET);
+	gpio_clear(SX127X_RESET_GPIO_PORT, SX127X_RESET_GPIO_PIN);
 	for (volatile uint32_t i = 0; i < 100; i++);
-	gpio_set(SX127X_SPI_GPIO_PORT, SX127X_GPIO_PIN_RESET);
+	gpio_set(SX127X_RESET_GPIO_PORT, SX127X_RESET_GPIO_PIN);
 
 	return init_rfm(cfg);
 }

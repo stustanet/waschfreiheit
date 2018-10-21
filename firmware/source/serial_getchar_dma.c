@@ -12,10 +12,9 @@
 
 
 #if defined(STM32F1)
-// FIXME
 #define SERIAL_GETCHAR_DMA DMA1
 #define SERIAL_GETCHAR_DMA_RCC RCC_DMA1
-#define SERIAL_GETCHAR_DMA_CHANNEL DMA1_Channel5
+#define SERIAL_GETCHAR_DMA_CHANNEL DMA_CHANNEL5
 #elif defined(STM32F4)
 #define SERIAL_GETCHAR_DMA DMA2
 #define SERIAL_GETCHAR_DMA_RCC RCC_DMA2
@@ -40,8 +39,21 @@ void serial_getchar_dma_init(void)
 	last_read_index = 0;
 
 	// Init the DMA for the USART1
-#if defined(STM32F1)
-#error TODO
+#if defined(WASCHV1)
+	dma_channel_reset(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL);
+
+	dma_enable_memory_increment_mode(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL);
+	dma_set_read_from_peripheral(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL);
+	dma_set_peripheral_size(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL, DMA_CCR_PSIZE_8BIT);
+	dma_set_memory_size(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL, DMA_CCR_MSIZE_8BIT);
+
+	dma_set_number_of_data(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL, sizeof(dma_buffer));
+
+	dma_set_peripheral_address(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL, (uint32_t)&USART_DR(SERIAL_GETCHAR_USART));
+	dma_set_memory_address(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL, (uint32_t)dma_buffer);
+
+	dma_enable_circular_mode(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL);
+	dma_enable_channel(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL);
 #else
 	dma_stream_reset(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM);
 	dma_enable_memory_increment_mode(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM);
@@ -67,7 +79,11 @@ void serial_getchar_dma_init(void)
 
 int16_t serial_getchar(void)
 {
+#if defined(STM32F1)
+	uint16_t current = sizeof(dma_buffer) - (uint16_t)(dma_get_number_of_data(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_CHANNEL));
+#else
 	uint16_t current = sizeof(dma_buffer) - (uint16_t)(dma_get_number_of_data(SERIAL_GETCHAR_DMA, SERIAL_GETCHAR_DMA_STREAM));
+#endif
 	if (current != last_read_index)
 	{
 		uint8_t r = dma_buffer[last_read_index];
