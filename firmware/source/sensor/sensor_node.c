@@ -27,13 +27,7 @@
 #include "flasher.h"
 #include "tinyprintf.h"
 #include "sensor_adc.h"
-
-
-// GPIO B, Pin 10 and 11
-#define WS2801_GPIO_PORT GPIOB
-#define WS2801_GPIO_PORT_RCC RCC_GPIOB
-#define WS2801_GPIO_DATA GPIO10
-#define WS2801_GPIO_CLK GPIO11
+#include "led_status.h"
 
 /*
  * Max time for the watchdog observing the ADC thread.
@@ -80,6 +74,11 @@
 // Send the status even if the master status is the same
 #define STATUS_FORCE_UPDATE       0x000000200
 
+// Disable automatic update of the LEDs
+// This is set when the 'led' (test-)command is used.
+// This is cleared when a LED message arrives.
+#define STATUS_NO_LED_UPDATE      0x000000400
+
 /*
  * This struct contains all the runtime-data for the node logic
  */
@@ -100,6 +99,12 @@ struct
 	// Mutex for accessing context values
 	SemaphoreHandle_t mutex;
 	StaticSemaphore_t mutexBuffer;
+
+	struct
+	{
+		uint8_t led;
+		uint8_t color;
+	} status_change_indicators[NUM_OF_SENSORS];
 
 	/*
 	 * Color table for the LEDs
@@ -138,6 +143,11 @@ struct
 	 * Set this to 0 for normal operation.
 	 */
 	uint32_t debug_raw_mode_delay_ms;
+
+	/*
+	 * Defines which LEDs are blinking.
+	 */
+	uint32_t led_blink_mask;
 
 	/*
 	 * The bits specify the active / enabled sensor channels.
@@ -183,11 +193,11 @@ struct
 	uint8_t status_retransmission_base_delay;
 
 	/*
-	 * Buffer for the led rgb values
+	 * Buffer for the led color values
 	 * This is required because the LEDs tend to randomly change their color.
 	 * Therefore I store the values here and send them to the LEDs every second.
 	 */
-	rgb_data_t led_buffer[NUM_OF_LED];
+	uint8_t led_colors[(NUM_OF_LED - 1) / 2 + 1];
 
 	/*
 	 * Watchdog counter for the adc thread.
@@ -330,6 +340,8 @@ static void reset(void)
 	ctx.sensor_loop_delay_ms = 1000;
 
 	ctx.status |= STATUS_FORCE_UPDATE;
+
+	led_status_system(LED_STATUS_SYSTEM_CONNECTED);
 }
 
 
@@ -438,6 +450,8 @@ static void handle_auth_slave_handshake(nodeid_t src, void *data, uint8_t len)
 
 	// Auth context for config channel is now init -> Now i can receive authenticated messages.
 	ctx.status |= STATUS_INIT_AUTH_CFG;
+
+	led_status_system(LED_STATUS_SYSTEM_CONNECTED);
 }
 
 
@@ -537,6 +551,8 @@ static void handle_auth_master_handshake(nodeid_t src, void *data, uint8_t len)
 	// No longer pending, valid now.
 	ctx.status &= ~STATUS_INIT_AUTH_STA_PEND;
 	ctx.status |= STATUS_INIT_AUTH_STA;
+
+	led_status_system(LED_STATUS_SYSTEM_SCH_BUILT);
 }
 
 
@@ -633,6 +649,8 @@ static void handle_auth_master_ack(nodeid_t src, void *data, uint8_t len)
 		// The last message has been ack'ed.
 		// This means i may send the next status message now.
 		ctx.last_status_msg_was_acked = 1;
+
+		led_status_system(LED_STATUS_SYSTEM_SCH_BUILT);
 	}
 }
 
@@ -964,35 +982,29 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 
 	msg_led_t *led_msg = (msg_led_t *)data;
 
-	uint8_t num_led = ((msglen - sizeof(*led_msg)) * 2);
+	uint8_t color_bytes = msglen - sizeof(*led_msg);
 
-	static const uint32_t MAX_LEDS = sizeof(ctx.led_buffer) / sizeof(ctx.led_buffer[0]);
+	static const uint32_t MAX_LED_BYTES = sizeof(ctx.led_colors) / sizeof(ctx.led_colors[0]);
 
-	_Static_assert(sizeof(*ctx.led_color_table) / sizeof((*ctx.led_color_table)[0]) == 16, "Wrong ColorMap size");
-
-	for (uint8_t i = 0; i < MAX_LEDS; i++)
+	if (color_bytes > MAX_LED_BYTES)
 	{
-		uint8_t color;
-		if (i >= num_led)
-		{
-			// No data -> 0 is the default color in this case
-			color = 0;
-		}
-		else if (i & 1)
-		{
-			// odd -> use second nibble
-			color = led_msg->data[i >> 1] & 0x0f;
-		}
-		else
-		{
-			// even -> use first nibble
-			color = led_msg->data[i >> 1] >> 4;
-		}
-
-		ctx.led_buffer[i] = (*ctx.led_color_table)[color];
+		color_bytes = MAX_LED_BYTES;
 	}
 
+	memcpy(ctx.led_colors, led_msg->data, color_bytes);
+
+	// Set undefined color values to 0
+	while (color_bytes < MAX_LED_BYTES)
+	{
+		ctx.led_colors[color_bytes] = 0;
+		color_bytes++;
+	}
+
+	// Reset LEDs to non-blinking
+	ctx.led_blink_mask = 0;
+
 	ctx.status |= STATUS_LED_SET;
+	ctx.status &= ~STATUS_NO_LED_UPDATE;
 
 	send_ack(0);
 }
@@ -1003,21 +1015,62 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
  */
 static void handle_rebuild_status_channel_request(nodeid_t src, void *data, uint8_t len)
 {
-    uint32_t msglen = len;
-    if (check_auth_message(src, data, &msglen) != 0)
-    {
-        // something is wrong with the auth, can't proceed
-        return;
-    }
+	uint32_t msglen = len;
+	if (check_auth_message(src, data, &msglen) != 0)
+	{
+		// something is wrong with the auth, can't proceed
+		return;
+	}
 
-    send_ack(0);
+	send_ack(0);
 
-    // Only thing I need to do is to reset the INIT bit.
-    // This causes the auth to be reinitialized on demand.
-    ctx.status &= ~STATUS_INIT_AUTH_STA;
+	// Only thing I need to do is to reset the INIT bit.
+	// This causes the auth to be reinitialized on demand.
+	ctx.status &= ~STATUS_INIT_AUTH_STA;
 
-    // Just to be sure: Re-send the status
-    ctx.status |= STATUS_FORCE_UPDATE;
+	// Just to be sure: Re-send the status
+	ctx.status |= STATUS_FORCE_UPDATE;
+}
+
+
+/*
+ * -- Config channel --
+ * Configure the 'blink on status change' mode for one ore more channels.
+ */
+static void handle_configure_status_change_indicator_request(nodeid_t src, void *data, uint8_t len)
+{
+	uint32_t msglen = len;
+	if (check_auth_message(src, data, &msglen) != 0)
+	{
+		// something is wrong with the auth, can't proceed
+		return;
+	}
+
+	msg_configure_status_change_indicator_t *csci =
+		(msg_configure_status_change_indicator_t *)data;
+
+	// Num of channels is defined by the message size
+	uint8_t channels = (msglen - sizeof(*csci)) / sizeof(csci->data[0]);
+
+	for (uint8_t i = 0; i < channels; i++)
+	{
+		uint8_t ch = csci->data[i].channel;
+		if (ch >= NUM_OF_SENSORS)
+		{
+			send_ack(1);
+			return;
+		}
+		if (csci->data[i].led >= NUM_OF_LED)
+		{
+			send_ack(2);
+			return;
+		}
+
+		ctx.status_change_indicators[ch].color = csci->data[i].color;
+		ctx.status_change_indicators[ch].led = csci->data[i].led;
+	}
+
+	send_ack(0);
 }
 
 
@@ -1103,6 +1156,9 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 			break;
 		case MSG_TYPE_REBUILD_STATUS_CHANNEL:
 			handle_rebuild_status_channel_request(id, data, len);
+			break;
+		case MSG_TYPE_CONFIGURE_STATUS_CHANGE_INDICATOR:
+			handle_configure_status_change_indicator_request(id, data, len);
 			break;
 		case MSG_TYPE_ECHO_REQUEST:
 			handle_echo_request(id, data, len);
@@ -1380,74 +1436,166 @@ static void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_t
 static void do_led_animation(uint32_t ticks)
 {
 	// Show init progress with LEDs
-	rgb_data_t leds[5];
-	memset(leds, 0, sizeof(leds));
+
+	const rgb_data_t WHITE = {.r = 0xff, .g = 0xff, .b = 0xff};
+	const rgb_data_t BLACK = {.r = 0x00, .g = 0x00, .b = 0x00};
+	const rgb_data_t RED   = {.r = 0xff, .g = 0x00, .b = 0x00};
+	const rgb_data_t BLUE  = {.r = 0x00, .g = 0x00, .b = 0xff};
 
 	if ((ctx.status & STATUS_INIT_CPLT) == 0)
 	{
-		if (ticks > 5 && (ticks & 0x01))
+		if (ticks > 5)
 		{
-			// not yet initialized after 5 sec, this indicates an error during init
-			// blink the first led red
-			leds[0].r = 255;
+			if (ticks & 0x01)
+			{
+				// not yet initialized after 5 sec, this indicates an error during init
+				// blink the first led red
+				led_status_external(0, RED);
+			}
+			else
+			{
+				led_status_external(0, BLACK);
+			}
 		}
 	}
 	else if (ticks < 5)
 	{
 		// Show id as binary
-		leds[0].b = (ctx.current_node & 0x01) ? 255 : 0;
-		leds[1].b = (ctx.current_node & 0x02) ? 255 : 0;
-		leds[2].b = (ctx.current_node & 0x04) ? 255 : 0;
-		leds[3].b = (ctx.current_node & 0x08) ? 255 : 0;
-		leds[4].b = (ctx.current_node & 0x10) ? 255 : 0;
-		led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
+
+		led_status_external(0, (ctx.current_node & 0x01) ? WHITE : BLACK);
+		led_status_external(1, (ctx.current_node & 0x02) ? WHITE : BLACK);
+		led_status_external(2, (ctx.current_node & 0x04) ? WHITE : BLACK);
+		led_status_external(3, (ctx.current_node & 0x08) ? WHITE : BLACK);
+		led_status_external(4, (ctx.current_node & 0x10) ? WHITE : BLACK);
 		return;
 	}
 	else if (ticks & 0x01)
 	{
 	    // 0 will blink blue
-		leds[0].b = 255;
+		led_status_external(0, BLUE);
 	}
+	else
+	{
+	    // 0 will blink blue
+		led_status_external(0, BLACK);
+	}
+
+	rgb_data_t color = {};
 
 	// config channel init -> 1 blue
 	if (ctx.status & STATUS_INIT_AUTH_CFG)
 	{
-		leds[1].b = 160;
+		color.b = 160;
 	}
 
 	// routes init -> 1 +red
 	if (ctx.status & STATUS_INIT_ROUTES)
 	{
-		leds[1].r = 255;
+		color.r = 255;
 	}
+
+	led_status_external(1, color);
+	color.r = color.b = 0;
 
 	// status handshake pending -> 2 blue
 	if (ctx.status & STATUS_INIT_AUTH_STA_PEND)
 	{
-		leds[2].b = 160;
+		color.b = 160;
 	}
 
 	// status handshake done -> 2 blue+red
 	if (ctx.status & STATUS_INIT_AUTH_STA)
 	{
-		leds[2].b = 160;
-		leds[2].r = 255;
+		color.b = 160;
+		color.r = 255;
 	}
+
+	led_status_external(2, color);
+	color.r = color.b = 0;
 
 	// sensors active -> 3 blue
 	if (ctx.status & STATUS_SENSORS_ACTIVE)
 	{
-		leds[3].b = 160;
+		color.b = 160;
 	}
+
+	led_status_external(3, color);
+	color.r = color.b = 0;
 
 	// serial debug -> 4 blue
 	if (ctx.status & STATUS_SERIALDEBUG)
 	{
-		leds[4].b = 160;
+		color.b = 160;
 	}
 
-	// finally set the LEDs
-	led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, leds, ARRAYSIZE(leds));
+	led_status_external(4, color);
+}
+
+
+static void update_leds(uint32_t ticks)
+{
+	if (ctx.status & STATUS_NO_LED_UPDATE)
+	{
+		return;
+	}
+
+	_Static_assert(sizeof(*ctx.led_color_table) / sizeof((*ctx.led_color_table)[0]) == 16, "Wrong ColorMap size");
+
+	for (uint8_t i = 0; i < NUM_OF_LED; i++)
+	{
+		uint8_t color;
+		if (((ticks & 0x01) != 0) && (ctx.led_blink_mask & (1 << i)) != 0)
+		{
+			// Odd tick count and this LED should blink
+			// -> Set it to black
+			color = 0;
+		}
+		else if (i & 1)
+		{
+			// odd -> use second nibble
+			color = ctx.led_colors[i >> 1] & 0x0f;
+		}
+		else
+		{
+			// even -> use first nibble
+			color = ctx.led_colors[i >> 1] >> 4;
+		}
+
+		led_status_external(i, (*ctx.led_color_table)[color]);
+	}
+}
+
+
+static void check_status_change_indicators(uint16_t changed)
+{
+	for (uint8_t ch = 0; ch < NUM_OF_SENSORS; ch++)
+	{
+		if (changed & (1 << ch))
+		{
+			// Status change on channel <ch>
+			if (ctx.status_change_indicators[ch].led != 0xff)
+			{
+				// We have configured a status change indicator for this channel -> set color and start blinking
+				uint8_t led = ctx.status_change_indicators[ch].led;
+				if (led & 0x01)
+				{
+					// Odd -> color is defined in the lower nibble
+					ctx.led_colors[led >> 1] =
+						(ctx.led_colors[led >> 1] & 0xF0) |
+						ctx.status_change_indicators[ch].color;
+				}
+				else
+				{
+					// Even -> color is defined in upper nibble
+					ctx.led_colors[led >> 1] =
+						(ctx.led_colors[led >> 1] & 0x0F) |
+						(ctx.status_change_indicators[ch].color << 4);
+				}
+
+				ctx.led_blink_mask |= (1 << led);
+			}
+		}
+	}
 }
 
 
@@ -1526,8 +1674,10 @@ static void message_thread(void *arg)
 		else
 		{
 			// Set LEDs to defined colors
-			led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, NUM_OF_LED);
+			update_leds(total_ticks);
 		}
+
+		led_status_channels(ctx.active_sensor_channels, ctx.current_sensor_status);
 
 		if (ctx.debug_raw_status_requested)
 		{
@@ -1616,6 +1766,9 @@ static void message_thread(void *arg)
 		{
 			// II -> Send new status
 
+			// Check, if we need to set some LEDs to blinking
+			check_status_change_indicators(last_sent_sensor_status ^ current_status);
+
 			// Now i know that last_status_msg_was_acked is nonzero, therefore i may change the last status
 			last_sent_sensor_status = current_status;
 
@@ -1627,6 +1780,7 @@ static void message_thread(void *arg)
 			send_update_message = 1;
 
 			ctx.status &= ~STATUS_FORCE_UPDATE;
+			led_status_system(LED_STATUS_SYSTEM_SCHNG_PEND);
 		}
 		// else do nothing
 
@@ -1659,19 +1813,13 @@ int sensor_node_init(void)
 
 	ctx.led_color_table = sensor_config_color_table();
 	ctx.misc_config = sensor_config_misc_settings();
+	for (uint8_t ch = 0; ch < NUM_OF_SENSORS; ch++)
+	{
+		ctx.status_change_indicators[ch].led = 0xff;
+	}
 
-	// GPIOs for LEDs
-	rcc_periph_clock_enable(WS2801_GPIO_PORT_RCC);
-
-#ifdef WASCHV2
-	gpio_mode_setup(WS2801_GPIO_PORT,
-					GPIO_MODE_OUTPUT,
-					GPIO_PUPD_NONE,
-					WS2801_GPIO_CLK | WS2801_GPIO_DATA);
-#else
-
-	gpio_set_mode(WS2801_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, WS2801_GPIO_CLK | WS2801_GPIO_DATA);
-#endif
+	led_status_init();
+	led_status_system(LED_STATUS_SYSTEM_INIT);
 
 	// This resets the LEDs
 	do_led_animation(0);
@@ -1714,6 +1862,7 @@ int sensor_node_init(void)
 	if (!cfg)
 	{
 		printf("Network not configured, init aborted!\n");
+		led_status_system(LED_STATUS_SYSTEM_ERROR);
 		return SN_ERROR_NOT_CONFIGURED;
 	}
 
@@ -1724,6 +1873,7 @@ int sensor_node_init(void)
 	// Need to init RF network before crypto because i need random numbers for crypto init
 	if (!meshnw_init(cfg->my_id, sensor_config_rf_settings(), &mesh_message_received))
 	{
+		led_status_system(LED_STATUS_SYSTEM_ERROR);
 		return SN_ERROR_MESHNW_INIT;
 	}
 
@@ -1786,26 +1936,29 @@ void sensor_node_cmd_led(int argc, char **argv)
 		return;
 	}
 
+	rgb_data_t tmp;
 	for (int i = 0; i < argc - 1; i++)
 	{
 		char *end;
-		ctx.led_buffer[i].r = strtoul(argv[i + 1], &end, 10);
+		tmp.r = strtoul(argv[i + 1], &end, 10);
 		if (!end[0])
 		{
 			printf("Invalid RGB!\n");
 			return;
 		}
-		ctx.led_buffer[i].g = strtoul(end + 1, &end, 10);
+		tmp.g = strtoul(end + 1, &end, 10);
 		if (!end[0])
 		{
 			printf("Invalid RGB!\n");
 			return;
 		}
-		ctx.led_buffer[i].b = strtoul(end + 1, NULL, 10);
+		tmp.b = strtoul(end + 1, NULL, 10);
+
+		led_status_external(i, tmp);
 	}
 
 	ctx.status |= STATUS_LED_SET;
-	led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, argc - 1);
+	ctx.status |= STATUS_NO_LED_UPDATE;
 	return;
 }
 

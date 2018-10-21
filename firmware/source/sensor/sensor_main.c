@@ -6,12 +6,22 @@
 
 
 #include "cli.h"
+
+#include <FreeRTOS.h>
+#include <task.h>
+
 #include "commands_common.h"
 #include "tinyprintf.h"
-
 #include "sensor_node.h"
 #include "sensor_config.h"
+#include "led_status.h"
 #include "watchdog.h"
+
+// Stack size of the LED thread (in words)
+#define LED_THD_STACK_SIZE 128
+
+StaticTask_t led_thd_buffer;;
+StackType_t led_thd_stack[LED_THD_STACK_SIZE];
 
 const cli_command_t cli_commands[] = {
     { "config",           "Node configuration",                      sensor_config_set_cmd },
@@ -27,6 +37,22 @@ const cli_command_t cli_commands[] = {
     { NULL, NULL, NULL }
 };
 
+
+static void led_thread(void *arg)
+{
+	(void) arg;
+	static const uint32_t LOOP_DELAY_MS = 100;
+
+    TickType_t last = xTaskGetTickCount();
+
+	while(1)
+	{
+		vTaskDelayUntil(&last, LOOP_DELAY_MS);
+		led_status_update();
+	}
+}
+
+
 void node_init(void)
 {
 	// Start the watchdog, this needs to be fed min every 4 sec
@@ -40,4 +66,13 @@ void node_init(void)
 	{
 		printf("Sensor node initialized\n");
 	}
+
+	xTaskCreateStatic(
+		&led_thread,
+		"LED",
+	    LED_THD_STACK_SIZE,
+		NULL,
+		tskIDLE_PRIORITY,
+		led_thd_stack,
+		&led_thd_buffer);
 }
