@@ -35,4 +35,4 @@ const node_auth_keys_t *master_config_get_keys(uint8_t id);
  * Command function for an interactive command to set the config.
  * Add this as the "config" command to the serial console.
  */
-int master_config_set_cmd(int argc, char **argv);
+void master_config_set_cmd(int argc, char **argv);

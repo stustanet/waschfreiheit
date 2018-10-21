@@ -13,8 +13,11 @@
 
 #ifdef WASCHV2
 // Second page for new boards
-#define CONFIG_FLASH_PAGE 1
-#define CONFIG_FLASH_ADDR (FLASH_START + 16384)
+//#define CONFIG_FLASH_PAGE 1
+//#define CONFIG_FLASH_ADDR (FLASH_START + 16384)
+
+#define CONFIG_FLASH_PAGE 5
+#define CONFIG_FLASH_ADDR 0x08020000
 #else
 
 // Last page for legacy boards
@@ -344,7 +347,7 @@ static int misc_config(int argc, char **argv, config_with_magic_t *cfg)
 	return 0;
 }
 
-int sensor_config_set_cmd(int argc, char **argv)
+void sensor_config_set_cmd(int argc, char **argv)
 {
 	if (argc < 2)
 	{
@@ -356,7 +359,7 @@ int sensor_config_set_cmd(int argc, char **argv)
 			   "    rf       Radio configuration\n"
 			   "    misc     Misc settings\n"
 			   "    reset    Resets the whole config\n");
-		return 1;
+		return;
 	}
 
 	config_with_magic_t newCfg;
@@ -399,12 +402,12 @@ int sensor_config_set_cmd(int argc, char **argv)
 	else
 	{
 		printf("Unknown config type: \"%s\"\n", argv[1]);
-		return 1;
+		return;
 	}
 
 	if (res != 0)
 	{
-		return res;
+		return;
 	}
 
 	// set valid magic
@@ -420,6 +423,6 @@ int sensor_config_set_cmd(int argc, char **argv)
 	flash_lock();
 
 	printf("OK Config updated, some changes have no effect until restart!\n");
-	return 0;
+	return;
 
 }

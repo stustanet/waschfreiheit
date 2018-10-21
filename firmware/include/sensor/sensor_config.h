@@ -75,4 +75,4 @@ const misc_config_t *sensor_config_misc_settings(void);
  * Command function for an interactive command to set the config.
  * Add this as the "config" command to the serial console.
  */
-int sensor_config_set_cmd(int argc, char **argv);
+void sensor_config_set_cmd(int argc, char **argv);

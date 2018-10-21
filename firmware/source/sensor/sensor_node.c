@@ -1748,7 +1748,7 @@ int sensor_node_init(void)
 }
 
 
-int sensor_node_cmd_raw(int argc, char **argv)
+void sensor_node_cmd_raw(int argc, char **argv)
 {
 	if (argc != 2)
 	{
@@ -1759,7 +1759,7 @@ int sensor_node_cmd_raw(int argc, char **argv)
 			   "       While the node is in raw mode all status updates are disabled.\n"
 			   "       NOTE: If the delay is too small the data can't be processed fast\n"
 			   "             enough and the serial terminal gets stuck.");
-		return 1;
+		return;
 	}
 
 	ctx.debug_raw_mode_delay_ms = strtoul(argv[1], NULL, 10);
@@ -1773,17 +1773,17 @@ int sensor_node_cmd_raw(int argc, char **argv)
 		ctx.status &= ~STATUS_SERIALDEBUG;
 		printf("Raw mode disabled\n");
 	}
-	return 0;
+	return;
 }
 
 
-int sensor_node_cmd_led(int argc, char **argv)
+void sensor_node_cmd_led(int argc, char **argv)
 {
 	if (argc < 2 || argc > 1 + NUM_OF_LED)
 	{
 		printf("USAGE: led <r,g,b> ...\n"
 			   "       Set the LED RGB colors");
-		return 1;
+		return;
 	}
 
 	for (int i = 0; i < argc - 1; i++)
@@ -1793,31 +1793,31 @@ int sensor_node_cmd_led(int argc, char **argv)
 		if (!end[0])
 		{
 			printf("Invalid RGB!\n");
-			return 1;
+			return;
 		}
 		ctx.led_buffer[i].g = strtoul(end + 1, &end, 10);
 		if (!end[0])
 		{
 			printf("Invalid RGB!\n");
-			return 1;
+			return;
 		}
 		ctx.led_buffer[i].b = strtoul(end + 1, NULL, 10);
 	}
 
 	ctx.status |= STATUS_LED_SET;
 	led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, ctx.led_buffer, argc - 1);
-	return 0;
+	return;
 }
 
 
-int sensor_node_cmd_print_frames(int argc, char **argv)
+void sensor_node_cmd_print_frames(int argc, char **argv)
 {
 	if (argc != 2)
 	{
 		printf("USAGE: print_frames TRUE|FALSE\n"
 			   "Enables / Disables printing of the sensor state.\n"
 			   "If enbaled, the state estimation state is printed every frame.");
-		return 1;
+		return;
 	}
 
 	if (strcasecmp(argv[1], "true") == 0 ||
@@ -1829,23 +1829,23 @@ int sensor_node_cmd_print_frames(int argc, char **argv)
 	{
 		ctx.status &= ~STATUS_PRINTFRAMES;
 	}
-	return 0;
+	return;
 }
 
 
-int sensor_node_cmd_print_status(int argc, char **argv)
+void sensor_node_cmd_print_status(int argc, char **argv)
 {
 	(void)argc;
 	(void)argv;
 
 	printf("Requested status data\n");
 	ctx.debug_raw_status_requested = ~0;
-	return 0;
+	return;
 }
 
 
 #ifndef WASCHV2
-int sensor_node_cmd_firmware_upgrade(int argc, char **argv)
+void sensor_node_cmd_firmware_upgrade(int argc, char **argv)
 {
 	if (argc != 3 || strcmp(argv[1], "--start") != 0)
 	{
@@ -1853,12 +1853,12 @@ int sensor_node_cmd_firmware_upgrade(int argc, char **argv)
 			   "Flash the MCU.\n"
 			   "This command is NOT intended for interactive use. (Use flash util)\n"
 			   "This way of flashing is UNSAFE! Only it if you know how to flash the controller with a STLink or through the serial bootloader!");
-		return 0;
+		return;
 	}
 
 	uint32_t br = strtoul(argv[2], NULL, 10);
 
 	flasher_start(br);
-	return 0;
+	return;
 }
 #endif

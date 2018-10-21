@@ -140,7 +140,7 @@ static void print_err_text(void)
  * connect <NODE> <FIRST_HOP> <TIMEOUT>
  *   Connect to a node
  */
-int master_node_cmd_connect(int argc, char **argv)
+void master_node_cmd_connect(int argc, char **argv)
 {
 	if (argc != 4)
 	{
@@ -148,19 +148,19 @@ int master_node_cmd_connect(int argc, char **argv)
 			   "NODE      The address of the node\n"
 			   "FIRST_HOP First hop in the answer path of the node\n"
 			   "TIMEOUT   Timeout for this connection\n");
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	nodeid_t hop = utils_parse_nodeid(argv[2], 0);
 	if (hop == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 
@@ -169,7 +169,7 @@ int master_node_cmd_connect(int argc, char **argv)
 	{
 		printf("Connection limit reached!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	uint16_t timeout = atoi(argv[3]);
@@ -179,9 +179,8 @@ int master_node_cmd_connect(int argc, char **argv)
 	{
 		printf("Connection init for node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
 }
 
 
@@ -189,20 +188,20 @@ int master_node_cmd_connect(int argc, char **argv)
  * retransmit <NODE>
  *   Re-send last packet
  */
-int master_node_cmd_retransmit(int argc, char **argv)
+void master_node_cmd_retransmit(int argc, char **argv)
 {
 	if (argc != 2)
 	{
 		printf("USAGE: retransmit <NODE>\n\n"
 			   "NODE      The address of the node\n"
 			   "This command can only be used if a TIMEOUT occured for this node!\n");
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -210,7 +209,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	int res = sensor_connection_retransmit(con);
@@ -218,9 +217,9 @@ int master_node_cmd_retransmit(int argc, char **argv)
 	{
 		printf("Retransmission to node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 
@@ -230,7 +229,7 @@ int master_node_cmd_retransmit(int argc, char **argv)
  * set_routes <NODE> <DST1>,<HOP1> <DST2,HOP2> ...
  *   Set the specified routes
  */
-int master_node_cmd_node_routes(int argc, char **argv)
+void master_node_cmd_node_routes(int argc, char **argv)
 {
 	if (argc != 3)
 	{
@@ -241,13 +240,13 @@ int master_node_cmd_node_routes(int argc, char **argv)
 			   "DSTn:HOPn Packets with destination address DSTn will be sent to HOPn\n\n"
 			   "The reset_routes command will reset the node and than add new routes while the\n"
 			   "set_routes command updates the current routes\n");
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -255,7 +254,7 @@ int master_node_cmd_node_routes(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	uint8_t reset = 0;
@@ -269,9 +268,9 @@ int master_node_cmd_node_routes(int argc, char **argv)
 	{
 		printf("Route request for node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 
@@ -279,7 +278,7 @@ int master_node_cmd_node_routes(int argc, char **argv)
  * configure_sensor <NODE> <CHANNEL> <IF> <MAT> <WND> <RF>
  *   Configure sensor on node
  */
-int master_node_cmd_configure_sensor(int argc, char **argv)
+void master_node_cmd_configure_sensor(int argc, char **argv)
 {
 	if (argc != 7)
 	{
@@ -296,13 +295,13 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 			   "          <REJECT_THRESHOLD>,<REJECT_CONSEC>\n"
 			   "See the documentation for details on the parameters.\n");
 
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -310,7 +309,7 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	uint8_t channel_id = atoi(argv[2]);
@@ -320,9 +319,9 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
 	{
 		printf("Sensor config request for node %u (channel %u) failed with error %i\n", dst, channel_id, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 
@@ -330,7 +329,7 @@ int master_node_cmd_configure_sensor(int argc, char **argv)
  * enable_sensor <NODE> <MASK> <SPS>
  *   Set active sensors
  */
-int master_node_cmd_enable_sensor(int argc, char **argv)
+void master_node_cmd_enable_sensor(int argc, char **argv)
 {
 	if (argc != 4)
 	{
@@ -339,13 +338,13 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 			   "CHANNELS  Active channels\n"
 			   "SPS       Samples per second\n");
 
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -353,7 +352,7 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	uint16_t channels = atoi(argv[2]);
@@ -368,9 +367,9 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
 	{
 		printf("Sensor enable request for node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 
@@ -379,7 +378,7 @@ int master_node_cmd_enable_sensor(int argc, char **argv)
  *   Request raw frame form node
  */
 
-int master_node_cmd_raw_frames(int argc, char **argv)
+void master_node_cmd_raw_frames(int argc, char **argv)
 {
 	if (argc != 4)
 	{
@@ -388,13 +387,13 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 			   "CHANNEL   Channel to measure\n"
 			   "COUNT     Number of frames to send\n");
 
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -402,7 +401,7 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	uint8_t channel = atoi(argv[2]);
@@ -413,9 +412,9 @@ int master_node_cmd_raw_frames(int argc, char **argv)
 	{
 		printf("Raw data request for node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 
@@ -425,19 +424,19 @@ int master_node_cmd_raw_frames(int argc, char **argv)
  *   This command works in a similar way as raw_frames, meaning that the actual
  *   requested data is sent independent of the command without auth.
  */
-int master_node_cmd_raw_status(int argc, char **argv)
+void master_node_cmd_raw_status(int argc, char **argv)
 {
 	if (argc != 2)
 	{
 		printf("USAGE: raw_status <NODE>\n\n"
 			   "NODE      Address of the destination node\n");
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -445,7 +444,7 @@ int master_node_cmd_raw_status(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	int res = sensor_connection_get_raw_status(con);
@@ -453,9 +452,9 @@ int master_node_cmd_raw_status(int argc, char **argv)
 	{
 		printf("Send raw status request to node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 
@@ -463,19 +462,19 @@ int master_node_cmd_raw_status(int argc, char **argv)
  * authping <node_id>
  *   Check if connected node is still alive
  */
-int master_node_cmd_authping(int argc, char **argv)
+void master_node_cmd_authping(int argc, char **argv)
 {
 	if (argc != 2)
 	{
 		printf("USAGE: authping <NODE>\n\n"
 			   "NODE      Address of the destination node\n");
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -483,7 +482,7 @@ int master_node_cmd_authping(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	int res = sensor_connection_authping(con);
@@ -491,13 +490,13 @@ int master_node_cmd_authping(int argc, char **argv)
 	{
 		printf("Send authping to node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 
-int master_node_cmd_led(int argc, char **argv)
+void master_node_cmd_led(int argc, char **argv)
 {
 	if (argc < 3)
 	{
@@ -505,13 +504,13 @@ int master_node_cmd_led(int argc, char **argv)
 			   "NODE      Address of the destination node\n"
 			   "LEDx      Color mode of the LED.\n"
 			   "          See the color table of the node for details.\n");
-		return 1;
+		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
-		return 1;
+		return;
 	}
 
 	sensor_connection_t *con = find_node(dst);
@@ -519,7 +518,7 @@ int master_node_cmd_led(int argc, char **argv)
 	{
 		printf("Not connected!\n");
 		print_err_text();
-		return 1;
+		return;
 	}
 
 	int res = sensor_connection_led(con, argc - 2, argv + 2);
@@ -527,29 +526,29 @@ int master_node_cmd_led(int argc, char **argv)
 	{
 		printf("Send led request to node %u failed with error %i\n", dst, res);
 		print_err_text();
-		return 1;
+		return;
 	}
-	return 0;
+	return;
 }
 
 /*
  * rebuild_status_channel <node_id>
  *   Tell a node to rebuild its status channel.
  */
-int master_node_cmd_rebuild_status_channel(int argc, char **argv)
+void master_node_cmd_rebuild_status_channel(int argc, char **argv)
 {
     if (argc != 2)
     {
         printf("USAGE: rebuild_status_channel <NODE>\n\n"
 			   "NODE      Address of the destination node\n\n"
 			   "This needs to be called if it is not reset after reconnecting.\n");
-        return 1;
+        return;
     }
 
     nodeid_t dst = utils_parse_nodeid(argv[1], 1);
     if (dst == MESHNW_INVALID_NODE)
     {
-        return 1;
+        return;
     }
 
     sensor_connection_t *con = find_node(dst);
@@ -557,7 +556,7 @@ int master_node_cmd_rebuild_status_channel(int argc, char **argv)
     {
         printf("Not connected!\n");
         print_err_text();
-        return 1;
+        return;
     }
 
     int res = sensor_connection_rebuild_status_channel(con);
@@ -565,9 +564,9 @@ int master_node_cmd_rebuild_status_channel(int argc, char **argv)
     {
         printf("Send rebuild_status_channel to node %u failed with error %i\n", dst, res);
         print_err_text();
-        return 1;
+        return;
     }
-    return 0;
+    return;
 }
 
 
@@ -589,8 +588,6 @@ static void message_thread(void *arg)
 			}
 		}
 	}
-
-	return NULL;
 }
 
 

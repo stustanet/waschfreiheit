@@ -86,7 +86,7 @@ const node_auth_keys_t *master_config_get_keys(uint8_t id)
 }
 
 
-int master_config_set_cmd(int argc, char **argv)
+void master_config_set_cmd(int argc, char **argv)
 {
 	// Buffer for read-modify-write the config entries
 	// This is up to a full page, so I definitely don't want this on the stack!
@@ -100,7 +100,7 @@ int master_config_set_cmd(int argc, char **argv)
 			   "key_status  Key used for status messages (incoming traffic)\n"
 			   "key_config  Key used for config messages (outgoing traffic)\n"
 			   "Both keys must be exactly 128 bit long and encoded in hex format.\n");
-		return 1;
+		return;
 	}
 
 	int node_id = atoi(argv[1]);
@@ -108,7 +108,7 @@ int master_config_set_cmd(int argc, char **argv)
 	if (node_id < 0 || node_id > MASTER_CONFIG_NUM_NODES)
 	{
 		printf("Node id out of range, expected to be between 0 and %u!\n", MASTER_CONFIG_NUM_NODES);
-		return 1;
+		return;
 	}
 
 	uint8_t entry_idx;
@@ -117,7 +117,7 @@ int master_config_set_cmd(int argc, char **argv)
 	if (current == NULL)
 	{
 		printf("Failed to get page for node\n");
-		return 1;
+		return;
 	}
 
 	// now copy data into buffer
@@ -128,13 +128,13 @@ int master_config_set_cmd(int argc, char **argv)
 	if (strlen(argv[2]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[2], AUTH_KEY_LEN * 2, config_buffer.keys[entry_idx].key_status))
 	{
 		printf("Invalid status key, expected status key to be 32 hex chars (128 bit)!\n");
-		return 1;
+		return;
 	}
 
 	if (strlen(argv[3]) != AUTH_KEY_LEN * 2 || !utils_hex_decode(argv[3], AUTH_KEY_LEN * 2, config_buffer.keys[entry_idx].key_config))
 	{
 		printf("Invalid config key, expected status key to be 32 hex chars (128 bit)!\n");
-		return 1;
+		return;
 	}
 
 	uint8_t page = node_id / CONFIG_ENTRIES_PER_PAGE;
@@ -151,6 +151,6 @@ int master_config_set_cmd(int argc, char **argv)
 
 	// Everything done
 	printf("OK, updated config for node %u\n", node_id);
-	return 0;
+	return;
 
 }
