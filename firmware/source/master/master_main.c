@@ -46,6 +46,7 @@ const cli_command_t cli_commands[] = {
     { "authping",      "Sends a conneted node is still alive", master_node_cmd_authping },
     { "led",           "Set the LEDs of a node",               master_node_cmd_led },
     { "rebuild_status_channel", "Request a node to rebuild the status channel", master_node_cmd_rebuild_status_channel },
+    { "configure_status_change_indicator", "Configure the status change indicator LEDs.", master_node_cmd_configure_status_change_indicator },
     { "routes",        "Sets the routes for the master node",  cmd_routes },
     { NULL, NULL, NULL }
 };

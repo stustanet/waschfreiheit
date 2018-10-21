@@ -1,4 +1,5 @@
 ifeq ($(NODE),MASTER)
+DEFS += -DMASTER
 include source/master/master.mk
 else
 include source/sensor/sensor.mk

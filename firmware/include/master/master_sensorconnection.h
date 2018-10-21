@@ -108,6 +108,12 @@ int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds);
 int sensor_connection_rebuild_status_channel(sensor_connection_t *con);
 
 /*
+ * Configures the status change indicator for one or more channels.
+ * A channel has the following format: <channel>,<led>,<color>
+ */
+int sensor_connection_configure_status_change_indicator(sensor_connection_t *con, int num_channels, char **channels);
+
+/*
  * Request raw data from the sensor.
  * Raw data is printed on the console (Prefix: *** followed by comma seperated values (16bit, hex encoded))
  */

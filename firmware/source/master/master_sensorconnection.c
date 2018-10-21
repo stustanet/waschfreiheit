@@ -838,6 +838,51 @@ int sensor_connection_rebuild_status_channel(sensor_connection_t *con)
 }
 
 
+int sensor_connection_configure_status_change_indicator(sensor_connection_t *con, int num_channels, char **channels)
+{
+    if (con->ack_outstanding)
+    {
+        printf("Can't send configure_status_change_indicator to %u, ACK for last command is still outstanding.\n", con->node_id);
+        return -EBUSY;
+    }
+
+    msg_configure_status_change_indicator_t *cscimsg = (msg_configure_status_change_indicator_t *)con->last_sent_message;
+
+    cscimsg->type = MSG_TYPE_CONFIGURE_STATUS_CHANGE_INDICATOR;
+
+	size_t message_size = sizeof(*cscimsg) + num_channels * sizeof(cscimsg->data[0]);
+
+	if (message_size > sizeof(con->last_sent_message))
+	{
+		printf("Too many channels in one request\n");
+		return -EINVAL;
+	}
+
+	for (int i = 0; i < num_channels; ++i)
+	{
+		uint16_t vals[3];
+		if (parse_int16_list(channels[i], NULL, vals, sizeof(vals) / sizeof(vals[0])))
+		{
+			return -EINVAL;
+		}
+	    cscimsg->data[i].channel = vals[0];
+	    cscimsg->data[i].led = vals[1];
+	    cscimsg->data[i].color = vals[2];
+	}
+
+    // sign and send
+    int res = sign_and_send_msg(con, message_size);
+
+    if (res != 0)
+    {
+        printf("Failed to sign configure_status_change_indicator request for node %u with error %i\n", con->node_id, res);
+        return 1;
+    }
+
+    return 0;
+}
+
+
 int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, uint16_t num_frames)
 {
 	if (con->ack_outstanding)

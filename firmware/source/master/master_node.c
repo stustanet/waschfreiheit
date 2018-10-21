@@ -570,6 +570,44 @@ void master_node_cmd_rebuild_status_channel(int argc, char **argv)
 }
 
 
+void master_node_cmd_configure_status_change_indicator(int argc, char **argv)
+{
+	if (argc < 3)
+	{
+		printf("USAGE: configure_status_change_indicator <NODE> <CHANNEL0> ... <CHANNELn>.\n\n"
+			   "NODE        Address of the destination node\n"
+			   "<CHANNELx>  Configuration for a single channel in the format:\n"
+			   "            <CHANNEL>,<LED>,<COLOR>\n"
+			   "            When a status change on the CHANNEL is detected, the\n"
+			   "            LED is set to blink in the specified COLOR.\n");
+		return;
+	}
+
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
+	if (dst == MESHNW_INVALID_NODE)
+	{
+		return;
+	}
+
+	sensor_connection_t *con = find_node(dst);
+	if (!con)
+	{
+		printf("Not connected!\n");
+		print_err_text();
+		return;
+	}
+
+	int res = sensor_connection_configure_status_change_indicator(con, argc - 2, argv + 2);
+	if (res != 0)
+	{
+		printf("Failed to configure status indicator on node %u with error %i\n", dst, res);
+		print_err_text();
+		return;
+	}
+}
+
+
+
 static void message_thread(void *arg)
 {
 	(void) arg;
