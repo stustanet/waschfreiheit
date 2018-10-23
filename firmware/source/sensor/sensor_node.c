@@ -27,7 +27,12 @@
 #include "flasher.h"
 #include "tinyprintf.h"
 #include "sensor_adc.h"
+#include "debug_file_logger.h"
 #include "led_status.h"
+
+#ifdef WASCHV2
+
+#endif
 
 /*
  * Max time for the watchdog observing the ADC thread.
@@ -1226,12 +1231,20 @@ static void adc_thread(void *arg)
 	static const uint8_t VALUES_PER_MESSAGE = (sizeof(rf_buffer) - sizeof(*raw_frame_vals)) / sizeof(raw_frame_vals->values[0]);
 	uint8_t raw_values_in_msg = 0;
 
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+	uint16_t adc_raw_value_buffer[NUM_OF_SENSORS];
+	uint16_t adc_filtered_value_buffer[NUM_OF_SENSORS];
+#endif
 
     TickType_t last = xTaskGetTickCount();
 
 	while (1)
 	{
 		ctx.adc_thread_watchdog = 0;
+
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+		uint8_t is_frame = 0;
+#endif
 
 		// Loop over all channels
 		for (uint8_t adc = 0; adc < NUM_OF_SENSORS; adc++)
@@ -1258,6 +1271,9 @@ static void adc_thread(void *arg)
 
 			// Sample the channel
 			uint16_t val = dma_buffer[adc];
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+			adc_raw_value_buffer[adc] = val;
+#endif
 
 			// Update satte estimation
 			state_update_result_t res = stateest_update(&ctx.sensors[adc], val);
@@ -1266,6 +1282,9 @@ static void adc_thread(void *arg)
 			{
 				// Status change on this channel.
 				printf("Channel %u on state change %i\n", adc, res);
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+				debug_file_logger_log_stateest(adc, stateest_get_current_state(&ctx.sensors[adc]));
+#endif
 			}
 
 			// just change the status bits, the message loop will check for changes and notify the master
@@ -1278,13 +1297,18 @@ static void adc_thread(void *arg)
 				ctx.current_sensor_status &= ~(1 << adc);
 			}
 
-			if (ctx.status & STATUS_PRINTFRAMES)
+			if (stateest_get_frame(&ctx.sensors[adc]) != 0xffffffff)
 			{
-				// Print frame values
-				if (stateest_get_frame(&ctx.sensors[adc]) != 0xffffffff)
+				// It's a frame
+				uint16_t frame = (uint16_t)stateest_get_frame(&ctx.sensors[adc]);
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+				adc_filtered_value_buffer[adc] = frame;
+				is_frame = 1;
+#endif
+
+				if (ctx.status & STATUS_PRINTFRAMES)
 				{
-					// It's a frame -> Print it
-					uint16_t frame = (uint16_t)stateest_get_frame(&ctx.sensors[adc]);
+					// Print frame values
 					printf("%u: %u\t%u\t%u\n",
 					       adc,
 					       frame,
@@ -1322,6 +1346,14 @@ static void adc_thread(void *arg)
 				}
 			}
 		}
+
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+		debug_file_logger_log_raw_adc(adc_raw_value_buffer, NUM_OF_SENSORS);
+		if (is_frame)
+		{
+			debug_file_logger_log_filtered_adc(adc_filtered_value_buffer, NUM_OF_SENSORS);
+		}
+#endif
 
 		// Wait for next cycle
 		if (ctx.debug_raw_mode_delay_ms != 0)
@@ -2061,7 +2093,6 @@ void sensor_node_cmd_channel_test(int argc, char **argv)
 	(void)argv;
 
 	init_channel_test_mode();
-	return 0;
 }
 
 

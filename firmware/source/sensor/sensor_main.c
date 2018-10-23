@@ -9,19 +9,21 @@
 
 #include <FreeRTOS.h>
 #include <task.h>
+#include <semphr.h>
 
 #include "commands_common.h"
 #include "tinyprintf.h"
 #include "sensor_node.h"
 #include "sensor_config.h"
 #include "led_status.h"
+#include "storage_manager.h"
 #include "watchdog.h"
 
 // Stack size of the LED thread (in words)
 #define LED_THD_STACK_SIZE 128
 
-StaticTask_t led_thd_buffer;;
-StackType_t led_thd_stack[LED_THD_STACK_SIZE];
+static StaticTask_t led_thd_buffer;;
+static StackType_t led_thd_stack[LED_THD_STACK_SIZE];
 
 const cli_command_t cli_commands[] = {
     { "config",           "Node configuration",                      sensor_config_set_cmd },
@@ -31,10 +33,13 @@ const cli_command_t cli_commands[] = {
     { "led",              "RGB LED test",                            sensor_node_cmd_led },
     { "print_frames",     "Enbales / Disables frame value printing", sensor_node_cmd_print_frames },
     { "status",           "Prints node status",                      sensor_node_cmd_print_status },
+    { "sx127x",           "RF modem debug",                          sx127x_test_cmd },
 #ifdef WASCHV1
     { "firmware_upgrade", "Firmware upgrade",                        sensor_node_cmd_firmware_upgrade },
 #else
     { "channel_test",     "Enter channel testing mode",              sensor_node_cmd_channel_test },
+    { "logger",           "Configure the logger",                    storage_manager_cmd_configure_logger },
+    { "umount",           "Unmount USB storage",                    storage_manager_cmd_umount },
 #endif
     { NULL, NULL, NULL }
 };
@@ -54,11 +59,13 @@ static void led_thread(void *arg)
 	}
 }
 
-
 void node_init(void)
 {
 	// Start the watchdog, this needs to be fed min every 4 sec
 	watchdog_init();
+
+	storage_manager_init();
+
 	int sni = sensor_node_init();
 	if (sni != 0)
 	{

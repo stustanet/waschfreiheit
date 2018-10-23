@@ -25,7 +25,10 @@
 #include "cli.h"
 #include "commands_common.h"
 #include "meshnw.h"
-//#include "sensor_node.h"
+
+#if !defined(MASTER) && defined(WASCHV2)
+#include "debug_command_queue.h"
+#endif
 
 #ifdef WASCHV2
 // Clock for the STM32F401
@@ -48,7 +51,7 @@ const struct rcc_clock_scale hse_8_84mhz =
 #endif
 
 // Stack size in words for the CLI task
-#define CLI_TASK_STACK_SIZE 200
+#define CLI_TASK_STACK_SIZE 512
 
 // Number of bytes in the command buffer for the CLI
 // This resides on the stack of the CLI task so keep the stack size in mind when changing this!
@@ -88,19 +91,6 @@ static void init_usart(void)
 }
 
 
-static void test_func(int argc, char **argv)
-{
-	printf("Called test command with the following %i arguments:\n", argc);
-	for (int i = 0; i < argc; i++)
-	{
-		printf("%s\n", argv[i]);
-	}
-	printf("---------\n");
-}
-
-
-
-
 static void cliTask(void *arg)
 {
 	(void) arg;
@@ -112,6 +102,19 @@ static void cliTask(void *arg)
 
 	while (1)
 	{
+
+#if !defined(MASTER) && defined(WASCHV2)
+		if (debug_command_queue_running())
+		{
+			char *next = debug_command_queue_next();
+
+			if (next)
+			{
+				cli_evaluate(next);
+				continue;
+			}
+		}
+#endif
 		int16_t c = serial_getchar();
 
 		if (c == INT16_MIN)
@@ -135,12 +138,6 @@ static void cliTask(void *arg)
 			buffer_pos++;
 		}
 	}
-}
-
-
-static void test_recv_cb(nodeid_t src, void *data, uint8_t len)
-{
-	printf("Got packet from %u with len %u and type %02x\n", src, len, ((uint8_t*)data)[0]);
 }
 
 

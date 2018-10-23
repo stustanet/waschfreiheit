@@ -21,6 +21,10 @@
 #include "led_status.h"
 #endif
 
+#if defined(WASCHV2) && !defined(MASTER)
+#include "debug_file_logger.h"
+#endif
+
 #define MESHNW_MSG_QUEUE   (16U)
 #define NETDEV_ISR_EVENT_MESSAGE   (0x3456)
 
@@ -144,6 +148,10 @@ static bool forward_packet(void *packet, uint8_t len)
 	led_status_system(LED_STATUS_SYSTEM_TX);
 #endif
 
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+	debug_file_logger_log_network_packet(packet, len, true, 0, 0);
+#endif
+
 	xSemaphoreTake(context.mutex, portMAX_DELAY);
 
 	printf("Send packet\n");
@@ -189,6 +197,10 @@ static void handle_rx_cplt(uint8_t *packet, uint8_t len)
 	uint8_t rssi;
 	int8_t snr;
 	sx127x_get_last_pkt_stats(&rssi, &snr);
+
+#ifdef DEBUG_FILE_LOGGER_AVAILABLE
+	debug_file_logger_log_network_packet(packet, len, false, rssi, snr);
+#endif
 
 	printf("Received packet from %u for %u (%d bytes), RSSI: %i, SNR: %i/4 dB\n",
 		   hdr->src, hdr->dst, (int)len,
