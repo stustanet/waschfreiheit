@@ -20,6 +20,7 @@ ARCH_FLAGS	= -mthumb -mcpu=cortex-m4 $(FP_FLAGS)
 
 ifneq ($(NODE),MASTER)
 include libusbhost.mk
+include fatfs.mk
 endif
 
 endif
