@@ -29,6 +29,10 @@
 #define USB_FS_GPIO_PORT GPIOA
 #define USB_FS_GPIO_RCC RCC_GPIOA
 
+#define USB_POWERSW_GPIO_PIN_EN GPIO0
+#define USB_POWERSW_GPIO_PORT GPIOB
+#define USB_POWERSW_GPIO_RCC  RCC_GPIOB
+
 // Stack size of the usb poll thread (in words)
 #define USB_POLL_THD_STACK_SIZE 512
 
@@ -189,6 +193,8 @@ static void usb_poll_thread(void *arg)
 
 static void init_usb_driver(void)
 {
+	gpio_clear(USB_POWERSW_GPIO_PORT, USB_POWERSW_GPIO_PIN_EN);
+
 	bulkonly_storage_callbacks_t boscb = {
 		.connect = usb_msc_connect,
 		.disconnect = usb_msc_disconnect,
@@ -209,6 +215,9 @@ static void init_usb_driver(void)
 
 	usb_msc_status.timeout = xTaskGetTickCount();
 	usb_msc_status.error_cnt = 0;
+
+	vTaskDelay(100);
+	gpio_set(USB_POWERSW_GPIO_PORT, USB_POWERSW_GPIO_PIN_EN);
 }
 
 
@@ -311,6 +320,8 @@ void usb_storage_init(void)
 	rcc_periph_clock_enable(RCC_OTGFS);
 	rcc_periph_clock_enable(USB_FS_GPIO_RCC);
 
+	rcc_periph_clock_enable(USB_POWERSW_GPIO_RCC);
+
 	gpio_mode_setup(USB_FS_GPIO_PORT,
 					GPIO_MODE_AF,
 					GPIO_PUPD_NONE,
@@ -319,6 +330,11 @@ void usb_storage_init(void)
 	gpio_set_af(USB_FS_GPIO_PORT,
 				USB_FS_GPIO_AF,
 				USB_FS_GPIO_PIN_DM | USB_FS_GPIO_PIN_DP);
+
+	gpio_mode_setup(USB_POWERSW_GPIO_PORT,
+					GPIO_MODE_OUTPUT,
+					GPIO_PUPD_NONE,
+					USB_POWERSW_GPIO_PIN_EN);
 
 	usb_poll_mutex = xSemaphoreCreateMutexStatic(&usb_poll_mutex_buffer);
 	usb_reentry_mutex = xSemaphoreCreateMutexStatic(&usb_reentry_mutex_buffer);
