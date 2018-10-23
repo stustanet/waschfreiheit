@@ -19,6 +19,7 @@ FP_FLAGS	= -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ARCH_FLAGS	= -mthumb -mcpu=cortex-m4 $(FP_FLAGS)
 
 ifneq ($(NODE),MASTER)
+#DEFS += -DLUSBH_USART_DEBUG
 include libusbhost.mk
 include fatfs.mk
 endif

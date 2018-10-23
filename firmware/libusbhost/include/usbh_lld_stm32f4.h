@@ -33,7 +33,7 @@ BEGIN_DECLS
 extern const usbh_low_level_driver_t usbh_lld_stm32f4_driver_fs;
 extern const usbh_low_level_driver_t usbh_lld_stm32f4_driver_hs;
 
-#ifdef USART_DEBUG
+#ifdef LUSBH_USART_DEBUG
 void print_channels(const void *drvdata);
 #else
 #define print_channels(arg) ((void)arg)
