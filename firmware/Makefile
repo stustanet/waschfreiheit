@@ -17,6 +17,11 @@ LDSCRIPT = stm32f401rbt6.ld
 OOCD_TARGET	= stm32f4x
 FP_FLAGS	= -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ARCH_FLAGS	= -mthumb -mcpu=cortex-m4 $(FP_FLAGS)
+
+ifneq ($(NODE),MASTER)
+include libusbhost.mk
+endif
+
 endif
 
 include source/node.mk
