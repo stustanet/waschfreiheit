@@ -80,14 +80,17 @@ static const usbh_low_level_driver_t * const lld_drivers[] = {
 static void usb_msc_connect(uint8_t device_id)
 {
     (void)device_id;
+	usb_msc_status.busy = true;
+	printf("USB CONNECTED");
 	led_status_system(LED_STATUS_SYSTEM_USB_CON);
 }
 
 static void usb_msc_disconnect(uint8_t device_id)
 {
     (void)device_id;
+	printf("USB DISCONNECTED");
 	usb_msc_status.connected = false;
-	usb_msc_status.busy = true;
+	usb_msc_status.busy = false;
 	if (usb_msc_status.tx_pending)
 	{
 		usb_msc_status.tx_pending = false;
@@ -101,6 +104,7 @@ static void usb_msc_disconnect(uint8_t device_id)
 static void usb_msc_error(uint8_t device_id, uint8_t error_cnt)
 {
     (void)device_id;
+	printf("USB ERROR");
 	usb_msc_status.connected = false;
 	usb_msc_status.busy = false;
 	usb_msc_status.error_cnt = error_cnt;
@@ -347,7 +351,7 @@ void usb_storage_init(void)
 		"USB",
 	    USB_POLL_THD_STACK_SIZE,
 		NULL,
-		tskIDLE_PRIORITY + 3,
+		tskIDLE_PRIORITY,
 		usb_poll_thd_stack,
 		&usb_poll_thd_buffer);
 }
