@@ -281,10 +281,11 @@ uint8_t sx127x_recv(uint8_t *buffer, uint8_t max)
 			return size;
 		}
 
+		//printf("Change mode for RX, was: %02x\n", modereg);
+
 		// Not in rx mode and no RxDone Interrupt -> re-enter rx mode
-		mode = (modereg & ~SX127x_RegOpMode_Mode_Mask) | SX127x_RegOpMode_Mode_RXSINGLE;
-		//printf("Set mode to %02x for RX\n", mode);
-		sx127x_set_reg(SX127x_RegOpMode, mode);
+		modereg = (modereg & ~SX127x_RegOpMode_Mode_Mask) | SX127x_RegOpMode_Mode_RXSINGLE;
+		sx127x_set_reg(SX127x_RegOpMode, modereg);
 	}
 
 	return 0;
@@ -325,8 +326,7 @@ bool sx127x_send(const uint8_t *data, uint8_t len)
 bool sx127x_is_busy(void)
 {
 	uint8_t mode = sx127x_get_reg(SX127x_RegOpMode) & SX127x_RegOpMode_Mode_Mask;
-	if (mode == SX127x_RegOpMode_Mode_FSTX ||
-		mode == SX127x_RegOpMode_Mode_TX)
+	if (mode == SX127x_RegOpMode_Mode_TX)
 	{
 		return true;
 	}
