@@ -112,10 +112,9 @@ static void usb_msc_error(uint8_t device_id, uint8_t error_cnt)
 	{
 		usb_msc_status.tx_pending = false;
 		usb_msc_status.result = USB_RESULT_FATAL;
+		led_status_system(LED_STATUS_SYSTEM_USB_ERR);
 		xSemaphoreGive(usb_tx_semaphore);
 	}
-
-	led_status_system(LED_STATUS_SYSTEM_USB_ERR);
 }
 
 static void usb_msc_ready(uint8_t device_id, uint64_t num_of_sectors, uint32_t bytes_per_sector)
@@ -174,6 +173,7 @@ static void usb_poll_thread(void *arg)
 			printf("Reset USB: timeout=%lu, err=%u\n", usb_msc_status.timeout, usb_msc_status.error_cnt);
 
 			usb_msc_error(0, usb_msc_status.error_cnt);
+			led_status_system(LED_STATUS_SYSTEM_USB_DISCON);
 
 			// MAYBE power-cycle the USB?
 			init_usb_driver();
