@@ -17,7 +17,7 @@
 
 static const uint32_t LORA_BANDWIDTH_TABLE[] = {7800, 10400, 15600, 20800, 31200, 41700, 62500, 125000, 250000, 500000};
 
-// 16ms, above this symbol time, the LowDataRateOptimize mode should be set
+// 16ms: Above this symbol time, the LowDataRateOptimize mode should be set
 #define LORA_LOW_DR_OPT_THRESHOLD_US 16000
 
 static void sx127x_read(uint8_t addr, uint8_t *data, size_t len)
@@ -283,7 +283,7 @@ uint8_t sx127x_recv(uint8_t *buffer, uint8_t max)
 
 		// Not in rx mode and no RxDone Interrupt -> re-enter rx mode
 		mode = (modereg & ~SX127x_RegOpMode_Mode_Mask) | SX127x_RegOpMode_Mode_RXSINGLE;
-		printf("Set mode to %02x for RX\n", mode);
+		//printf("Set mode to %02x for RX\n", mode);
 		sx127x_set_reg(SX127x_RegOpMode, mode);
 	}
 
@@ -446,5 +446,4 @@ void sx127x_test_cmd(int argc, char **argv)
 	{
 		printf("Unknown sx127x command: \"%s\"\n", argv[1]);
 	}
-
 }
