@@ -76,6 +76,7 @@ static LED_COLOR_STRUCT led_buffer[NUM_OF_LEDS];
 static LED_COLOR_STRUCT system_led_original_colors[NUM_SYSTEM_LEDS];
 static uint8_t system_led_temp_status = 0;
 
+// Locking for the 'event' colors
 SemaphoreHandle_t led_buffer_mutex;
 StaticSemaphore_t led_buffer_mutexStorage;
 #endif
@@ -171,7 +172,9 @@ void led_status_external(uint8_t led, rgb_data_t color)
 
 void led_status_init(void)
 {
+#if NUM_SYSTEM_LEDS != 0
 	led_buffer_mutex = xSemaphoreCreateMutexStatic(&led_buffer_mutexStorage);
+#endif
 #ifdef WASCHV1
 	// GPIOs for LEDs
 	rcc_periph_clock_enable(WS2801_GPIO_PORT_RCC);

@@ -27,11 +27,10 @@
 #include "flasher.h"
 #include "tinyprintf.h"
 #include "sensor_adc.h"
-#include "debug_file_logger.h"
 #include "led_status.h"
 
 #ifdef WASCHV2
-
+#include "debug_file_logger.h"
 #endif
 
 /*

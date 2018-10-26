@@ -16,8 +16,11 @@
 #include "sensor_node.h"
 #include "sensor_config.h"
 #include "led_status.h"
-#include "storage_manager.h"
 #include "watchdog.h"
+
+#ifdef WASCHV2
+#include "storage_manager.h"
+#endif
 
 // Stack size of the LED thread (in words)
 #define LED_THD_STACK_SIZE 128
@@ -64,7 +67,9 @@ void node_init(void)
 	// Start the watchdog, this needs to be fed min every 4 sec
 	watchdog_init();
 
+#ifdef WASCHV2
 	storage_manager_init();
+#endif
 
 	int sni = sensor_node_init();
 	if (sni != 0)
