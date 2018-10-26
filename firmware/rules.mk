@@ -146,7 +146,7 @@ LDLIBS		+= -Wl,--start-group -lc -lgcc -lnosys -Wl,--end-group
 .SECONDEXPANSION:
 .SECONDARY:
 
-all: elf
+build: elf
 
 elf: $(BINARY).elf
 bin: $(BINARY).bin

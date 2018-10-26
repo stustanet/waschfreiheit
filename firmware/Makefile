@@ -1,10 +1,38 @@
-BUILDDIR = build
-BINDIR = bin
+all: sensor_v1 sensor_v2 master_v1 master_v2
+
+sensor_v1:
+	@$(MAKE) NODE=SENSOR VERSION=V1 build
+
+sensor_v2:
+	@$(MAKE) NODE=SENSOR VERSION=V2 build
+
+master_v1:
+	@$(MAKE) NODE=MASTER VERSION=V1 build
+
+master_v2:
+	@$(MAKE) NODE=MASTER VERSION=V2 build
+
+
+ifeq ($(VERSION),V1)
+ifneq ($(NODE),MASTER)
+PROJECT=sensor_v1
+else
+PROJECT=master_v1
+endif
+else
+ifneq ($(NODE),MASTER)
+PROJECT=sensor_v2
+else
+PROJECT=master_v2
+endif
+endif
+
+BINDIR = bin/$(PROJECT)
+BUILDDIR = build/$(PROJECT)
 
 ifeq ($(VERSION),V1)
 LIBNAME	= opencm3_stm32f1
 DEFS += -DSTM32F1 -DWASCHV1
-PROJECT = wasch_v1
 LDSCRIPT = libopencm3/lib/stm32/f1/stm32f103xb.ld
 OOCD_TARGET	= stm32f1x
 FP_FLAGS	= -mfpu=vfp -msoft-float
@@ -12,7 +40,6 @@ ARCH_FLAGS	= -mcpu=cortex-m3 -mthumb -mno-thumb-interwork $(FP_FLAGS)
 else
 LIBNAME	= opencm3_stm32f4
 DEFS += -DSTM32F4 -DWASCHV2
-PROJECT = wasch_v2
 LDSCRIPT = stm32f401rbt6.ld
 OOCD_TARGET	= stm32f4x
 FP_FLAGS	= -mfloat-abi=hard -mfpu=fpv4-sp-d16
