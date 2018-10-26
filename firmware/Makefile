@@ -1,17 +1,5 @@
-all: sensor_v1 sensor_v2 master_v1 master_v2
 
-sensor_v1:
-	@$(MAKE) NODE=SENSOR VERSION=V1 build
-
-sensor_v2:
-	@$(MAKE) NODE=SENSOR VERSION=V2 build
-
-master_v1:
-	@$(MAKE) NODE=MASTER VERSION=V1 build
-
-master_v2:
-	@$(MAKE) NODE=MASTER VERSION=V2 build
-
+TARGET ?= build
 
 ifeq ($(VERSION),V1)
 ifneq ($(NODE),MASTER)
@@ -64,3 +52,22 @@ OOCD_INTERFACE = stlink-v2
 BINARY = bin/$(PROJECT)
 $(shell mkdir -p $(BINDIR) $(BUILDDIR))
 include ./rules.mk
+
+
+all: TARGET=build
+all: sensor_v1 sensor_v2 master_v1 master_v2
+
+clean: TARGET=_clean
+clean: sensor_v1 sensor_v2 master_v1 master_v2
+
+sensor_v1:
+	@$(MAKE) NODE=SENSOR VERSION=V1 $(TARGET)
+
+sensor_v2:
+	@$(MAKE) NODE=SENSOR VERSION=V2 $(TARGET)
+
+master_v1:
+	@$(MAKE) NODE=MASTER VERSION=V1 $(TARGET)
+
+master_v2:
+	@$(MAKE) NODE=MASTER VERSION=V2 $(TARGET)

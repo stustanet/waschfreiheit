@@ -216,9 +216,9 @@ $(BUILDDIR)/%.o: %.c
 #	@#printf "  CXX     $(*).cpp\n"
 #	$(Q)$(CXX) $(TGT_CXXFLAGS) $(CXXFLAGS) $(TGT_CPPFLAGS) $(CPPFLAGS) -o $(*).o -c $(*).cpp
 
-clean:
+_clean:
 	@#printf "  CLEAN\n"
-	$(Q)$(RM) $(GENERATED_BINARIES) generated.* $(_OBJS) $(OBJS:%.o=%.d)
+	$(Q)$(RM) $(GENERATED_BINARIES) generated.* $(_OBJS) $(_OBJS:%.o=%.d)
 
 stylecheck: $(STYLECHECKFILES:=.stylecheck)
 styleclean: $(STYLECHECKFILES:=.styleclean)
