@@ -160,8 +160,10 @@ static bool init_rfm(const sx127x_rf_config_t *config)
 	// Set to LoRa mode
 	// -> Need to set device to sleep mode first
 	sx127x_set_reg(SX127x_RegOpMode, SX127x_RegOpMode_LongRangeMode);
+	for (volatile uint32_t i = 0; i < 100; i++);
 	// -> Now switch back to the STANDY mode
 	sx127x_set_reg(SX127x_RegOpMode, SX127x_RegOpMode_LongRangeMode | SX127x_RegOpMode_Mode_STDBY);
+	for (volatile uint32_t i = 0; i < 100; i++);
 
 	// Read back the config register
 	uint8_t read_back = sx127x_get_reg(SX127x_RegOpMode);
