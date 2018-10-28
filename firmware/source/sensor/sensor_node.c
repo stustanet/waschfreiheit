@@ -727,7 +727,7 @@ static int check_auth_message(nodeid_t src, void *data, uint32_t *len)
 		printf("Received message with old nonce -> re-ack\n");
 
 		// set re-ack bit and ack
-		send_ack(ctx.last_ack_result | 0x80);
+		send_ack(ctx.last_ack_result | ACK_RETRANSMIT);
 
 		return res;
 	}
@@ -771,7 +771,7 @@ static void handle_route_request(nodeid_t src, void *data, uint8_t len)
 		printf("Received too small route message with size %lu\n", msglen);
 
 		// still ack it so the master gets the error
-		send_ack(1);
+		send_ack(ACK_WRONGSIZE);
 		return;
 	}
 
@@ -800,7 +800,7 @@ static void handle_route_request(nodeid_t src, void *data, uint8_t len)
 	ctx.status |= STATUS_INIT_ROUTES;
 
 	// finally ack it
-	send_ack(0);
+	send_ack(ACK_OK);
 }
 
 
@@ -824,7 +824,7 @@ static void handle_sensor_cfg_request(nodeid_t src, void *data, uint8_t len)
 		printf("Received sensor config message with wrong size %lu\n", msglen);
 
 		// Send an ack with code 1 to indicate an error
-		send_ack(1);
+		send_ack(ACK_WRONGSIZE);
 		return;
 	}
 
@@ -834,14 +834,14 @@ static void handle_sensor_cfg_request(nodeid_t src, void *data, uint8_t len)
 		printf("Attempt to configure sensor with invalid index %u\n", cfg_msg->channel_id);
 
 		// Send an ack with code 2 to indicate an error
-		send_ack(2);
+		send_ack(ACK_BADINDEX);
 		return;
 	}
 
 	if (ctx.status & STATUS_SENSOR_TEST)
 	{
 		printf("Rejecting sensor configure request while in SENSOR_TEST mode\n");
-		send_ack(3);
+		send_ack(ACK_BADSTATE);
 		return;
 	}
 
@@ -856,12 +856,12 @@ static void handle_sensor_cfg_request(nodeid_t src, void *data, uint8_t len)
 	if (init_res != 0)
 	{
 		printf("Failed to initialize state estimation, error %i\n", init_res);
-		send_ack(3);
+		send_ack(ACK_BADPARAM);
 		return;
 	}
 
 	// finally ack it
-	send_ack(0);
+	send_ack(ACK_OK);
 }
 
 
@@ -883,7 +883,7 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 	{
 		// Wrong size
 		printf("Received sensor start message with wrong size %lu\n", msglen);
-		send_ack(1);
+		send_ack(ACK_WRONGSIZE);
 		return;
 	}
 
@@ -891,7 +891,7 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 	if (ctx.status & STATUS_SENSOR_TEST)
 	{
 		printf("Rejecting sensor start request while in SENSOR_TEST mode\n");
-		send_ack(3);
+		send_ack(ACK_BADSTATE);
 		return;
 	}
 
@@ -929,7 +929,7 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 
 
 	// finally ack it
-	send_ack(0);
+	send_ack(ACK_OK);
 
 	// Set sensors active status
 	ctx.status |= STATUS_SENSORS_ACTIVE;
@@ -954,7 +954,7 @@ static void handle_raw_value_request(nodeid_t src, void *data, uint8_t len)
 	{
 		// Wrong size
 		printf("Received raw value request message with wrong size %lu\n", msglen);
-		send_ack(1);
+		send_ack(ACK_WRONGSIZE);
 		return;
 	}
 
@@ -963,7 +963,7 @@ static void handle_raw_value_request(nodeid_t src, void *data, uint8_t len)
 	ctx.debug_raw_frame_transmission_counter = u16_from_unaligned(&rf_msg->num_of_frames);
 
 	// finally ack it
-	send_ack(0);
+	send_ack(ACK_OK);
 }
 
 
@@ -984,7 +984,7 @@ static void handle_raw_status_request(nodeid_t src, void *data, uint8_t len)
 	ctx.debug_raw_status_requested = ctx.status_retransmission_base_delay + 1;
 
 	// finally ack it
-	send_ack(0);
+	send_ack(ACK_OK);
 }
 
 
@@ -1003,7 +1003,7 @@ static void handle_nop_request(nodeid_t src, void *data, uint8_t len)
 		return;
 	}
 
-	send_ack(0);
+	send_ack(ACK_OK);
 }
 
 
@@ -1046,7 +1046,7 @@ static void handle_led_request(nodeid_t src, void *data, uint8_t len)
 	ctx.status |= STATUS_LED_SET;
 	ctx.status &= ~STATUS_NO_LED_UPDATE;
 
-	send_ack(0);
+	send_ack(ACK_OK);
 }
 
 /*
@@ -1062,7 +1062,7 @@ static void handle_rebuild_status_channel_request(nodeid_t src, void *data, uint
 		return;
 	}
 
-	send_ack(0);
+	send_ack(ACK_OK);
 
 	// Only thing I need to do is to reset the INIT bit.
 	// This causes the auth to be reinitialized on demand.
@@ -1097,12 +1097,12 @@ static void handle_configure_status_change_indicator_request(nodeid_t src, void 
 		uint8_t ch = csci->data[i].channel;
 		if (ch >= NUM_OF_SENSORS)
 		{
-			send_ack(1);
+			send_ack(ACK_BADINDEX);
 			return;
 		}
 		if (csci->data[i].led >= NUM_OF_LED)
 		{
-			send_ack(2);
+			send_ack(ACK_BADPARAM);
 			return;
 		}
 
@@ -1110,7 +1110,7 @@ static void handle_configure_status_change_indicator_request(nodeid_t src, void 
 		ctx.status_change_indicators[ch].led = csci->data[i].led;
 	}
 
-	send_ack(0);
+	send_ack(ACK_OK);
 }
 
 

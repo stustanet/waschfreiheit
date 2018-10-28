@@ -24,9 +24,10 @@
  */
 #define ACK_OK            0 /* OK */
 #define ACK_WRONGSIZE     1 /* Unexpected message size */
-#define ACK_BADINDEX      2 /* A specified index (channel) parameter is outside of the allowed range */
+#define ACK_BADINDEX      2 /* A specified channel index parameter is outside of the allowed range */
 #define ACK_BADPARAM      3 /* Invalid (non-index) parameter */
 #define ACK_NOTSUP        4 /* Unsupported action */
+#define ACK_BADSTATE      5 /* Command rejected because of the current state */
 #define ACK_RETRANSMIT 0x80 /* MSB is always set if the ack was sent twice */
 
 
