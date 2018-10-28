@@ -1800,14 +1800,14 @@ static void message_thread(void *arg)
 			ctx.config_channel_timeout_timer > ctx.misc_config->network_timeout)
 		{
 			printf("NETWORK TIMEOUT! Rebooting...\n");
-			while(1); // Waait for the wdt reset
+			while(1); // Wait for the wdt reset
 		}
 
 		ctx.adc_thread_watchdog++;
 		if (ctx.adc_thread_watchdog > ADC_THREAD_WATCHDOG_TIMEOUT)
 		{
 			printf("ADC THREAD DIED! Rebooting...\n");
-			while(1); // Waait for the wdt reset
+			while(1); // Wait for the wdt reset
 		}
 
 		if ((ctx.status & STATUS_LED_SET) == 0)
