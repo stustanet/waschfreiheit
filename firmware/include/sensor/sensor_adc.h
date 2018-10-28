@@ -19,13 +19,13 @@
 #include <libopencm3/stm32/gpio.h>
 
 #ifdef WASCHV2
-#define NUM_OF_SENSORS 4
+#define NUM_OF_WASCH_CHANNELS 4
 #define ADC_CHANNEL_MUX_LIST {0, 1, 4, 6}
 #define ADC_CHANNEL_GPIO_LIST (GPIO0 | GPIO1 | GPIO4 | GPIO6)
 #define ADC_GPIO_PORT GPIOA
 #define ADC_GPIO_RCC RCC_GPIOA
 #else
-#define NUM_OF_SENSORS 2
+#define NUM_OF_WASCH_CHANNELS 2
 #define ADC_CHANNEL_MUX_LIST {8, 9}
 #define ADC_CHANNEL_GPIO_LIST (GPIO0 | GPIO1)
 #define ADC_GPIO_PORT GPIOB
@@ -33,4 +33,4 @@
 #endif
 
 
-void sensor_adc_init_dma(uint16_t dest[NUM_OF_SENSORS]);
+void sensor_adc_init_dma(uint16_t dest[NUM_OF_WASCH_CHANNELS]);

@@ -31,7 +31,13 @@
 
 #ifdef WASCHV2
 #include "debug_file_logger.h"
+#include "frequency_sensor.h"
+#else
+#define FREQUENCY_SENSOR_NUM_OF_CHANNELS 0
 #endif
+
+// Number of all sensors, including special channels
+#define NUM_OF_SENSORS (NUM_OF_WASCH_CHANNELS + FREQUENCY_SENSOR_NUM_OF_CHANNELS)
 
 /*
  * Max time for the watchdog observing the ADC thread.
@@ -104,7 +110,7 @@ struct
 	 * State estimation data.
 	 * This can be huge!
 	 */
-	state_estimation_data_t sensors[NUM_OF_SENSORS];
+	state_estimation_data_t sensors[NUM_OF_WASCH_CHANNELS];
 
 	// Auth context for sending status information
 	auth_context_t auth_status;
@@ -823,7 +829,7 @@ static void handle_sensor_cfg_request(nodeid_t src, void *data, uint8_t len)
 	}
 
 	// Check if channel id is in range
-	if (cfg_msg->channel_id >= NUM_OF_SENSORS)
+	if (cfg_msg->channel_id >= NUM_OF_WASCH_CHANNELS)
 	{
 		printf("Attempt to configure sensor with invalid index %u\n", cfg_msg->channel_id);
 
@@ -898,7 +904,12 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 	ctx.status_retransmission_base_delay = start_msg->status_retransmission_delay;
 
 
-	// Calculate delay from samples per second
+	/*
+	 * Calculate delay from samples per second.
+	 * The adc thread is always running,
+	 * (At 1 sec delay per sample with no configured channels by deafult)
+	 * so just changing the delay and the channel config values here is enough.
+	 */
 	if (start_msg->adc_samples_per_sec == 0)
 	{
 		// 1 sec delay is max
@@ -911,16 +922,11 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 
 	// Update the sample rate for all channels
 	uint16_t sps = calculate_adc_sps();
-	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
 	{
 		stateest_set_adc_sps(&ctx.sensors[i], sps);
 	}
 
-	/*
-	 * The adc thread is always running,
-	 * (At 1 sec delay per sample with no configured channels by deafult)
-	 * so just changing the delay and the channel config values here is enough.
-	 */
 
 	// finally ack it
 	send_ack(0);
@@ -1109,6 +1115,64 @@ static void handle_configure_status_change_indicator_request(nodeid_t src, void 
 
 
 /*
+ * -- Config channel --
+ * Configure an aux channel.
+ */
+static void handle_configure_freq_channel_request(nodeid_t src, void *data, uint8_t len)
+{
+	uint32_t msglen = len;
+	if (check_auth_message(src, data, &msglen) != 0)
+	{
+		// something is wrong with the auth, can't proceed
+		return;
+	}
+
+
+#if FREQUENCY_SENSOR_NUM_OF_CHANNELS == 0
+	send_ack(ACK_NOTSUP);
+	return;
+#else
+
+	msg_configure_freq_channel_t *cfg_msg = (msg_configure_freq_channel_t *)data;
+	if (msglen != sizeof(*cfg_msg))
+	{
+		// Wrong size
+		printf("Received freq channel config message with wrong size %lu\n", msglen);
+
+		send_ack(ACK_WRONGSIZE);
+		return;
+	}
+
+	// Check if channel id is in range
+	if (cfg_msg->channel_id < NUM_OF_WASCH_CHANNELS || cfg_msg->channel_id >= (NUM_OF_WASCH_CHANNELS + FREQUENCY_SENSOR_NUM_OF_CHANNELS))
+	{
+		printf("Attempt to configure freq channel with invalid index %u\n", cfg_msg->channel_id);
+
+		send_ack(ACK_BADINDEX);
+		return;
+	}
+
+	uint8_t frq_ch_id = cfg_msg->channel_id - NUM_OF_WASCH_CHANNELS;
+
+	uint16_t threshold = u16_from_unaligned(&cfg_msg->threshold);
+	uint8_t sample_count = cfg_msg->sample_count;
+	uint8_t negative_threshold = cfg_msg->negative_threshold;
+
+	printf("Initializing frequency sensor %u with thd=%u, sc=%u, neg_thd=%u\n", frq_ch_id, threshold, sample_count, negative_threshold);
+
+	if (!frequency_sensor_init(frq_ch_id, threshold, sample_count, negative_threshold))
+	{
+		printf("Failed to initialize frequency sensor!\n");
+		send_ack(ACK_BADPARAM);
+		return;
+	}
+
+	send_ack(ACK_OK);
+#endif
+}
+
+
+/*
  * -- Generic --
  * Proceses a echo request.
  */
@@ -1194,6 +1258,9 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 		case MSG_TYPE_CONFIGURE_STATUS_CHANGE_INDICATOR:
 			handle_configure_status_change_indicator_request(id, data, len);
 			break;
+		case MSG_TYPE_CONFIGURE_FREQ_CHANNEL:
+			handle_configure_freq_channel_request(id, data, len);
+			break;
 		case MSG_TYPE_ECHO_REQUEST:
 			handle_echo_request(id, data, len);
 			break;
@@ -1220,7 +1287,7 @@ static void adc_thread(void *arg)
 	(void) arg;
 
 	// Init the channels
-	uint16_t dma_buffer[NUM_OF_SENSORS] = {};
+	uint16_t dma_buffer[NUM_OF_WASCH_CHANNELS] = {};
 	sensor_adc_init_dma(dma_buffer);
 
 	// buffer for sending raw frame values
@@ -1231,14 +1298,16 @@ static void adc_thread(void *arg)
 	uint8_t raw_values_in_msg = 0;
 
 #ifdef DEBUG_FILE_LOGGER_AVAILABLE
-	uint16_t adc_raw_value_buffer[NUM_OF_SENSORS];
-	uint16_t adc_filtered_value_buffer[NUM_OF_SENSORS];
+	uint16_t adc_raw_value_buffer[NUM_OF_WASCH_CHANNELS];
+	uint16_t adc_filtered_value_buffer[NUM_OF_WASCH_CHANNELS];
 #endif
 
     TickType_t last = xTaskGetTickCount();
 
 	while (1)
 	{
+		uint16_t new_status = 0;
+
 		ctx.adc_thread_watchdog = 0;
 
 #ifdef DEBUG_FILE_LOGGER_AVAILABLE
@@ -1246,7 +1315,7 @@ static void adc_thread(void *arg)
 #endif
 
 		// Loop over all channels
-		for (uint8_t adc = 0; adc < NUM_OF_SENSORS; adc++)
+		for (uint8_t adc = 0; adc < NUM_OF_WASCH_CHANNELS; adc++)
 		{
 			if (ctx.debug_raw_mode_delay_ms != 0)
 			{
@@ -1289,11 +1358,7 @@ static void adc_thread(void *arg)
 			// just change the status bits, the message loop will check for changes and notify the master
 			if (stateest_is_on(&ctx.sensors[adc]))
 			{
-				ctx.current_sensor_status |= (1 << adc);
-			}
-			else
-			{
-				ctx.current_sensor_status &= ~(1 << adc);
+				new_status |= (1 << adc);
 			}
 
 			if (stateest_get_frame(&ctx.sensors[adc]) != 0xffffffff)
@@ -1346,11 +1411,29 @@ static void adc_thread(void *arg)
 			}
 		}
 
+#if FREQUENCY_SENSOR_NUM_OF_CHANNELS > 0
+		for (uint8_t i = 0; i < FREQUENCY_SENSOR_NUM_OF_CHANNELS; i++)
+		{
+			if ((ctx.active_sensor_channels & (1 << (i + NUM_OF_WASCH_CHANNELS))) == 0)
+			{
+				// this channel is not enabled
+				continue;
+			}
+
+			if (frequency_sensor_get_status(i))
+			{
+				new_status |= 1 << (i + NUM_OF_WASCH_CHANNELS);
+			}
+		}
+#endif
+
+		ctx.current_sensor_status = new_status;
+
 #ifdef DEBUG_FILE_LOGGER_AVAILABLE
-		debug_file_logger_log_raw_adc(adc_raw_value_buffer, NUM_OF_SENSORS);
+		debug_file_logger_log_raw_adc(adc_raw_value_buffer, NUM_OF_WASCH_CHANNELS);
 		if (is_frame)
 		{
-			debug_file_logger_log_filtered_adc(adc_filtered_value_buffer, NUM_OF_SENSORS);
+			debug_file_logger_log_filtered_adc(adc_filtered_value_buffer, NUM_OF_WASCH_CHANNELS);
 		}
 #endif
 
@@ -1434,7 +1517,7 @@ static void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 	msg_raw_status_t *rs;
 
 	// Buffer for the message
-	uint8_t out_buffer[(sizeof(*rs) + sizeof(rs->channels[0]) * NUM_OF_SENSORS)];
+	uint8_t out_buffer[(sizeof(*rs) + sizeof(rs->channels[0]) * NUM_OF_WASCH_CHANNELS)];
 	_Static_assert(MESHNW_MAX_PACKET_SIZE > sizeof(out_buffer), "Too much sensors to fit into one message");
 
 	rs = (msg_raw_status_t *)out_buffer;
@@ -1450,7 +1533,7 @@ static void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 	rs->rt_base_delay = ctx.status_retransmission_base_delay;
 
 	// now append channel data
-	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
 	{
 		// I read the values directly from the se context.
 		u16_to_unaligned(&rs->channels[i].if_current, ctx.sensors[i].input_filter.current >> 2);
@@ -1484,7 +1567,7 @@ static void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_t
 	printf("Last message:      %8lu\n", ctx.config_channel_timeout_timer);
 
 	// now append channel data
-	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
 	{
 		// I read the values directly from the se context.
 		printf("  Channel %u\n", i);
@@ -2120,7 +2203,7 @@ static void init_channel_test_mode(void)
 
 	printf("STARTING CHANNEL TEST MODE\n");
 
-	for (uint8_t i = 0; i < NUM_OF_SENSORS; i++)
+	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
 	{
 		stateest_init(&ctx.sensors[i], &TEST_PARAMS, 500);
 		ctx.active_sensor_channels |= 1 << i;

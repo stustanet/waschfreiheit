@@ -13,7 +13,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 
-void sensor_adc_init_dma(uint16_t dest[NUM_OF_SENSORS])
+void sensor_adc_init_dma(uint16_t dest[NUM_OF_WASCH_CHANNELS])
 {
 	rcc_periph_clock_enable(ADC_GPIO_RCC);
 	rcc_periph_clock_enable(RCC_ADC1);
@@ -39,8 +39,8 @@ void sensor_adc_init_dma(uint16_t dest[NUM_OF_SENSORS])
 #endif
 
 
-	uint8_t channel_array[NUM_OF_SENSORS] = ADC_CHANNEL_MUX_LIST;
-	adc_set_regular_sequence(ADC1, NUM_OF_SENSORS, channel_array);
+	uint8_t channel_array[NUM_OF_WASCH_CHANNELS] = ADC_CHANNEL_MUX_LIST;
+	adc_set_regular_sequence(ADC1, NUM_OF_WASCH_CHANNELS, channel_array);
 
 	// Set-up the DMA
 #ifdef WASCHV2
@@ -53,7 +53,7 @@ void sensor_adc_init_dma(uint16_t dest[NUM_OF_SENSORS])
 
 	dma_channel_select(DMA2, 0, DMA_SxCR_CHSEL_0);
 
-	dma_set_number_of_data(DMA2, 0, NUM_OF_SENSORS * sizeof(dest[0]));
+	dma_set_number_of_data(DMA2, 0, NUM_OF_WASCH_CHANNELS * sizeof(dest[0]));
 
 	dma_set_peripheral_address(DMA2, 0, (uint32_t)&ADC_DR(ADC1));
 	dma_set_memory_address(DMA2, 0, (uint32_t)dest);
@@ -70,7 +70,7 @@ void sensor_adc_init_dma(uint16_t dest[NUM_OF_SENSORS])
 	dma_set_peripheral_size(DMA1, DMA_CHANNEL1, DMA_CCR_PSIZE_16BIT);
 	dma_set_memory_size(DMA1, DMA_CHANNEL1, DMA_CCR_MSIZE_16BIT);
 
-	dma_set_number_of_data(DMA1, DMA_CHANNEL1, NUM_OF_SENSORS * sizeof(dest[0]));
+	dma_set_number_of_data(DMA1, DMA_CHANNEL1, NUM_OF_WASCH_CHANNELS * sizeof(dest[0]));
 
 	dma_set_peripheral_address(DMA1, DMA_CHANNEL1, (uint32_t)&ADC_DR(ADC1));
 	dma_set_memory_address(DMA1, DMA_CHANNEL1, (uint32_t)dest);

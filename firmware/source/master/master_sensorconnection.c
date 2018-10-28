@@ -937,6 +937,35 @@ int sensor_connection_get_raw_status(sensor_connection_t *con)
 }
 
 
+int sensor_connection_configure_freq_channel(sensor_connection_t *con, uint8_t channel, uint16_t threshold, uint8_t num_samples, uint8_t negative_threshold)
+{
+	if (con->ack_outstanding)
+	{
+		printf("Can't send configure frequency channel request to %u, ACK for last command is still outstanding.\n", con->node_id);
+		return -EBUSY;
+	}
+
+	msg_configure_freq_channel_t *acmsg = (msg_configure_freq_channel_t *)con->last_sent_message;
+
+	acmsg->type = MSG_TYPE_CONFIGURE_FREQ_CHANNEL;
+	acmsg->channel_id = channel;
+	u16_to_unaligned(&acmsg->threshold, threshold);
+	acmsg->sample_count = num_samples;
+	acmsg->negative_threshold = negative_threshold;
+
+	// sign and send
+	int res = sign_and_send_msg(con, sizeof(*acmsg));
+
+	if (res != 0)
+	{
+		printf("Failed to sign configure frequency channel request for node %u with error %i\n", con->node_id, res);
+		return 1;
+	}
+
+	return 0;
+}
+
+
 uint16_t sensor_connection_get_sensor_status(const sensor_connection_t *con)
 {
 	return con->current_status;

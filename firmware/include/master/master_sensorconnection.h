@@ -126,6 +126,11 @@ int sensor_connection_get_raw_data(sensor_connection_t *con, uint8_t channel, ui
 int sensor_connection_get_raw_status(sensor_connection_t *con);
 
 /*
+ * Configures a frequency sensor channel.
+ */
+int sensor_connection_configure_freq_channel(sensor_connection_t *con, uint8_t channel, uint16_t threshold, uint8_t num_samples, uint8_t negative_threshold);
+
+/*
  * Gets the current status.
  * The status should only be read by calling this function and not by reading it directly from the context struct.
  */

@@ -17,6 +17,18 @@
 #include <meshnw.h>
 #include "state_estimation_params.h"
 
+/*
+ * Standard ACK codes
+ * The ACK code is command specific, however, if the code is used to report an error,
+ * the following codes sould be used.
+ */
+#define ACK_OK            0 /* OK */
+#define ACK_WRONGSIZE     1 /* Unexpected message size */
+#define ACK_BADINDEX      2 /* A specified index (channel) parameter is outside of the allowed range */
+#define ACK_BADPARAM      3 /* Invalid (non-index) parameter */
+#define ACK_NOTSUP        4 /* Unsupported action */
+#define ACK_RETRANSMIT 0x80 /* MSB is always set if the ack was sent twice */
+
 
 typedef uint8_t msg_type_t;
 
@@ -217,6 +229,36 @@ typedef struct
 		uint8_t channel : 4;
 	} __attribute__((packed)) data[0];
 } __attribute__((packed)) msg_configure_status_change_indicator_t;
+
+
+/*
+ * Configures an auxiliary (sensor) channel for frequency detection.
+ * This channel measures the frequency on an input and checks if this freq is above a threshold.
+ * AUX channel handled like sensor channels,
+ * they need to be enabled by the START_SENSOR command and
+ * send status changes through the STATUS_UPDATE.
+ * These channels are used for special hardware like a frequency counter.
+ * These 'special' channels are implemented on demand,
+ * so which AUX channels are available is defined by the specific sensor node.
+ */
+#define MSG_TYPE_CONFIGURE_FREQ_CHANNEL   14
+typedef struct
+{
+	msg_type_t type;
+
+	// Channel id to configure
+	// Frequency channels start after the normal channels
+	uint8_t channel_id;
+
+	// Minimum frequency in edges per sample
+	// The sample time is define in the freq channel implementation
+	uint16_t threshold;
+
+	// If more than <negative_threshold> samples of the last <sample_count> samples are negative,
+	// the status is changed to 0.
+	uint8_t sample_count;
+	uint8_t negative_threshold;
+} __attribute__((packed)) msg_configure_freq_channel_t;
 
 
 /*

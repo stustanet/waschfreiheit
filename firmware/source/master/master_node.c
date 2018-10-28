@@ -607,6 +607,48 @@ void master_node_cmd_configure_status_change_indicator(int argc, char **argv)
 }
 
 
+void master_node_cmd_configure_freq_sensor(int argc, char **argv)
+{
+	if (argc != 6)
+	{
+		printf("USAGE: configure_freq_channel <NODE> <CHANNEL> <THRESHOLD> <SAMPLECOUNT> <NEG_THRESHOLD>.\n\n"
+			   "NODE           Address of the destination node\n"
+			   "CHANNEL        Channel to configure\n"
+			   "THRESHOLD      Number of edges per sample to accept the sample as positive\n"
+			   "SAMPLECOUNT    Number of samples in the window\n"
+			   "NEG_THRESHOLD  If more than this number of samples in the window are negative,\n"
+			   "               the channel is considered negative.\n");
+		return;
+	}
+
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
+	if (dst == MESHNW_INVALID_NODE)
+	{
+		return;
+	}
+
+	sensor_connection_t *con = find_node(dst);
+	if (!con)
+	{
+		printf("Not connected!\n");
+		print_err_text();
+		return;
+	}
+
+	uint8_t chn = atoi(argv[2]);
+	uint16_t thd = atoi(argv[3]);
+	uint8_t sc = atoi(argv[4]);
+	uint8_t nt = atoi(argv[5]);
+
+	int res = sensor_connection_configure_freq_channel(con, chn, thd, sc, nt);
+	if (res != 0)
+	{
+		printf("Failed to configure freq channel on node %u with error %i\n", dst, res);
+		print_err_text();
+		return;
+	}
+}
+
 
 static void message_thread(void *arg)
 {
