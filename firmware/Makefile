@@ -60,6 +60,22 @@ all: sensor_v1 sensor_v2 master_v1 master_v2
 clean: TARGET=_clean
 clean: sensor_v1 sensor_v2 master_v1 master_v2
 
+flash_sv1: sensor_v1
+flash_sv1:
+	@$(MAKE) NODE=SENSOR VERSION=V1 flash
+
+flash_sv2: sensor_v2
+flash_sv2:
+	@$(MAKE) NODE=SENSOR VERSION=V2 flash
+
+flash_mv1: master_v1
+flash_mv1:
+	@$(MAKE) NODE=MASTER VERSION=V1 flash
+
+flash_mv2: master_v2
+flash_mv2:
+	@$(MAKE) NODE=MASTER VERSION=V2 flash
+
 sensor_v1:
 	@$(MAKE) NODE=SENSOR VERSION=V1 $(TARGET)
 
