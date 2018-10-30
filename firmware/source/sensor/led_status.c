@@ -178,7 +178,7 @@ void led_status_init(void)
 #ifdef WASCHV1
 	// GPIOs for LEDs
 	rcc_periph_clock_enable(WS2801_GPIO_PORT_RCC);
-	gpio_set_mode(WS2801_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, WS2801_GPIO_CLK | WS2801_GPIO_DATA);
+	gpio_set_mode(WS2801_GPIO_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, WS2801_GPIO_CLK | WS2801_GPIO_DATA);
 #else
 	i2s_rgb_init();
 #endif
