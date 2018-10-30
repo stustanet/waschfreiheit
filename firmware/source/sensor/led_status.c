@@ -166,7 +166,10 @@ void led_status_external(uint8_t led, rgb_data_t color)
 	{
 		return;
 	}
-	COPY_CONVERT_RGB(led_buffer[NUM_SYSTEM_LEDS + NUM_CHANNEL_LEDS + led], color);
+
+	led_buffer[NUM_SYSTEM_LEDS + NUM_CHANNEL_LEDS + led].r = color.r;
+	led_buffer[NUM_SYSTEM_LEDS + NUM_CHANNEL_LEDS + led].g = color.g;
+	led_buffer[NUM_SYSTEM_LEDS + NUM_CHANNEL_LEDS + led].b = color.b;
 }
 
 
