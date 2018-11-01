@@ -38,6 +38,7 @@ const cli_command_t cli_commands[] = {
     { "print_frames",     "Enbales / Disables frame value printing", sensor_node_cmd_print_frames },
     { "status",           "Prints node status",                      sensor_node_cmd_print_status },
     { "sx127x",           "RF modem debug",                          sx127x_test_cmd },
+    { "reboot",           "Reboots (resets) the MCU",                cmd_reboot },
 #ifdef WASCHV1
     { "firmware_upgrade", "Firmware upgrade",                        sensor_node_cmd_firmware_upgrade },
 #else

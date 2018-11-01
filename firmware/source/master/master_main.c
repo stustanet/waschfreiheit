@@ -48,6 +48,7 @@ const cli_command_t cli_commands[] = {
     { "rebuild_status_channel", "Request a node to rebuild the status channel", master_node_cmd_rebuild_status_channel },
     { "configure_status_change_indicator", "Configure the status change indicator LEDs.", master_node_cmd_configure_status_change_indicator },
     { "routes",        "Sets the routes for the master node",  cmd_routes },
+    { "reboot",        "Reboots (resets) the MCU",  cmd_reboot },
     { NULL, NULL, NULL }
 };
 

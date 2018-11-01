@@ -86,3 +86,10 @@ void cmd_ping(int argc, char **argv)
 		return;
 	}
 }
+
+void cmd_reboot(int argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
+	system_reset();
+}

@@ -9,3 +9,4 @@
 #include "messagetypes.h"
 void cmd_routes(int argc, char **argv);
 void cmd_ping(int argc, char **argv);
+void cmd_reboot(int argc, char **argv);

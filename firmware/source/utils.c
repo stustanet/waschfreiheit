@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <libopencm3/cm3/scb.h>
 #include "tinyprintf.h"
 
 /*
@@ -148,4 +149,10 @@ uint32_t u32_from_unaligned(const uint32_t *src)
 		((*(((uint8_t *)src) + 1)) <<  8) +
 		((*(((uint8_t *)src) + 2)) << 16) +
 		((*(((uint8_t *)src) + 3)) << 24);
+}
+
+void system_reset(void)
+{
+	SCB_AIRCR = SCB_AIRCR_VECTKEY | SCB_AIRCR_SYSRESETREQ;
+	for(;;);
 }

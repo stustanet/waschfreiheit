@@ -117,6 +117,12 @@ static inline void utils_set_bit(uint8_t *buf, uint32_t bit_num)
 	buf[bit_num >> 3] |= (0x80 >> (bit_num & 0x07));
 }
 
+/*
+ * Resets the MCU
+ */
+void system_reset(void);
+
+
 #ifdef WASCHV1
 static inline void flash_program(uint32_t addr, uint8_t *data, size_t len)
 {
