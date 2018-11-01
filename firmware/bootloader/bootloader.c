@@ -14,6 +14,7 @@
 #include <libopencm3/stm32/f4/nvic.h>
 #include <libopencm3/stm32/flash.h>
 #include <libopencm3/cm3/cortex.h>
+#include <libopencm3/cm3/scb.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -204,7 +205,7 @@ static void mount_and_process(void)
 	status_update(STATUS_WAIT_USB);
 
 	PRINT("Waiting for USB device\n");
-	bool storage_ok = usb_storage_wait(50000);
+	bool storage_ok = usb_storage_wait(5000);
 
 	if (!storage_ok)
 	{
@@ -454,6 +455,10 @@ static void jump_to_app(void)
 
 	volatile uint32_t stackPtr = *(volatile uint32_t*)(APP_START);
 	volatile uint32_t jumpAddress = *(volatile uint32_t*) (APP_START + 4);
+
+	// Set the interrupt vector to the start of the real image
+	SCB_VTOR = APP_START;
+
 
 	// reset all core registers
 	__asm volatile ("eor r0, r0\n"
