@@ -1,6 +1,4 @@
-
 TARGET ?= build
-
 
 ifeq ($(VERSION),V1)
 	ifeq ($(NODE),BOOTLOADER)
@@ -17,6 +15,7 @@ else
 		PROJECT=master_v2
 	else
 		PROJECT=sensor_v2
+		USE_BOOTLOADER ?= TRUE
 	endif
 endif
 
@@ -46,7 +45,12 @@ else
 		ifeq ($(NODE),MASTER)
 			LDSCRIPT = stm32f401rbt6.ld
 		else
-			LDSCRIPT = stm32f401rbt6_bldr.ld
+			ifeq ($(USE_BOOTLOADER),TRUE)
+				LDSCRIPT = stm32f401rbt6_bldr.ld
+				DEFS += -DUSE_BOOTLOADER
+			else
+				LDSCRIPT = stm32f401rbt6.ld
+			endif
 			#DEFS += -DLUSBH_USART_DEBUG
 			include libusbhost.mk
 			include fatfs.mk
