@@ -208,13 +208,6 @@ static void init_usb_driver(void)
 	};
 	bulkonly_storage_driver_init(&boscb);
 
-	/**
-	 * Pass array of supported low level drivers
-	 * In case of stm32f407, there are up to two supported OTG hosts on one chip.
-	 * Each one can be enabled or disabled in usbh_config.h - optimization for speed
-	 *
-	 * Pass array of supported device drivers
-	 */
 	usbh_init(lld_drivers, device_drivers);
 
 	usb_msc_status.timeout = xTaskGetTickCount();
