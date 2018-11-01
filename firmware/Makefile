@@ -43,8 +43,10 @@ else
 		include i2s_rgb.mk
 		include libusbhost.mk
 	else
-		LDSCRIPT = stm32f401rbt6.ld
-		ifneq ($(NODE),MASTER)
+		ifeq ($(NODE),MASTER)
+			LDSCRIPT = stm32f401rbt6.ld
+		else
+			LDSCRIPT = stm32f401rbt6_bldr.ld
 			#DEFS += -DLUSBH_USART_DEBUG
 			include libusbhost.mk
 			include fatfs.mk
