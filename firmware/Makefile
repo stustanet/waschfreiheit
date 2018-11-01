@@ -37,6 +37,7 @@ ifneq ($(NODE),MASTER)
 #DEFS += -DLUSBH_USART_DEBUG
 include libusbhost.mk
 include fatfs.mk
+include i2s_rgb.mk
 endif
 
 endif
