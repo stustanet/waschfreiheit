@@ -17,10 +17,12 @@
 #define SIZE_OF_ENTRY (sizeof(node_auth_keys_t))
 
 #ifdef WASCHV2
-#define FLASHPAGE_SIZE 16384
+// The last page is 128k :(
+// This is HALF of the total flash
+#define FLASHPAGE_SIZE 0x20000
 _Static_assert((SIZE_OF_ENTRY * MASTER_CONFIG_NUM_NODES <= FLASHPAGE_SIZE), "All config must fit into one page");
-#define CONFIG_FLASH_PAGE_START 1
-#define CONFIG_FLASH_ADDR (FLASH_START + 16384)
+#define CONFIG_FLASH_PAGE_START 5
+#define CONFIG_FLASH_ADDR (FLASH_START + 0x20000)
 #define CONFIG_ENTRIES_PER_PAGE MASTER_CONFIG_NUM_NODES
 #else
 
