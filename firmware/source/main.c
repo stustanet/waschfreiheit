@@ -154,7 +154,7 @@ int main(void)
 	serial_getchar_dma_init();
 	init_printf(NULL, &tpf_putcf);
 
-	printf("Hello world");
+	printf("Wasch node starting...\n");
 	node_init();
 
 	xTaskCreateStatic(
