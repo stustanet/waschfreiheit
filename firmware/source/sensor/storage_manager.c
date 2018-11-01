@@ -18,6 +18,7 @@
 #include "debug_command_queue.h"
 #include "debug_file_logger.h"
 #include "ff.h"
+#include "test_switch.h"
 
 
 // Stack size of the LED thread (in words)
@@ -42,12 +43,41 @@ static void mount_thread(void *arg)
 
 	const uint32_t DELAY_IDLE = 1000;
 
+	// Number of loop cycles the test switch has to be pressed to execute the user command
+	const uint32_t TEST_SWITCH_PRESS_TIME_EXEC = 3;
+
     TickType_t last = xTaskGetTickCount();
+
+	uint32_t test_switch_was_pressed = 0;
+
 	while (1)
 	{
 		if (!usb_storage_ok())
 		{
 			usb_storage_disable = false;
+		}
+
+		if (test_switch_pressed(TEST_SWITCH_2))
+		{
+			test_switch_was_pressed++;
+
+			if (test_switch_was_pressed == TEST_SWITCH_PRESS_TIME_EXEC && usb_storage_mounted)
+			{
+				printf("Execute user command list\n");
+				if (debug_command_queue_load(COMMAND_QUEUE_TEST))
+				{
+					led_status_system(LED_STATUS_SYSTEM_USB_AUTOEXEC);
+				}
+			}
+		}
+		else if (test_switch_was_pressed > 0)
+		{
+			if (test_switch_was_pressed < TEST_SWITCH_PRESS_TIME_EXEC && usb_storage_mounted)
+			{
+				printf("Unmount switch pressed\n");
+				usb_storage_disable = true;
+			}
+			test_switch_was_pressed = 0;
 		}
 
 		if (!usb_storage_disable && (usb_storage_mounted != usb_storage_ok()))

@@ -32,6 +32,7 @@
 #ifdef WASCHV2
 #include "debug_file_logger.h"
 #include "frequency_sensor.h"
+#include "test_switch.h"
 #else
 #define FREQUENCY_SENSOR_NUM_OF_CHANNELS 0
 #endif
@@ -1790,6 +1791,14 @@ static void message_thread(void *arg)
 		WATCHDOG_FEED();
 		vTaskDelayUntil(&last, MESSAGE_LOOP_DELAY_MS);
 		total_ticks++;
+
+
+#ifdef WASCHV2
+		if (test_switch_pressed(TEST_SWITCH_1))
+		{
+			init_channel_test_mode();
+		}
+#endif
 
 		/*
 		 * Increment timeout timer for config messages.

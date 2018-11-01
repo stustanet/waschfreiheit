@@ -20,6 +20,7 @@
 
 #ifdef WASCHV2
 #include "storage_manager.h"
+#include "test_switch.h"
 #endif
 
 // Stack size of the LED thread (in words)
@@ -68,6 +69,7 @@ void node_init(void)
 	watchdog_init();
 
 #ifdef WASCHV2
+	test_switch_init();
 	storage_manager_init();
 #endif
 
