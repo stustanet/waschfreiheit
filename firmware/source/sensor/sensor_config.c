@@ -12,12 +12,20 @@
 #define CONFIG_MAGIC 0xDEADBEEF
 
 #ifdef WASCHV2
+
 // Second page for new boards
-//#define CONFIG_FLASH_PAGE 1
-//#define CONFIG_FLASH_ADDR (FLASH_START + 16384)
+#ifdef USE_BOOTLOADER
+
+#define CONFIG_FLASH_PAGE 1
+#define CONFIG_FLASH_ADDR (FLASH_START + 16384)
+
+#else
 
 #define CONFIG_FLASH_PAGE 5
 #define CONFIG_FLASH_ADDR 0x08020000
+
+#endif
+
 #else
 
 // Last page for legacy boards
