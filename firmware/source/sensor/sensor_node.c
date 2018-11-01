@@ -896,6 +896,18 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 		return;
 	}
 
+
+	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
+	{
+		if (!stateest_check_config(&ctx.sensors[i]))
+		{
+			printf("Rejecting sensor start request because sensor %i has a invalid config\n", i);
+			send_ack(ACK_BADPARAM);
+			return;
+		}
+	}
+
+
 	/*
 	 * Simply copy the values from the message to my context.
 	 */
@@ -1424,6 +1436,15 @@ static void adc_thread(void *arg)
 			if (frequency_sensor_get_status(i))
 			{
 				new_status |= 1 << (i + NUM_OF_WASCH_CHANNELS);
+			}
+
+			if (ctx.status & STATUS_PRINTFRAMES)
+			{
+				// Print frame values
+				printf("%u: F %u\t%u\n",
+					   i,
+					   frequency_sensor_get_negative_counter(i),
+					   frequency_sensor_get_status(i));
 			}
 		}
 #endif

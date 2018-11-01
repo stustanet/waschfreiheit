@@ -11,6 +11,27 @@
 
 #include "debug_assert.h"
 
+static bool check_config(const state_estimation_params_t *params)
+{
+	for (uint8_t i = 0; i < SE_STATECOUNT; i++)
+	{
+		if (params->state_filter.window_sizes[i] > SE_MAX_WINDOW_SIZE ||
+			params->state_filter.window_sizes[i] == 0)
+		{
+			printf("Invalid stateest window size %u\n", params->state_filter.window_sizes[i]);
+			return false;
+		}
+	}
+
+	if (params->input_filter.num_samples == 0)
+	{
+		printf("Number of lowpass samples must not be zero!\n");
+		return false;
+	}
+
+	return true;
+}
+
 
 /*
  * Update the input filter.
@@ -280,21 +301,8 @@ static void update_state_filter(state_estimation_data_t *data)
 
 int stateest_init(state_estimation_data_t *data, const state_estimation_params_t *params, uint16_t adc_samples_per_sec)
 {
-	// check window sizes
-	// NOTE: This is no real sanity check, it only prevents out-of-bounds memory access
-
-	for (uint8_t i = 0; i < SE_STATECOUNT; i++)
+	if (!check_config(params))
 	{
-		if (params->state_filter.window_sizes[i] > SE_MAX_WINDOW_SIZE)
-		{
-			printf("Invalid stateest window size %u\n", params->state_filter.window_sizes[i]);
-			return 1;
-		}
-	}
-
-	if (params->input_filter.num_samples == 0)
-	{
-		printf("Number of lowpass samples must not be zero!\n");
 		return 1;
 	}
 
@@ -382,4 +390,10 @@ int16_t stateest_get_current_rf_value(const state_estimation_data_t *data)
 {
 	ASSERT(data->state_filter.current_state < SE_STATECOUNT);
 	return data->state_filter.window_sum / calc_current_window_used(data);
+}
+
+
+bool stateest_check_config(const state_estimation_data_t *data)
+{
+	return check_config(&(data->params));
 }

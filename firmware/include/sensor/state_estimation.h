@@ -14,6 +14,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "state_estimation_params.h"
 
 // Supply volatge of the sensor in mV
@@ -140,6 +141,11 @@ uint32_t stateest_get_frame(const state_estimation_data_t *data);
  * This is the value used as condition for the state transitions.
  */
 int16_t stateest_get_current_rf_value(const state_estimation_data_t *data);
+
+/*
+ * Checks if the config for this channel is valid.
+ */
+bool stateest_check_config(const state_estimation_data_t *data);
 
 /*
  * Gets the current state index.
