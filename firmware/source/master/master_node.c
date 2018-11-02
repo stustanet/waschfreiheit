@@ -282,7 +282,7 @@ void master_node_cmd_configure_sensor(int argc, char **argv)
 {
 	if (argc != 7)
 	{
-		printf("USAGE: configure_sensor <NODE> <CHANNEL> <IF> <MAT> <WND> <RF>\n\n"
+		printf("USAGE: cfg_sensor <NODE> <CHANNEL> <IF> <MAT> <WND> <RF>\n\n"
 			   "NODE      Address of the node\n"
 			   "CHANNEL   Channel index\n"
 			   "IF        Input filter parameters\n"
@@ -574,7 +574,7 @@ void master_node_cmd_configure_status_change_indicator(int argc, char **argv)
 {
 	if (argc < 3)
 	{
-		printf("USAGE: configure_status_change_indicator <NODE> <CHANNEL0> ... <CHANNELn>.\n\n"
+		printf("USAGE: cfg_status_change_indicator <NODE> <CHANNEL0> ... <CHANNELn>.\n\n"
 			   "NODE        Address of the destination node\n"
 			   "<CHANNELx>  Configuration for a single channel in the format:\n"
 			   "            <CHANNEL>,<LED>,<COLOR>\n"
@@ -611,7 +611,7 @@ void master_node_cmd_configure_freq_sensor(int argc, char **argv)
 {
 	if (argc != 6)
 	{
-		printf("USAGE: configure_freq_channel <NODE> <CHANNEL> <THRESHOLD> <SAMPLECOUNT> <NEG_THRESHOLD>.\n\n"
+		printf("USAGE: cfg_freq_chn <NODE> <CHANNEL> <THRESHOLD> <SAMPLECOUNT> <NEG_THRESHOLD>.\n\n"
 			   "NODE           Address of the destination node\n"
 			   "CHANNEL        Channel to configure\n"
 			   "THRESHOLD      Number of edges per sample to accept the sample as positive\n"
