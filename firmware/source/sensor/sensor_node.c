@@ -1438,11 +1438,12 @@ static void adc_thread(void *arg)
 				new_status |= 1 << (i + NUM_OF_WASCH_CHANNELS);
 			}
 
-			if (ctx.status & STATUS_PRINTFRAMES)
+			if ((ctx.status & STATUS_PRINTFRAMES) && frequency_sensor_had_new_sample())
 			{
 				// Print frame values
-				printf("%u: F %u\t%u\n",
+				printf("%u: F %u\t%u\t%u\n",
 					   i,
+					   frequency_sensor_get_last_counter(i),
 					   frequency_sensor_get_negative_counter(i),
 					   frequency_sensor_get_status(i));
 			}
@@ -2239,6 +2240,15 @@ static void init_channel_test_mode(void)
 		ctx.active_sensor_channels |= 1 << i;
 	}
 	ctx.sensor_loop_delay_ms = 1000 / 500;
+
+
+#if FREQUENCY_SENSOR_NUM_OF_CHANNELS > 0
+	for (uint8_t i = 0; i < FREQUENCY_SENSOR_NUM_OF_CHANNELS; i++)
+	{
+		frequency_sensor_init(i, 250, 2, 1);
+		ctx.active_sensor_channels |= 1 << (i + NUM_OF_WASCH_CHANNELS);
+	}
+#endif
 
 	xSemaphoreTake(ctx.mutex, portMAX_DELAY);
 	ctx.status |= STATUS_SENSOR_TEST | STATUS_SENSORS_ACTIVE;

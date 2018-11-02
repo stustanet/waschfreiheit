@@ -30,3 +30,12 @@
 bool frequency_sensor_init(uint8_t channel, uint16_t threshold, uint8_t sample_count, uint8_t negative_sample_threshold);
 bool frequency_sensor_get_status(uint8_t channel);
 uint8_t frequency_sensor_get_negative_counter(uint8_t channel);
+
+// Gets the last sample' counter value
+uint16_t frequency_sensor_get_last_counter(uint8_t channel);
+
+/*
+ * Returns true if there was a frequency sensor sample between the
+ * current and the last call to this function.
+ */
+bool frequency_sensor_had_new_sample(void);

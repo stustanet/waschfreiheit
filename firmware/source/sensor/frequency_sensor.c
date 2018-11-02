@@ -32,6 +32,7 @@ typedef struct
 	// A bit is 1, if the sample was negative
 	uint64_t samples;
 	uint16_t threshold;
+	uint16_t last_frame;
 	uint8_t num_samples;
 	uint8_t negative_theshold;
 	uint8_t negative_counter;
@@ -41,18 +42,19 @@ static frequency_sensor_context_t channel_ctx[FREQUENCY_SENSOR_MAX_SAMPLE_COUNT]
 static const frequency_sensor_channel_t channel_def[FREQUENCY_SENSOR_NUM_OF_CHANNELS] =
 {
 	{
-		.timer = TIM4,
-		.channel =  TIM_IC3,
-		.timer_rcc = RCC_TIM4,
-		.timer_rst = RST_TIM4,
+		.timer = TIM3,
+		.channel =  TIM_IC2,
+		.timer_rcc = RCC_TIM3,
+		.timer_rst = RST_TIM3,
 		.gpio_rcc = RCC_GPIOB,
 		.gpio_port = GPIOB,
-		.gpio_pin = GPIO8,
+		.gpio_pin = GPIO5,
 		.gpio_af = GPIO_AF2
 	}
 };
 
 static bool initialized = false;
+static volatile bool has_new_frame = false;
 
 // Stack size of the sensor thread
 #define FS_THD_STACK_SIZE configMINIMAL_STACK_SIZE
@@ -71,7 +73,7 @@ static void init_timer(const frequency_sensor_channel_t *t)
 
 	gpio_mode_setup(t->gpio_port,
 					GPIO_MODE_AF,
-					GPIO_PUPD_NONE,
+					GPIO_PUPD_PULLUP,
 					t->gpio_pin);
 
 	gpio_set_af(t->gpio_port,
@@ -82,8 +84,7 @@ static void init_timer(const frequency_sensor_channel_t *t)
 	rcc_periph_clock_enable(t->timer_rcc);
 	rcc_periph_reset_pulse(t->timer_rst);
 
-
-	timer_ic_set_input(t->timer, t->channel, TIM_IC_IN_TI1);
+	timer_ic_set_input(t->timer, t->channel, TIM_IC_IN_TI2);
 
 	// Slowest possible filter
 	timer_ic_set_filter(t->timer, t->channel, TIM_IC_DTF_DIV_32_N_8);
@@ -92,7 +93,7 @@ static void init_timer(const frequency_sensor_channel_t *t)
 
 	timer_slave_set_mode(t->timer, TIM_SMCR_SMS_ECM1);
 
-	timer_slave_set_trigger(t->timer, TIM_SMCR_TS_TI1FP1);
+	timer_slave_set_trigger(t->timer, TIM_SMCR_TS_TI2FP2);
 }
 
 
@@ -141,7 +142,9 @@ static void frequency_sensor_thread(void *arg)
 			// Shift left by one bit
 			channel_ctx[i].samples <<= 1;
 
-			if (get_timer(&channel_def[i]) < channel_ctx[1].threshold)
+			uint16_t current = get_timer(&channel_def[i]);
+			channel_ctx[i].last_frame = current;
+			if (current < channel_ctx[1].threshold)
 			{
 				// Negative => Set lsb and inc counter
 				channel_ctx[i].samples |= 0x1;
@@ -170,7 +173,11 @@ static void frequency_sensor_thread(void *arg)
 				}
 			}
 
+			reset_timer(&channel_def[i]);
 		}
+
+		has_new_frame = true;
+
 		xSemaphoreGive(mutex);
 
 		vTaskDelayUntil(&last, FREQUENCY_SENSOR_SAMPLE_TIME);
@@ -270,4 +277,25 @@ uint8_t frequency_sensor_get_negative_counter(uint8_t channel)
 	xSemaphoreGive(mutex);
 
 	return ret;
+}
+
+uint16_t frequency_sensor_get_last_counter(uint8_t channel)
+{
+	if (channel >= FREQUENCY_SENSOR_NUM_OF_CHANNELS)
+	{
+		return 0;
+	}
+
+	return channel_ctx[channel].last_frame;
+}
+
+bool frequency_sensor_had_new_sample(void)
+{
+	if (has_new_frame)
+	{
+		has_new_frame = false;
+		return true;
+	}
+
+	return false;
 }
