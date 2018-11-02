@@ -102,7 +102,7 @@ static void print_help(void)
 
 	for (size_t idx = 0; command_list[idx].name != 0; idx++)
 	{
-		printf("%s\t%s\n", command_list[idx].name, command_list[idx].desc);
+		printf("%s \t%s\n", command_list[idx].name, command_list[idx].desc);
 	}
 }
 
