@@ -899,7 +899,8 @@ static void handle_sensor_start_request(nodeid_t src, void *data, uint8_t len)
 
 	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
 	{
-		if (!stateest_check_config(&ctx.sensors[i]))
+		if ((start_msg->active_sensors & (1 << i)) &&
+			!stateest_check_config(&ctx.sensors[i]))
 		{
 			printf("Rejecting sensor start request because sensor %i has a invalid config\n", i);
 			send_ack(ACK_BADPARAM);
