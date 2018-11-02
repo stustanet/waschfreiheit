@@ -33,6 +33,7 @@ class Node:
         self.__msgs = []
         self.__message_retry_count = 0
         self.__last_msg = None
+        self.__first_run = True
 
         self._status = self.connect
         self._next_state = self.connect
@@ -209,11 +210,16 @@ class Node:
         """
         # TODO initial hop
         self.error_state = self.connect
-        return self.connection_successful, MessageCommand(self.nodeid, "connect", 0)
+        return self.connection_successful, MessageCommand(
+            self.nodeid,
+            "connect",
+            0,
+            self.config['connect_timeout'])
 
     async def connection_successful(self):
-        if self.ack_code == 3: # TODO: Already configured
+        if not self.__first_run and self.ack_code == 3: # TODO: Force reinit
             return self.fast_reinit, None
+        self.__first_run = True
         return self.route, None
 
     async def fast_reinit(self):
@@ -230,7 +236,7 @@ class Node:
 
         routestr = ",".join("{}:{}".format(hop, dst) for hop, dst in self.routes.items())
 
-        return self.start_command, MessageCommand(self.nodeid, "set_route", routestr)
+        return self.start_command, MessageCommand(self.nodeid, "reset_routes", routestr)
 
     async def pingtest(self):
         """
