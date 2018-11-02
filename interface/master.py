@@ -41,6 +41,7 @@ class Master:
                     try:
                         line = await asyncio.wait_for(self._reader.readline(), 1)
                         line.decode("ascii")
+                        print("[M] RECF: ", line)
                         await self.parse_packet(line)
                     except asyncio.TimeoutError:
                         pass
@@ -95,7 +96,8 @@ class Master:
 
         if msg[-1] != "\n":
             msg += "\n"
-        print("[M] Sending \"{}\"".format(msg.strip()))
+        #print("[M] Sending \"{}\"".format(msg.strip()))
+        print("[M] Sending \"{}\"".format(msg.encode('ascii')))
         self.allow_next_message = not expect_response
         self._writer.write(msg.encode('ascii'))
         await self._writer.drain()
