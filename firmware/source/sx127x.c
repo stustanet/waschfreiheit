@@ -254,6 +254,15 @@ uint8_t sx127x_recv(uint8_t *buffer, uint8_t max)
 		mode == SX127x_RegOpMode_Mode_FSTX)
 	{
 		// Currently in tx mode
+
+		// If we are in FSTX mode, re-request the TX mode
+		// I'm not sure why this is required, but if I don't
+		// do this, the modem can get stuck in the FSTX mode!
+		if (mode == SX127x_RegOpMode_Mode_FSTX)
+		{
+			sx127x_set_reg(SX127x_RegOpMode, (modereg & ~SX127x_RegOpMode_Mode_Mask) | SX127x_RegOpMode_Mode_TX);
+		}
+
 		return 0;
 	}
 
@@ -314,6 +323,7 @@ bool sx127x_send(const uint8_t *data, uint8_t len)
 
 	// Write data into TX FIFO
 	sx127x_write(SX127x_RegFifo, data, len);
+
 
 	uint8_t mode = sx127x_get_reg(SX127x_RegOpMode);
 	mode = (mode & ~SX127x_RegOpMode_Mode_Mask) | SX127x_RegOpMode_Mode_TX;
