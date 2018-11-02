@@ -306,7 +306,13 @@ typedef struct
 
 /*
  * Packet containing raw status information
+ * The number of channels is determined by the length of the packet.
+ * Each channel data is 5 bytes long. The upper two bits in the channel data
+ * define the type of the channel.
  */
+#define RAW_STATUS_CHANNEL_TYPE_WASCH 0x00
+#define RAW_STATUS_CHANNEL_TYPE_FREQ  0x40
+
 #define MSG_TYPE_RAW_STATUS               131
 typedef struct
 {
@@ -321,11 +327,28 @@ typedef struct
 	uint16_t channel_enabled;
 	uint8_t rt_base_delay;
 
-	struct
+	union
 	{
-		uint16_t if_current;
-		uint16_t rf_current;
-		uint8_t current_status;
+		struct
+		{
+			uint16_t reserved1;
+			uint16_t reserved2;
+			uint8_t  type;
+		} __attribute__((packed)) common;
+
+		struct
+		{
+			uint16_t if_current;
+			uint16_t rf_current;
+			uint8_t current_status;
+		} __attribute__((packed)) wasch;
+
+		struct
+		{
+			uint16_t raw;
+			uint16_t reserved;
+			uint8_t  neg;
+		} __attribute__((packed)) freq;
 	} __attribute__((packed)) channels[0];
 
 } __attribute__((packed)) msg_raw_status_t;

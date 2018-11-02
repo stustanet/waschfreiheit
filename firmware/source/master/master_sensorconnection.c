@@ -275,11 +275,20 @@ static void handle_raw_status(sensor_connection_t *con, uint8_t *message, uint8_
 
 	for (uint8_t i = 0; i < channels; i++)
 	{
-		printf("  Channel %u\n", i);
-		printf("    Input:    %5u\n", u16_from_unaligned(&raw->channels[i].if_current));
-		// Print this scaled to 15 bit to avoid confusion (state values are also 15 bit)
-		printf("    Filtered: %5u\n", u16_from_unaligned(&raw->channels[i].rf_current) >> 1);
-		printf("    Status:   %5u\n", raw->channels[i].current_status);
+		if ((raw->channels[i].common.type & 0xC0) == RAW_STATUS_CHANNEL_TYPE_WASCH)
+		{
+			printf("  Channel %u (WASCH)\n", i);
+			printf("    Input:    %5u\n", u16_from_unaligned(&raw->channels[i].wasch.if_current));
+			// Print this scaled to 15 bit to avoid confusion (state values are also 15 bit)
+			printf("    Filtered: %5u\n", u16_from_unaligned(&raw->channels[i].wasch.rf_current) >> 1);
+			printf("    Status:   %5u\n", raw->channels[i].wasch.current_status & 0x3f);
+		}
+		else if ((raw->channels[i].common.type & 0xC0) == RAW_STATUS_CHANNEL_TYPE_FREQ)
+		{
+			printf("  Channel %u (FREQ)\n", i);
+			printf("    Raw:    %5u\n", u16_from_unaligned(&raw->channels[i].freq.raw));
+			printf("    Neg:    %5u\n", raw->channels[i].freq.neg & 0x3f);
+		}
 	}
 }
 

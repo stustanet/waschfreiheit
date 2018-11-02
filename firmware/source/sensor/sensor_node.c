@@ -1541,7 +1541,7 @@ static void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 	msg_raw_status_t *rs;
 
 	// Buffer for the message
-	uint8_t out_buffer[(sizeof(*rs) + sizeof(rs->channels[0]) * NUM_OF_WASCH_CHANNELS)];
+	uint8_t out_buffer[(sizeof(*rs) + sizeof(rs->channels[0]) * NUM_OF_SENSORS)];
 	_Static_assert(MESHNW_MAX_PACKET_SIZE > sizeof(out_buffer), "Too much sensors to fit into one message");
 
 	rs = (msg_raw_status_t *)out_buffer;
@@ -1560,10 +1560,19 @@ static void send_raw_status_message(uint32_t rt_counter, uint32_t uptime)
 	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
 	{
 		// I read the values directly from the se context.
-		u16_to_unaligned(&rs->channels[i].if_current, ctx.sensors[i].input_filter.current >> 2);
-		u16_to_unaligned(&rs->channels[i].rf_current, stateest_get_current_rf_value(&ctx.sensors[i]));
-		rs->channels[i].current_status = stateest_get_current_state(&ctx.sensors[i]);
+		u16_to_unaligned(&rs->channels[i].wasch.if_current, ctx.sensors[i].input_filter.current >> 2);
+		u16_to_unaligned(&rs->channels[i].wasch.rf_current, stateest_get_current_rf_value(&ctx.sensors[i]));
+		rs->channels[i].wasch.current_status = stateest_get_current_state(&ctx.sensors[i]);
 	}
+
+#if FREQUENCY_SENSOR_NUM_OF_CHANNELS > 0
+	for (uint8_t i = 0; i < FREQUENCY_SENSOR_NUM_OF_CHANNELS; i++)
+	{
+		u16_to_unaligned(&rs->channels[i + NUM_OF_WASCH_CHANNELS].freq.raw, frequency_sensor_get_last_counter(i));
+		u16_to_unaligned(&rs->channels[i + NUM_OF_WASCH_CHANNELS].freq.reserved, 0);
+		rs->channels[i + NUM_OF_WASCH_CHANNELS].freq.neg = frequency_sensor_get_negative_counter(i) | RAW_STATUS_CHANNEL_TYPE_FREQ;
+	}
+#endif
 
 	if (!meshnw_send(ctx.master_node, out_buffer, sizeof(out_buffer)))
 	{
@@ -1599,6 +1608,15 @@ static void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_t
 		printf("    Filtered: %5u\n", stateest_get_current_rf_value(&ctx.sensors[i]) >> 1);
 		printf("    Status:   %5u\n", stateest_get_current_state(&ctx.sensors[i]));
 	}
+
+#if FREQUENCY_SENSOR_NUM_OF_CHANNELS > 0
+	for (uint8_t i = 0; i < FREQUENCY_SENSOR_NUM_OF_CHANNELS; i++)
+	{
+		printf("  Channel %u (FREQ %u)\n", i + NUM_OF_WASCH_CHANNELS, i);
+		printf("    Raw:    %5u\n", frequency_sensor_get_last_counter(i));
+		printf("    Neg:    %5u\n", frequency_sensor_get_negative_counter(i));
+	}
+#endif
 }
 
 static void do_led_animation(uint32_t ticks)
