@@ -144,7 +144,7 @@ static void frequency_sensor_thread(void *arg)
 
 			uint16_t current = get_timer(&channel_def[i]);
 			channel_ctx[i].last_frame = current;
-			if (current < channel_ctx[1].threshold)
+			if (current < channel_ctx[i].threshold)
 			{
 				// Negative => Set lsb and inc counter
 				channel_ctx[i].samples |= 0x1;
