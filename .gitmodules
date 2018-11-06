@@ -7,3 +7,6 @@
 [submodule "firmware/cifra"]
 	path = firmware/cifra
 	url = https://github.com/ctz/cifra
+[submodule "firmware/utils/dfu-util"]
+	path = firmware/utils/dfu-util
+	url = git://git.code.sf.net/p/dfu-util/dfu-util
