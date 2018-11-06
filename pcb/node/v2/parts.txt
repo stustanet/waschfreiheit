@@ -1,0 +1,4 @@
+MCU: STM32F401RBT6
+USB Switch: MIC2005A-1YM5-TR
+Pluggable Terminal blocks
+

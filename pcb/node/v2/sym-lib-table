@@ -1,0 +1,5 @@
+(sym_lib_table
+  (lib (name custom)(type Legacy)(uri ${KIPRJMOD}/custom.lib)(options "")(descr ""))
+  (lib (name node_1-rescue)(type Legacy)(uri ${KIPRJMOD}/node_1-rescue.lib)(options "")(descr ""))
+  (lib (name node-rescue)(type Legacy)(uri ${KIPRJMOD}/node-rescue.lib)(options "")(descr ""))
+)
