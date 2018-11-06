@@ -10,3 +10,6 @@
 [submodule "firmware/utils/dfu-util"]
 	path = firmware/utils/dfu-util
 	url = git://git.code.sf.net/p/dfu-util/dfu-util
+[submodule "firmware/utils/stm32loader"]
+	path = firmware/utils/stm32loader
+	url = https://github.com/jsnyder/stm32loader
