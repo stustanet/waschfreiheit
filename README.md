@@ -38,7 +38,7 @@ Der aktuelle Plan sieh in etwa so aus:
 Ein Sensor misst den Stromverbrauch einer Maschine. Dies geschieht über einen Hallsensor am Stromkabel.
 
 ### Knoten
-Ein Knoten besteht aus einem Mikroprozessor (STM32F103C8T6, Kleiner 32bit ARM) und einem 433Mhz Funkchip (Sx1276, LoRa Modulation).
+Ein Knoten besteht aus einem Mikroprozessor (STM32F103C8T6 (V1) oder STM32F401RBT6(V2), Kleiner 32bit ARM) und einem 433Mhz Funkchip (Sx1276, LoRa Modulation).
 An einen Knoten sind ein oder mehrere Sensoren angeschlossen. Die Sensordaten werden dann ausgewertet und bei einer Statusänderung wird ein Signal über die Funkschnittstelle gesendet.
 Außerdem ist es die Aufgabe eines Knotens Nachrichten anderer Knoten weiterzuleiten, diese bilden quasi ein Mesh Netzwerk.
 
@@ -88,13 +88,118 @@ Nur Änderungen des Belegtzustandes werden über das Netzwerk gesendet.
 
 ## Ich will das complien!
 Um dieses Projekt zu bauen wird eine ARM-Toolchain vorrausgesetzt.
-* RIOT-OS nach Anleitung herunterladen / installieren.
 * Dieses Repo klonen.
-* "wasch\_v1" Board-Definition (mcu\_riot / boards) in "boards" Ordner von RIOT kopieren
-* Das Hauptprojekt liegt in mcu\_riot / node
-  * make NODE=MASTER erstellt die Firmware für den Master-Knoten 
-  * make NODE=SENSOR erstellt die Firmware für einen Sensor-Knoten 
-* Zum flashen (bei angeschlossenem ST-LINK) make flash NODE=...
+* 'make all' im Ordner firmware baut Master (V1 / V2), Sensor (V1 / V2) und den Bootloader (nur V2)
 
-## WTF???
-Das ist jetzt erstmal nur eine ganz kurze übersicht, aber wenn du fragen hast, dann frag!
+## Flashen
+Es gibt eine Reihe verschiedener Möglichkeiten die Firmware zu flashen.
+Manche sind nur auf V1 oder V2 verfügbar.
+
+### ST-LINK
+Die bequemste Möglichkeit diese Controller zu flashen ist ein ST-LINK. Dies ist ein spezieller Programmer / Debugger für ST Controller.
+Um mit diesem zu flashen müssen 3 / 4 Leitungen mit dem Board verbunden werden:
+* GND
+* SWIO
+* SWCLK
+* ggf. 3.3V
+
+Flashen geht dann einfach mit
+```
+Sensor V1
+make flash_sv1
+
+Sensor V2
+make USE_BOOTLOADER=FALSE flash_sv2
+
+Master V1
+make flash_mv1
+
+Master V2
+make flash_mv2
+
+Bootloader V2
+make flash_blv2
+```
+
+### Serieller bootloader
+Das Board muss über ein Serielles Kabel mit dem PC verbunden werden.
+
+Der flasher Tool stm32loader.py befindet sich als submodule in firmware/utils.
+
+Das Kabel wird wie folgt angesteckt:
+* RX von Kabel an TX vom Board
+* TX von Kabel an RX vom Board
+* GND an GND
+* Ggf. die 5V von USB and die 5V(!) vom Board anschließen
+
+Um das Board in den Bootloader Modus zu bringen:
+* Boot drücken und halten
+* Reset kurz drücken
+* Boot wieder loslassen
+
+Zum flashen dann
+```
+Binary erstellen mit
+arm-none-eabi-objcopy -I ihex -O binary <ELF> /tmp/image.bin
+
+flashen mit
+./stm32loader.py -p /dev/ttyUSB0 -evw /tmp/image.bin
+```
+
+
+### USB DFU Bootloader (Nur V2)
+
+Dazu muss zuerst das tool dfu-util gebaut werden.
+Dieses ist als submodule in firmware/utils eingebunden.
+
+```
+cd firmware/utils
+./autogen.sh
+./configure
+make
+```
+
+Das Board wird dann über ein Micro-USB Kabel mit dem PC verbunden.
+Um das Board in den Bootloader Modus zu bringen:
+* Boot drücken und halten
+* Reset kurz drücken
+* Boot wieder loslassen
+
+Dann sollte es sich am PC als DFU Gerät anmelden.
+Zum flashen dann
+```
+Binary erstellen mit
+arm-none-eabi-objcopy -I ihex -O binary <ELF> /tmp/image.bin
+
+flashen mit
+sudo ./dfu-util -a 0 -s 0x08000000:leave -D /tmp/image.bin
+```
+
+### USB Host Bootloader (Nur Sensor V2)
+Der USB Host Bootloader ist ein eigener Bootloader für diese Boards, der es erlaubt ein Firmware image auf einen USB-Stick zu laden und dann ohne einen PC ein Update einzuspielen.
+Um diesen zu verwenden, muss das Firmware Image für den Bootloader gebaut werden (ohne USE_BOOTLOADER=FALSE) und der Bootloader muss geflasht sein (das geht mit einer der anderen Methoden).
+
+Auf einen FAT32 formatierten USB Stick müssen sich folgende Dateien befinden:
+* FIRMWARE.BIN  Neue Firmware im Binärformat
+* CHECKSUM.CRC  CRC32 Prüfsumme der Firmware
+
+Diese beiden Dateien können bequem mit make_boot_files.sh in firmware/utils aus einer ELF erstellt werden.
+
+Dann den Stick einfach an das Board anstecken und resetten. Die Eingangs-LEDs sollten während des Updates der Reihe nach in den Farben Grün, Violett, Rot und Gelb aufleuchten.
+Nach dem Flashen wird das Programm normal gestartet.
+
+### Flasher command (Nur V1)
+Die V1 Boards haben einen integrierten Flash-Befehl mit dem die Firmware aus dem laufenden Betrieb heraus geupdated werden kann.
+Da dazu nur die Serielle Schnittstelle benötigt wird und nicht extra ein Boot-Modus aktiviert werden muss ist dieser Modus praktisch um die alten Nodes zu flashen, da diese schlecht zu Öffnen sind.
+Der Nachteil ist, dass sich der Flasher selbst überschreibt, d.h. sollte etwas schiefgehen, ist der Knoten über diesen Weg nicht erneut flashbar.
+
+Das Tool zum flashen ist firmware/utils/flasher_v1.py
+
+Zum flashen
+```
+Binary erstellen mit
+arm-none-eabi-objcopy -I ihex -O binary <ELF> /tmp/image.bin
+
+flashen mit
+./flasher_v1.py /dev/ttyUSB0 /tmp/image.bin
+```
