@@ -1,0 +1,9 @@
+[submodule "firmware/libopencm3"]
+	path = firmware/libopencm3
+	url = https://github.com/libopencm3/libopencm3.git
+[submodule "firmware/tinyprintf"]
+	path = firmware/tinyprintf
+	url = https://github.com/cjlano/tinyprintf.git
+[submodule "firmware/cifra"]
+	path = firmware/cifra
+	url = https://github.com/ctz/cifra
