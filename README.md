@@ -135,12 +135,12 @@ Das Kabel wird wie folgt angesteckt:
 * Ggf. die 5V von USB and die 5V(!) vom Board anschließen
 
 Um das Board in den Bootloader Modus zu bringen:
-####V1
+#### V1
 * Den BOOT0 Jumper auf 1 setzen
 * Reset kurz drücken
 * Nach dem Flashen den BOOT0 Jumper auf 0 zurüksetzen
 
-####V2
+#### V2
 * Boot drücken und halten
 * Reset kurz drücken
 * Boot wieder loslassen
