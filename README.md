@@ -87,21 +87,23 @@ Bei einem Zustandsübergang wird ggf. die "Window Size" angepasst. Für jeden in
 Nur Änderungen des Belegtzustandes werden über das Netzwerk gesendet.
 
 ## Ich will das complien!
-Um dieses Projekt zu bauen wird eine ARM-Toolchain vorrausgesetzt.
+* Ggf. ARM Toolchain installieren.
 * Dieses Repo klonen.
-* 'make all' im Ordner firmware baut Master (V1 / V2), Sensor (V1 / V2) und den Bootloader (nur V2)
+* "make all" im Ordner firmware baut Master (V1 / V2), Sensor (V1 / V2) und den Bootloader (nur V2)
 
 ## Flashen
 Es gibt eine Reihe verschiedener Möglichkeiten die Firmware zu flashen.
 Manche sind nur auf V1 oder V2 verfügbar.
 
 ### ST-LINK
-Die bequemste Möglichkeit diese Controller zu flashen ist ein ST-LINK. Dies ist ein spezieller Programmer / Debugger für ST Controller.
-Um mit diesem zu flashen müssen 3 / 4 Leitungen mit dem Board verbunden werden:
+Die bequemste Möglichkeit diese Controller zu flashen ist ein ST-LINK. Dies ist ein spezieller Programmer / Debugger für ST Controller. Um einen ST-LINK zu verwenden muss OpenOCD installiert sein.
+
+#### Benötigte Anschlüsse
+Um mit einen ST-LINK zu flashen müssen folgende 3 / 4 Leitungen mit dem Board verbunden werden:
 * GND
 * SWIO
 * SWCLK
-* ggf. 3.3V
+* Ggf. 3.3V
 
 Flashen geht dann einfach mit
 ```
@@ -133,13 +135,12 @@ Das Kabel wird wie folgt angesteckt:
 * Ggf. die 5V von USB and die 5V(!) vom Board anschließen
 
 Um das Board in den Bootloader Modus zu bringen:
-*V1*
-
+####V1
 * Den BOOT0 Jumper auf 1 setzen
 * Reset kurz drücken
 * Nach dem Flashen den BOOT0 Jumper auf 0 zurüksetzen
-*V2*
 
+####V2
 * Boot drücken und halten
 * Reset kurz drücken
 * Boot wieder loslassen
