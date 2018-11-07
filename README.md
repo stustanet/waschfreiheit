@@ -121,7 +121,7 @@ Bootloader V2
 make flash_blv2
 ```
 
-### Serieller bootloader
+### Serieller Bootloader
 Das Board muss über ein Serielles Kabel mit dem PC verbunden werden.
 
 Der flasher Tool stm32loader.py befindet sich als submodule in firmware/utils.
@@ -133,6 +133,13 @@ Das Kabel wird wie folgt angesteckt:
 * Ggf. die 5V von USB and die 5V(!) vom Board anschließen
 
 Um das Board in den Bootloader Modus zu bringen:
+*V1*
+
+* Den BOOT0 Jumper auf 1 setzen
+* Reset kurz drücken
+* Nach dem Flashen den BOOT0 Jumper auf 0 zurüksetzen
+*V2*
+
 * Boot drücken und halten
 * Reset kurz drücken
 * Boot wieder loslassen
@@ -187,6 +194,8 @@ Diese beiden Dateien können bequem mit make_boot_files.sh in firmware/utils aus
 
 Dann den Stick einfach an das Board anstecken und resetten. Die Eingangs-LEDs sollten während des Updates der Reihe nach in den Farben Grün, Violett, Rot und Gelb aufleuchten.
 Nach dem Flashen wird das Programm normal gestartet.
+
+Der USB Stick wird *nicht* erkannt, wenn dass Board über den Micro-USB Anschluss mit Strom versorgt wird.
 
 ### Flasher command (Nur V1)
 Die V1 Boards haben einen integrierten Flash-Befehl mit dem die Firmware aus dem laufenden Betrieb heraus geupdated werden kann.
