@@ -89,6 +89,8 @@ Nur Änderungen des Belegtzustandes werden über das Netzwerk gesendet.
 ## Ich will das complien!
 * Ggf. ARM Toolchain installieren.
 * Dieses Repo klonen.
+* git submodule init
+* git submodule update
 * "make all" im Ordner firmware baut Master (V1 / V2), Sensor (V1 / V2) und den Bootloader (nur V2)
 
 ## Flashen
