@@ -146,8 +146,9 @@ void master_config_set_cmd(int argc, char **argv)
 #ifdef WASCHV2
 	flash_erase_sector(CONFIG_FLASH_PAGE_START + page, FLASH_CR_PROGRAM_X32);
 #else
-	flash_erase_page(CONFIG_FLASH_PAGE_START + page);
+	flash_erase_page(CONFIG_FLASH_ADDR + page * FLASHPAGE_SIZE);
 #endif
+
 	flash_program(CONFIG_FLASH_ADDR + page * FLASHPAGE_SIZE, (uint8_t*)&config_buffer, sizeof(config_buffer));
 	flash_lock();
 
