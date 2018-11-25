@@ -82,12 +82,12 @@ StaticSemaphore_t led_buffer_mutexStorage;
 #endif
 
 
-static void set_leds(void)
+static void set_leds(LED_COLOR_STRUCT *buffer)
 {
 #ifdef WASCHV1
 	led_ws2801_set(WS2801_GPIO_PORT, WS2801_GPIO_CLK, WS2801_GPIO_DATA, led_buffer, NUM_OF_LEDS);
 #else
-	i2s_rgb_set((const uint8_t *)led_buffer);
+	i2s_rgb_set((const uint8_t *)buffer);
 #endif
 }
 
@@ -188,7 +188,7 @@ void led_status_init(void)
 
 	// Turn all LEDs on
 	memset(led_buffer, 0xff, sizeof(led_buffer));
-	set_leds();
+	set_leds(led_buffer);
 
 	// Will be switched off in the first update
 	memset(led_buffer, 0, sizeof(led_buffer));
@@ -197,7 +197,7 @@ void led_status_init(void)
 
 void led_status_update(void)
 {
-	set_leds();
+	set_leds(led_buffer);
 
 #if NUM_SYSTEM_LEDS != 0
 	xSemaphoreTake(led_buffer_mutex, portMAX_DELAY);
@@ -215,4 +215,42 @@ void led_status_update(void)
 
 	xSemaphoreGive(led_buffer_mutex);
 #endif
+}
+
+
+void led_status_test(bool fast)
+{
+	LED_COLOR_STRUCT tmp_buffer[NUM_OF_LEDS];
+	memset(tmp_buffer, 0x0, sizeof(tmp_buffer));
+	for (uint8_t c = 0; c < 7; c++)
+	{
+		rgb_data_t color = {0, 0, 0};
+		switch (c)
+		{
+			case 0: color.r = 0xff; break;
+			case 1: color.g = 0xff; break;
+			case 2: color.b = 0xff; break;
+			case 3: color.r = 0xff; color.g = 0xff; break;
+			case 4: color.r = 0xff; color.b = 0xff; break;
+			case 5: color.g = 0xff; color.b = 0xff; break;
+			case 6: color.r = 0xff; color.g = 0xff; color.b = 0xff; break;
+		}
+
+		for (uint8_t i = 0; i < NUM_OF_LEDS; i++)
+		{
+			COPY_CONVERT_RGB(tmp_buffer[i], color);
+
+			if (!fast)
+			{
+				set_leds(tmp_buffer);
+				vTaskDelay(200);
+			}
+		}
+
+		if (fast)
+		{
+			set_leds(tmp_buffer);
+			vTaskDelay(500);
+		}
+	}
 }

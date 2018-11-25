@@ -28,6 +28,11 @@
 
 static StaticTask_t led_thd_buffer;;
 static StackType_t led_thd_stack[LED_THD_STACK_SIZE];
+static bool disable_led_updates = false;
+
+
+static void cmd_led_test(int argc, char **argv);
+
 
 const cli_command_t cli_commands[] = {
     { "config",           "Node configuration",                      sensor_config_set_cmd },
@@ -43,6 +48,7 @@ const cli_command_t cli_commands[] = {
     { "firmware_upgrade", "Firmware upgrade",                        sensor_node_cmd_firmware_upgrade },
 #else
     { "channel_test",     "Enter channel testing mode",              sensor_node_cmd_channel_test },
+    { "led_test",         "Show LED test pattern",                   cmd_led_test },
     { "logger",           "Configure the logger",                    storage_manager_cmd_configure_logger },
     { "umount",           "Unmount USB storage",                    storage_manager_cmd_umount },
 #endif
@@ -55,13 +61,31 @@ static void led_thread(void *arg)
 	(void) arg;
 	static const uint32_t LOOP_DELAY_MS = 100;
 
+	led_status_test(true);
+
     TickType_t last = xTaskGetTickCount();
 
 	while(1)
 	{
 		vTaskDelayUntil(&last, LOOP_DELAY_MS);
-		led_status_update();
+		if (!disable_led_updates)
+		{
+			led_status_update();
+		}
 	}
+}
+
+
+static void cmd_led_test(int argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
+
+	printf("Start led test sequence\n");
+	disable_led_updates = true;
+	led_status_test(false);
+	disable_led_updates = false;
+	printf("Test sequence done\n");
 }
 
 void node_init(void)
@@ -69,10 +93,13 @@ void node_init(void)
 	// Start the watchdog, this needs to be fed min every 4 sec
 	watchdog_init();
 
+	led_status_init();
+
 #ifdef WASCHV2
 	test_switch_init();
 	storage_manager_init();
 #endif
+
 
 	int sni = sensor_node_init();
 	if (sni != 0)

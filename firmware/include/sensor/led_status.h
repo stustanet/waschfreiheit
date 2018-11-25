@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "rgbcolor.h"
 
 /*
@@ -67,3 +68,7 @@ void led_status_external(uint8_t led, rgb_data_t color);
 
 void led_status_init(void);
 void led_status_update(void);
+
+// Shows a test pattern.
+// The pattern is overwritten when led_status_update is called.
+void led_status_test(bool fast);

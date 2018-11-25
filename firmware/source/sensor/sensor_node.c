@@ -2019,7 +2019,6 @@ int sensor_node_init(void)
 		ctx.status_change_indicators[ch].led = 0xff;
 	}
 
-	led_status_init();
 	led_status_system(LED_STATUS_SYSTEM_INIT);
 
 	// This resets the LEDs
