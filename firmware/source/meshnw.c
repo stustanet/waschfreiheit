@@ -225,10 +225,9 @@ static void handle_rx_cplt(uint8_t *packet, uint8_t len)
 	else if(context.enable_forwarding)
 	{
 		// IV (need to forward) -> forward
-		int res = forward_packet(packet, len);
-		if (res != 0)
+		if (!forward_packet(packet, len))
 		{
-			printf("Failed to forward packet, error %i.\n", res);
+			printf("Failed to forward packet!\n");
 		}
 	}
 }
