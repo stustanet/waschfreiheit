@@ -255,7 +255,7 @@ class WaschNode(Node):
         When the LED state was successfully updated, remember that this was the
         correct last state
         """
-        self._device_led_state = self._expected_led_state
+        self._device_led_state = self._new_led_state
         self.error_state = self.connect
         return self.run, None
 
@@ -266,6 +266,7 @@ class WaschNode(Node):
         """
         if self._device_led_state != self._expected_led_state:
             print("\nLED State changed\n\n")
+            self._new_led_state = self._expected_led_state
             return self.sensor.led(self._expected_led_state)
 
 def init(master, config):
