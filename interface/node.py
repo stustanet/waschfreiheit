@@ -208,12 +208,11 @@ class Node:
         """
         Send the "connect" command
         """
-        # TODO initial hop
         self.error_state = self.connect
         return self.connection_successful, MessageCommand(
             self.nodeid,
             "connect",
-            0,
+            0 if self.gateway is None else self.gateway.nodeid,
             self.config['connect_timeout'])
 
     async def connection_successful(self):
