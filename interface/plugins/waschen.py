@@ -67,6 +67,17 @@ class WaschSensor:
         return MessageCommand(self.nodeid, "rebuild_status_channel")
 
 
+    def status_change_indicator(self, indicators):
+        """
+        indicators is a list of tuples, each tuple should look like (CHANNEL, LED, COLOR)
+		When a status change on the CHANNEL is detected,
+		the LED is set to blink in the specified COLOR.
+        """
+
+        params = ' '.join([("%i,%i,%i" % ind) for ind in indicators])
+        return MessageCommand(self.nodeid, "cfg_status_change_indicator", params)
+
+
 class WaschNode(Node):
     """
     Implements a waschnode to connect to a waschingmachine node
