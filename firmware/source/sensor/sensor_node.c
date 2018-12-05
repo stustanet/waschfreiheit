@@ -1390,6 +1390,7 @@ static void adc_thread(void *arg)
 					printf("%u: %u\t%u\t%u\n",
 					       adc,
 					       frame,
+					       stateest_get_dc_offset(&ctx.sensors[adc]),
 					       stateest_get_current_rf_value(&ctx.sensors[adc]),
 					       stateest_get_current_state(&ctx.sensors[adc]));
 				}

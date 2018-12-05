@@ -156,6 +156,15 @@ static inline uint8_t stateest_get_current_state(const state_estimation_data_t *
 }
 
 /*
+ * Gets the current dc offset value (midpoint) for the input
+ * (the result is scaled to the input range of 12 bit)
+ */
+static inline uint16_t stateest_get_dc_offset(const state_estimation_data_t *data)
+{
+	return data->input_filter.mid >> 20;
+}
+
+/*
  * Gets the current state index.
  */
 static inline uint8_t stateest_is_on(const state_estimation_data_t *data)
