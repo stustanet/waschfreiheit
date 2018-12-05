@@ -48,6 +48,7 @@ class Node:
         self.start_command = self.void_state
 
         self.ack_code = 0
+        self.can_forward = False
 
     def debug_state(self, indent=1, prefix=None):
         """
@@ -173,7 +174,7 @@ class Node:
         the state is changed into the error state.
         """
 
-        await self.mark_failed()
+        self.mark_failed()
 
         del msg
         self._status = self.error_state
@@ -182,18 +183,15 @@ class Node:
         self.__message_retry_count = 0
 
 
-    async def mark_failed(self, hard=True):
+    def mark_failed(self, hard=True):
         if self.gateway:
             self.gateway.mark_failed(hard=False)
 
         if hard:
-            self.hard_failed = True
+            self.can_forward = False
             self._status = self.connect
-            return self.connect, None
         else:
-            self.soft_failed = True
             self._status = self.pingtest
-            return self.pingtest, None
 
     # State Machine stuff
     async def void_state(self):
@@ -208,6 +206,11 @@ class Node:
         """
         Send the "connect" command
         """
+
+        if not self.can_be_reached():
+            # We are NOT able to reach this node so we don't even try
+            return self.connect, None
+
         self.error_state = self.connect
         return self.connection_successful, MessageCommand(
             self.nodeid,
@@ -217,6 +220,7 @@ class Node:
 
     async def connection_successful(self):
         if not self.__first_run and self.ack_code == 3: # TODO: Force reinit
+            self.can_forward = True
             return self.fast_reinit, None
         self.__first_run = True
         return self.route, None
@@ -235,7 +239,11 @@ class Node:
 
         routestr = ",".join("{}:{}".format(hop, dst) for hop, dst in self.routes.items())
 
-        return self.start_command, MessageCommand(self.nodeid, "reset_routes", routestr)
+        return self.route_successful, MessageCommand(self.nodeid, "reset_routes", routestr)
+
+    async def route_successful(self):
+        self.can_forward = True
+        return self.start_command, None
 
     async def pingtest(self):
         """
@@ -244,3 +252,12 @@ class Node:
         self._next_state = self.run_command
         self.error_state = self.connect
         return self.run_command, MessageCommand(self.nodeid, "authping")
+
+    def can_be_reached(self):
+        if self.gateway is None:
+            return True;
+
+        if not self.gateway.can_forward:
+            return False
+
+        return self.gateway.can_be_reached();
