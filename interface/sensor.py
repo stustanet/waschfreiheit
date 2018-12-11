@@ -156,6 +156,10 @@ class Sensor:
                                    self, **kwargs)
 
 
+    async def raw_command(self, cmd, argstring, **kwargs):
+        await self.master.send_raw("{} {} {}".format(cmd, self.nodeid, argstring),
+                                   self, **kwargs)
+
     async def notify_status(self, status):
         """
         An "status" has been received with the given code

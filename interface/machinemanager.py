@@ -29,12 +29,17 @@ class MachineManager:
         """
         pass
 
-    async def status_update(self, nodeid, status):
+    async def status_update(self, node, status):
         """
         This is the callback to the updated status. It is called whenever
         a node decides to send a status message.
         """
-        await self.update_sensors()
+
+        print("Status update for", node.config.id, "special", node.config.special, "status", status);
+        if node.config.special == 'manhattan':
+            await self.update_mh_node(node, status)
+        else:
+            await self.update_sensors()
         #await self.update_website()
 
     def status_to_color(self, status):
@@ -57,6 +62,16 @@ class MachineManager:
         TODO: Actually do it
         """
         pass
+
+
+    async def update_mh_node(self, node, status):
+        if int(status) == 1:
+            leds = [sensor.LED.GREEN, sensor.LED.RED]
+        elif int(status) == 2:
+            leds = [sensor.LED.GREEN, sensor.LED.GREEN]
+        else:
+            leds = [sensor.LED.RED, sensor.LED.RED]
+        await node.led(leds)
 
     async def update_sensors(self):
         """
@@ -95,6 +110,8 @@ class MachineManager:
             self.master.log.info("Setting leds to %s", leds)
             self.leds = leds
             for snsor in self.master.sensors.values():
+                if snsor.config.speial is not None:
+                    continue
                 for _ in range(10):
                     if snsor.state != 'failed':
                         try:

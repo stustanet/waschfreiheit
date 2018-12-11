@@ -69,6 +69,7 @@ class WaschOperationInterrupted(WaschError):
     def __repr__(self):
         return "WaschOperationInterrupted: " + self.op
 
+
 class WaschConfig:
     class Node:
         class Channel:
@@ -89,6 +90,13 @@ class WaschConfig:
             self.routes_id = {}
             self.is_initialized = False
             self.distance = -1
+            self.special = None if not 'special' in conf else conf['special']
+            self.custom_command = None
+
+            if self.special == 'manhattan':
+                self.uplink = conf['mh_uplink']
+                self.uplink_key = conf['mh_uplink_key']
+                self.custom_command = ('cfg_status_change_indicator', '0,0,2 1,1,2')
 
             # Load the 'extra / raw routes'
             # Raw routes are identified as routes: {#1:#2} as a raw route from
@@ -847,6 +855,10 @@ class NetworkManager:
 
                     await node.enable(bitmask, node.config.samplerate,
                                       is_recovery=True)
+
+                    if not node.config.custom_command is None:
+                        await node.raw_command(node.config.custom_command[0], node.config.custom_command[1])
+
                     await node.resend_state()
                 except WaschError as exp:
                     self.master.log.warning(

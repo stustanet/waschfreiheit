@@ -17,12 +17,13 @@
         "HSH2":"HSH16",
         "HSH7":"HSH16",
         "HSH10":"HSH16",
-        "HSH16":"HSH16"
+        "HSH16":"HSH16",
+        "MANHATTAN":"HSH16"
       }
     },
     {
       "id_comment":"Hardwired ID for the node",
-      "id": 1,
+      "id": 11,
       "name_comment":"Internal config name for the node",
       "name":"HSH2",
       "samplerate": 500,
@@ -52,7 +53,7 @@
       }
     },
     {
-      "id": 2,
+      "id": 12,
       "name":"HSH7",
       "samplerate": 500,
       "channels": [
@@ -78,7 +79,7 @@
       }
     },
     {
-      "id": 10,
+      "id": 13,
       "name":"HSH10",
       "samplerate": 500,
       "channels": [
@@ -104,7 +105,7 @@
       }
     },
     {
-      "id": 5,
+      "id": 14,
       "name":"HSH16",
       "samplerate": 500,
       "channels": [
@@ -125,7 +126,33 @@
         "MASTER":"MASTER",
         "HSH2":"HSH2",
         "HSH7":"HSH7",
-        "HSH10":"HSH10"
+        "HSH10":"HSH10",
+        "MANHATTAN":"MANHATTAN"
+      }
+    },
+    {
+      "id": 100,
+      "name":"MANHATTAN",
+      "special":"manhattan",
+      "mh_uplink":"https://home.stusta.de/~008303/mh/update.php",
+      "mh_uplink_key":"WeKDKc9twtjTEmdLkynqMwJV",
+      "samplerate": 500,
+      "channels": [
+        {
+          "number": 0,
+          "name":"links",
+          "model":"C",
+          "config": "manhattan_sensor.json"
+        },
+        {
+          "number": 1,
+          "name":"links",
+          "model":"C",
+          "config": "manhattan_sensor.json"
+        }
+      ],
+      "routes":{
+        "MASTER":"HSH16"
       }
     }
   ]

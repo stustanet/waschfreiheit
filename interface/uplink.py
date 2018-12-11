@@ -16,8 +16,13 @@ class WaschUplink:
         return node.config.name
 
     async def status_update(self, node, status):
-        machine = self.machine_name(node)
-        url = "{}/machine/{}/{}/{}".format(self.base_url, machine, status, self.__key)
+
+        if not node.config.special is None:
+            url = '{}?key={}&status={}'.format(node.config.uplink, node.config.uplink_key, status)
+        else:
+            machine = self.machine_name(node)
+            url = "{}/machine/{}/{}/{}".format(self.base_url, machine, status, self.__key)
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as resp:
