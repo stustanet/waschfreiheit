@@ -110,7 +110,7 @@ class MachineManager:
             self.master.log.info("Setting leds to %s", leds)
             self.leds = leds
             for snsor in self.master.sensors.values():
-                if snsor.config.speial is not None:
+                if snsor.config.special is not None:
                     continue
                 for _ in range(10):
                     if snsor.state != 'failed':
