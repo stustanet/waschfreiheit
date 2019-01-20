@@ -7,6 +7,7 @@ from basenode import BaseNode
 from waschnode import WaschNode
 from manhattannode import ManhattanNode
 from uplink import WaschUplink
+from debuginterface import DebugInterface
 
 #from pluginmanager import PluginManager
 from configuration import Configuration
@@ -46,6 +47,8 @@ def main(configfile):
 
 
     load_nodes(config, master, uplink)
+
+    di = DebugInterface(master)
 
     #pluginpath = Path(__file__).resolve().parent / "plugins"
 

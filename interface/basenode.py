@@ -32,6 +32,8 @@ class BaseNode:
         # cb is a callback that is called on ack
         self._status_on_ack = None
 
+        self._injected_command = None
+
         self._wait_until = 0
         self._last_ack = 0
         master.add_node(self)
@@ -57,6 +59,14 @@ class BaseNode:
         if self._status_on_ack is not None:
             # Some command is pending, nothing to do right now
             return None
+
+
+        if self._injected_command is not None:
+            # Command injected by debug interface
+            tmp = self._injected_command
+            self._injected_command = None
+            self._status_on_ack = (None, None, None)
+            return tmp
 
         if not self._status['CON']:
             # Not connected, need to connect first
@@ -127,7 +137,7 @@ class BaseNode:
 
     def check_con(self, check_path=False):
         self._status['CHECK'] = True
-        if self._gateway is not None:
+        if check_path and self._gateway is not None:
             self._gateway.check_con()
 
     def node_id(self):
@@ -166,6 +176,13 @@ class BaseNode:
             self._status["INITDONE"] = False
 
         self._on_connected(code)
+
+    def can_inject_command(self):
+        return self._status['CON'] and self._status_on_ack is None
+
+    def inject_command(self, cmd, args):
+        if self.can_inject_command():
+            self._injected_command = MessageCommand(self._node_id, cmd, args)
 
     def _on_connected(self, code):
         pass

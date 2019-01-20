@@ -24,7 +24,10 @@ class Master:
         self.id_to_node = {}
         self.config = config
         self.uplink = uplink
-        #self.pluginmanager = None
+        self.injected_command = None
+        self.raw_mode = False
+        self.restart_requested = False
+        self.debug_interface = None
 
         self.allow_next_message = True
 
@@ -33,6 +36,9 @@ class Master:
     def add_node(self, node):
         self.nodes[node.name()] = node
         self.id_to_node[node.node_id()] = node
+
+    def set_debug_interface(self, inter):
+        self.debug_interface = inter
 
     async def run(self):
         """
@@ -47,7 +53,14 @@ class Master:
 
         last_alive_signal = 0
 
+
+        if self.debug_interface is not None:
+            await self.debug_interface.start()
+
         while True:
+            self.injected_command = None
+            self.raw_mode = False
+
             await self.connect()
 
             # reboot the master node to kill any old connections, if this script is restarted
@@ -60,12 +73,17 @@ class Master:
                     # Receive serial packet
                     try:
                         line = await asyncio.wait_for(self._reader.readline(), 1)
-                        line.decode("ascii")
                         print("[M] RECF: ", line)
-                        #await self.pluginmanager.call("on_serial_rx", data=line)
+                        if self.debug_interface is not None:
+                            self.debug_interface.send_text(line.decode("ascii"))
+
                         self.parse_packet(line)
                     except asyncio.TimeoutError:
                         pass
+
+                    if self.injected_command is not None:
+                        await self.send(self.injected_command, False)
+                        self.injected_command = None
 
                     alive = False
                     for node in self.nodes.values():
@@ -74,7 +92,7 @@ class Master:
                         if node.is_available():
                             alive = True
 
-                        if self.allow_next_message:
+                        if self.allow_next_message and not self.raw_mode:
                             next = node.next_message()
                             if next is not None:
                                 await self.send(next)
@@ -84,6 +102,11 @@ class Master:
                         if alive:
                             self.uplink.send_alive_signal()
                             last_alive_signal = now
+
+                    if self.restart_requested:
+                        self.restart_requested = False
+                        # just break, the outer loop will do the restart
+                        break
 
                     await asyncio.sleep(0.001)
 
@@ -153,11 +176,13 @@ class Master:
                 node = self.id_to_node[msg.node]
 
                 if msg.msgtype == 'ack':
-                    node.on_ack(int(msg.result))
-                    self.allow_next_message = True
+                    if not self.raw_mode:
+                        node.on_ack(int(msg.result))
+                        self.allow_next_message = True
                 elif msg.msgtype == 'timeout':
-                    node.on_timeout()
-                    self.allow_next_message = True
+                    if not self.raw_mode:
+                        node.on_timeout()
+                        self.allow_next_message = True
                 elif msg.msgtype == 'status':
                     self.status_for_node(node, int(msg.result))
                 else:
@@ -169,7 +194,9 @@ class Master:
     def resolve_node(self, name):
         if name in self.nodes:
             return self.nodes[name]
-        return None
+        elif name == 'MASTER':
+            return None
+        raise KeyError("No such node!", name)
 
     async def init_routes(self):
         routes = []
@@ -187,3 +214,16 @@ class Master:
         # Call the status change on ALL nodes, not just on the changed!
         for n in self.nodes.values():
             n.on_node_status_changed(node, status)
+
+
+    def inject_command(self, cmd):
+        self.injected_command = cmd
+
+    def set_raw_mode(self, raw):
+        self.raw_mode = raw
+
+    def is_raw_mode(self):
+        return self.raw_mode
+
+    def request_restart(self):
+        self.restart_requested = True
