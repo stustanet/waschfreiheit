@@ -156,7 +156,21 @@ class BaseNode:
         return 1
 
     def debug_state(self):
-        return "Node: {}, rt={}, status={}".format(self._name, self._rt_count, self._status)
+        if self._last_ack == 0:
+            la = "None"
+        else:
+            la = str(int(now() - self._last_ack)) + " seconds ago"
+
+        if self._wait_until < now():
+            wa = "No"
+        else:
+            wa = str(int(self._wait_until - now())) + "s"
+        return """Node: {}
+    id:              {}
+    last_ack:        {}
+    wait:            {}
+    retransmissions: {}
+    status:          {}""".format(self._name, self._node_id, la, wa, self._rt_count, self._status)
 
     def __make_route_msg(self):
         routes = []

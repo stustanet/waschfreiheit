@@ -29,6 +29,7 @@ class DebugInterface:
             'status': self.status,
             'ping': self.ping,
             'check': self.check,
+            'dumpstate': self.dumpstate,
             'restart': self.restart,
         }
 
@@ -79,6 +80,7 @@ class DebugInterface:
         self.send_help('', reader, writer)
         self.all_sockets += [writer]
         try:
+            self.dumpstate("", reader, writer)
             while True:
                 line = await reader.readline()
                 linestr = line.decode('ascii').strip()
@@ -171,6 +173,9 @@ Restart the master now unless you are ABSOLUTELY SURE that the current state mat
 
         writer.write(b"Request node check\n")
         node.check_con()
+
+    def dumpstate(self, line, reader, writer):
+        writer.write(self.master.debug_state().encode("ascii"))
 
     def restart(self, line, reader, writer):
         self.send_text("MASTER RESTART")
