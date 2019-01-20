@@ -17,13 +17,7 @@ class ManhattanNode(BaseNode):
         super().__init__(config, master, name)
 
         # Insert the state entries for this typeof node
-        self._status["CH_INIT"] = 0
-        self._status["CSSI"] = False
-        self._status["LED_STATE"] = None
-
         self._uplink = uplink
-
-        self._expected_led_state = [0, 0]
 
         configtest = [
             config['color_opened'],
@@ -32,6 +26,13 @@ class ManhattanNode(BaseNode):
             config['uplink'],
             config['uplink_key'],
             ]
+
+    def _initialize(self):
+        self._status["CH_INIT"] = 0
+        self._status["CSSI"] = False
+        self._status["LED_STATE"] = None
+
+        self._expected_led_state = [0, 0]
 
 
     def on_node_status_changed(self, node, status):

@@ -17,6 +17,11 @@ class BaseNode:
         self._node_id = int(config['id'])
         self._max_rt = int(config['max_retransmissions'])
         self._check_interval = int(config['check_interval'])
+        master.add_node(self)
+
+    def initialize(self):
+        self._gateway = self._master.resolve_node(self._config['gateway'])
+
         self._status = {"CON" : False,
                         "CHECK" : False,
                         "RT" : False,
@@ -36,10 +41,8 @@ class BaseNode:
 
         self._wait_until = 0
         self._last_ack = 0
-        master.add_node(self)
 
-    def initialize(self):
-        self._gateway = self._master.resolve_node(self._config['gateway'])
+        self._initialize()
 
     def next_message(self):
         if self._wait_until > now():
@@ -183,6 +186,9 @@ class BaseNode:
     def inject_command(self, cmd, args):
         if self.can_inject_command():
             self._injected_command = MessageCommand(self._node_id, cmd, args)
+
+    def _initialize(self):
+        return None
 
     def _on_connected(self, code):
         pass

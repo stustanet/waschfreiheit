@@ -46,18 +46,14 @@ class Master:
         """
 
 
-        #await self.pluginmanager.call("on_start")
-
-        for n in self.nodes.values():
-            n.initialize()
-
         last_alive_signal = 0
-
 
         if self.debug_interface is not None:
             await self.debug_interface.start()
 
         while True:
+            for n in self.nodes.values():
+                n.initialize()
             self.injected_command = None
             self.raw_mode = False
 
@@ -153,6 +149,8 @@ class Master:
 
         print("[M] Sending \"{}\"".format(msg.encode('ascii')))
         #await self.pluginmanager.call("on_serial_tx", data=msg)
+        if self.debug_interface is not None:
+            self.debug_interface.send_text("  -->" + msg)
 
         self.allow_next_message = not expect_response
         self._writer.write(msg.encode('ascii'))
