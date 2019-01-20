@@ -3,6 +3,7 @@ Waschmaster to handle the key network management communicating with all the
 nodes - not knowing anything about sensors!
 """
 
+import time
 import asyncio
 import serial
 import serial_asyncio
@@ -15,13 +16,14 @@ class Master:
     Should be properly setup before running, be very carefully if you do not set
     it up from new contextes!
     """
-    def __init__(self, loop, serialdevice, baudrate, config):
+    def __init__(self, loop, serialdevice, baudrate, config, uplink):
         self.loop = loop
         self.device = serialdevice
         self.baudrate = baudrate
         self.nodes = {}
         self.id_to_node = {}
         self.config = config
+        self.uplink = uplink
         #self.pluginmanager = None
 
         self.allow_next_message = True
@@ -43,6 +45,8 @@ class Master:
         for n in self.nodes.values():
             n.initialize()
 
+        last_alive_signal = 0
+
         while True:
             await self.connect()
 
@@ -63,12 +67,23 @@ class Master:
                     except asyncio.TimeoutError:
                         pass
 
+                    alive = False
                     for node in self.nodes.values():
                         print(node.debug_state())
+
+                        if node.is_available():
+                            alive = True
+
                         if self.allow_next_message:
                             next = node.next_message()
                             if next is not None:
                                 await self.send(next)
+
+                    now = time.clock_gettime(time.CLOCK_MONOTONIC)
+                    if last_alive_signal + self.config['alive_signal_interval'] < now:
+                        if alive:
+                            self.uplink.send_alive_signal()
+                            last_alive_signal = now
 
                     await asyncio.sleep(0.001)
 

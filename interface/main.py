@@ -36,12 +36,14 @@ def main(configfile):
 
     config = Configuration(configfile=configfile)
 
+    uplink = WaschUplink(config.subconfig('uplink'))
+
     master = Master(loop,
                     config['serial']['device'],
                     config['serial']['baudrate'],
-                    config.subconfig('network').subconfig('MASTER'))
+                    config.subconfig('network').subconfig('MASTER'),
+                    uplink)
 
-    uplink = WaschUplink(config.subconfig('uplink'))
 
     load_nodes(config, master, uplink)
 
