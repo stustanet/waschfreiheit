@@ -16,10 +16,6 @@ class WaschNode(BaseNode):
     def __init__(self, config, master, name, uplink):
         super().__init__(config, master, name)
 
-        # Insert the state entries for this typeof node
-        self._status["CH_INIT"] = 0
-        self._status["LED_STATE"] = None
-
         self._expected_led_state = []
 
         self._uplink = uplink
@@ -55,6 +51,13 @@ class WaschNode(BaseNode):
              c['reject_filter']['consec_count'])
                 for c in self._channels]
         del configtest
+
+    def _initialize(self):
+        # Insert the state entries for this typeof node
+        self._status["CH_INIT"] = 0
+        self._status["LED_STATE"] = None
+
+        self._expected_led_state = [0] * len(self._expected_led_state)
 
     def on_node_status_changed(self, node, status):
 
