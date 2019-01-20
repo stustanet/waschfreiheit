@@ -30,6 +30,7 @@ class Master:
         self.debug_interface = None
 
         self.allow_next_message = True
+        self.alive = False
 
         self._reader, self._writer = (None, None)
 
@@ -81,12 +82,11 @@ class Master:
                         await self.send(self.injected_command, False)
                         self.injected_command = None
 
-                    alive = False
+                    print(self.debug_state())
+                    self.alive = False
                     for node in self.nodes.values():
-                        print(node.debug_state())
-
                         if node.is_available():
-                            alive = True
+                            self.alive = True
 
                         if self.allow_next_message and not self.raw_mode:
                             next = node.next_message()
@@ -95,7 +95,7 @@ class Master:
 
                     now = time.clock_gettime(time.CLOCK_MONOTONIC)
                     if last_alive_signal + self.config['alive_signal_interval'] < now:
-                        if alive:
+                        if self.alive:
                             self.uplink.send_alive_signal()
                             last_alive_signal = now
 
@@ -212,6 +212,12 @@ class Master:
         # Call the status change on ALL nodes, not just on the changed!
         for n in self.nodes.values():
             n.on_node_status_changed(node, status)
+
+    def debug_state(self):
+        state = "alive: {}\nraw:   {}\n".format(self.alive, self.raw_mode)
+        for node in self.nodes.values():
+            state += node.debug_state() + "\n"
+        return state
 
 
     def inject_command(self, cmd):
