@@ -42,6 +42,10 @@ class WaschUplink:
         request = "{}/extralog/RAW_TX/{}/{}".format(self.url, data, self.key)
         self.queue.put_nowait(request)
 
+    def send_alive_signal(self):
+        request = "{}/lebt/{}".format(self.url, self.key)
+        self.queue.put_nowait(request)
+
     def on_status_change(self, node, state):
         request = "{}/machine/{}/{}/{}".format(self.url, node, state, self.key)
         self.queue.put_nowait(request)
