@@ -72,7 +72,7 @@ class Master:
                         line = await asyncio.wait_for(self._reader.readline(), 1)
                         print("[M] RECF: ", line)
                         if self.debug_interface is not None:
-                            self.debug_interface.send_text(line.decode("ascii"))
+                            self.debug_interface.send_text(line.decode("ascii"), True)
 
                         self.parse_packet(line)
                     except asyncio.TimeoutError:
@@ -82,7 +82,7 @@ class Master:
                         await self.send(self.injected_command, False)
                         self.injected_command = None
 
-                    print(self.debug_state())
+                    #print(self.debug_state())
                     self.alive = False
                     for node in self.nodes.values():
                         if node.is_available():
@@ -150,7 +150,7 @@ class Master:
         print("[M] Sending \"{}\"".format(msg.encode('ascii')))
         #await self.pluginmanager.call("on_serial_tx", data=msg)
         if self.debug_interface is not None:
-            self.debug_interface.send_text("  -->" + msg)
+            self.debug_interface.send_text("  -->" + msg, True)
 
         self.allow_next_message = not expect_response
         self._writer.write(msg.encode('ascii'))
