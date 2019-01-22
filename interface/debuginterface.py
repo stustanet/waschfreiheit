@@ -19,11 +19,15 @@ class DebugInterface:
         self.loop = loop
         self.master = master
 
-        self.all_sockets = []
+        # Dict with sockets as keys and boolean indicating mute as values
+        self.all_sockets = {}
+
         self.commands = {
             'help': self.send_help,
             'raw': self.enable_raw,
             'unraw': self.disable_raw,
+            'mute': self.mute,
+            'unmute': self.unmute,
             'led': self.led,
             'frames': self.frames,
             'status': self.status,
@@ -49,36 +53,13 @@ class DebugInterface:
             self._connection_handler,
             '0.0.0.0', 1337, loop=self.loop)
 
-    async def teardown(self):
-        """
-        Stop the asyncio stuff
-        """
-        self.raw_reader_mux_task.cancel()
-        try:
-            await self.raw_reader_mux_task
-        except asyncio.CancelledError:
-            pass
-
-    async def raw_reader_muxer(self):
-        """
-        Send a received line to all subscribed raw sockets
-        """
-        while True:
-            line = await self.raw_reader.readline()
-            for sock in self._raw_mux_sockets:
-                if isinstance(sock, asyncio.StreamReader):
-                    sock.feed_data(line)
-                elif isinstance(sock, asyncio.StreamWriter):
-                    sock.write(line)
-                else:
-                    self.master.err("Unsupported type!!!\n")
 
     async def _connection_handler(self, reader, writer):
         """
         Handle an incoming connection, send the welcome texts and stuff
         """
         self.send_help('', reader, writer)
-        self.all_sockets += [writer]
+        self.all_sockets[writer] = False
         try:
             self.dumpstate("", reader, writer)
             while True:
@@ -102,13 +83,14 @@ class DebugInterface:
         except ConnectionResetError:
             pass
         finally:
-            self.all_sockets = [sock for sock in self.all_sockets if sock != writer]
+            self.all_sockets = {sock : mute for sock, mute in self.all_sockets.items() if sock != writer}
         print("/////////////////////////////////DISCONNECT////////////////////////////")
 
 
-    def send_text(self, text):
-        for s in self.all_sockets:
-            s.write(text.encode())
+    def send_text(self, text, isRawData=False):
+        for s,mute in self.all_sockets.items():
+            if not isRawData or not mute:
+                s.write(text.encode())
 
 
     def send_help(self, _, reader, writer):
@@ -138,6 +120,14 @@ You can send raw data by adding the '\\' prefix.
 Restart the master now unless you are ABSOLUTELY SURE that the current state matches the state before the raw mode!
 """)
         self.master.set_raw_mode(False)
+
+    def mute(self, _, reader, writer):
+        writer.write(b"Muted raw output\n")
+        self.all_sockets[writer] = True
+
+    def unmute(self, _, r, writer):
+        writer.write(b"Un-muted raw output\n")
+        self.all_sockets[writer] = False
 
     def led(self, line, reader, writer):
         print(line)
