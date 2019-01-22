@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import time
 from pathlib import Path
 
 from master import Master
@@ -9,8 +10,24 @@ from manhattannode import ManhattanNode
 from uplink import WaschUplink
 from debuginterface import DebugInterface
 
-#from pluginmanager import PluginManager
 from configuration import Configuration
+
+
+async def statuswriter(master):
+    while True:
+        await asyncio.sleep(1)
+
+        if not master.initialized:
+            continue
+
+        state = "*************************************************\n"
+        state += "Update time: {}\n".format(time.asctime())
+        state += master.debug_state()
+
+        with open("/tmp/wasch.state", 'w+') as statefile:
+            statefile.write(state)
+
+
 
 def load_nodes(config, master, uplink):
     nc = config.subconfig('network')
@@ -49,6 +66,8 @@ def main(configfile):
     load_nodes(config, master, uplink)
 
     di = DebugInterface(master)
+
+    state_task = asyncio.ensure_future(statuswriter(master))
 
     #pluginpath = Path(__file__).resolve().parent / "plugins"
 

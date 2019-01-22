@@ -65,6 +65,9 @@ class WaschNode(BaseNode):
             # Only send updates if the status update was for this node
             self._uplink.on_status_change(node._name, status)
 
+            # Not actually needed, I just do this so it shows up in the state dump
+            self._status["LAST_STATUS"] = status
+
         if self._ledmap is None:
             return
 

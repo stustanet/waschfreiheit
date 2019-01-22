@@ -41,6 +41,8 @@ class ManhattanNode(BaseNode):
             # This node does not care about other nodes at all
             return
 
+        self._status["LAST_STATUS"] = status
+
         url = '{}?key={}&status={}'.format(self._config['uplink'], self._config['uplink_key'], status)
         self._uplink.raw_request(url)
 

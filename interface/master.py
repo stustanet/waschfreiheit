@@ -31,6 +31,8 @@ class Master:
 
         self.allow_next_message = True
         self.alive = False
+        self.last_cmd = None
+        self.initialized = False
 
         self._reader, self._writer = (None, None)
 
@@ -57,6 +59,9 @@ class Master:
                 n.initialize()
             self.injected_command = None
             self.raw_mode = False
+            self.allow_next_message = True
+
+            self.initialized = True
 
             await self.connect()
 
@@ -153,6 +158,7 @@ class Master:
             self.debug_interface.send_text("  -->" + msg, True)
 
         self.allow_next_message = not expect_response
+        self.last_cmd = msg[:-1]
         self._writer.write(msg.encode('ascii'))
         await self._writer.drain()
 
@@ -214,7 +220,12 @@ class Master:
             n.on_node_status_changed(node, status)
 
     def debug_state(self):
-        state = "alive: {}\nraw:   {}\n".format(self.alive, self.raw_mode)
+        state = """alive:       {}
+raw:         {}
+last_cmd:    {}
+msg_pending: {}
+
+""".format(self.alive, self.raw_mode, self.last_cmd, not self.allow_next_message)
         for node in self.nodes.values():
             state += node.debug_state() + "\n"
         return state
