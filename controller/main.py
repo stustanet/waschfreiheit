@@ -57,8 +57,6 @@ def main(configfile):
     uplink = WaschUplink(config.subconfig('uplink'))
 
     master = Master(loop,
-                    config['serial']['device'],
-                    config['serial']['baudrate'],
                     config.subconfig('network').subconfig('MASTER'),
                     uplink)
 
