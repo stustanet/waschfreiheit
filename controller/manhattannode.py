@@ -41,6 +41,7 @@ class ManhattanNode(BaseNode):
             # This node does not care about other nodes at all
             return
 
+        # Not actually needed, I just do this so it shows up in the state dump
         self._status["LAST_STATUS"] = status
 
         url = '{}?key={}&status={}'.format(self._config['uplink'], self._config['uplink_key'], status)

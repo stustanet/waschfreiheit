@@ -7,6 +7,7 @@ import time
 import asyncio
 import serial
 import serial_asyncio
+import socket
 
 from exceptions import MasterCommandError
 from message import MessageCommand, MessageResponse
@@ -16,10 +17,8 @@ class Master:
     Should be properly setup before running, be very carefully if you do not set
     it up from new contextes!
     """
-    def __init__(self, loop, serialdevice, baudrate, config, uplink):
+    def __init__(self, loop, config, uplink):
         self.loop = loop
-        self.device = serialdevice
-        self.baudrate = baudrate
         self.nodes = {}
         self.id_to_node = {}
         self.config = config
@@ -33,6 +32,8 @@ class Master:
         self.alive = False
         self.last_cmd = None
         self.initialized = False
+        self.tcp_server = None
+        self.new_con_evt = None
 
         self._reader, self._writer = (None, None)
 
@@ -65,16 +66,20 @@ class Master:
 
             await self.connect()
 
-            # reboot the master node to kill any old connections, if this script is restarted
-            await self.send("reboot")
-            await asyncio.sleep(2)
-            await self.init_routes()
 
             try:
+                # reboot the master node to kill any old connections, if this script is restarted
+                await self.send("reboot")
+                await asyncio.sleep(2)
+                await self.init_routes()
+
                 while True:
                     # Receive serial packet
                     try:
                         line = await asyncio.wait_for(self._reader.readline(), 1)
+                        if not line:
+                            print("Received empty data!")
+                            break
                         print("[M] RECF: ", line)
                         if self.debug_interface is not None:
                             self.debug_interface.send_text(line.decode("ascii"), True)
@@ -111,10 +116,14 @@ class Master:
 
                     await asyncio.sleep(0.001)
 
-            except serial.SerialException as error:
-                #await self.pluginmanager.call("on_serial_error",
-                #                              required=True,
-                #                              error=error)
+            except ConnectionResetError:
+                print("Connection reset")
+                continue # reconnect
+            except serial.SerialException:
+                print("Serial error")
+                continue # reconnect
+            except socket.error:
+                print("Socket error")
                 continue # reconnect
             except Exception as error:
                 #await self.pluginmanager.call("on_read_error",
@@ -123,19 +132,42 @@ class Master:
                 self.loop.stop()
                 raise
 
+    async def handle_tcp_con(self, rd, wr):
+        if self.new_con_evt.is_set():
+            # Don't want to accept a new connection
+            # just close the con
+            wr.close()
+            return
+
+        #else: set the new reader and writer of the master and set the signal
+        self._reader = rd
+        self._writer = wr
+        self.new_con_evt.set()
+
     async def connect(self):
         """
-        connect to the serial device, clear it before if it was strange
-        Do not do any setup - this will be done in the base plugin
+        connect to the serial device or wait for a socket connection
         """
-        #await self.pluginmanager.call("on_before_connect")
+
         if self._writer:
             self._writer.close()
 
-        self._reader, self._writer = await serial_asyncio.open_serial_connection(
-            url=self.device,
-            baudrate=self.baudrate,
-            loop=self.loop)
+        if self.config['connection'] == 'serial':
+            device = self.config['serial']['device'],
+            buadrate = self.config['serial']['baudrate'],
+
+            self._reader, self._writer = await serial_asyncio.open_serial_connection(
+                url=device,
+                baudrate=baudrate,
+                loop=self.loop)
+        elif self.config['connection'] == 'tcp':
+            if self.tcp_server is None:
+                # Start the server
+                port = self.config['tcp']['port']
+                self.new_con_evt = asyncio.Event()
+                self.tcp_server = await asyncio.start_server(self.handle_tcp_con, '0.0.0.0', port)
+            self.new_con_evt.clear()
+            await self.new_con_evt.wait()
 
         #await self.pluginmanager.call("on_serial_available")
 
