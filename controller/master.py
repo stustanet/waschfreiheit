@@ -153,8 +153,8 @@ class Master:
             self._writer.close()
 
         if self.config['connection'] == 'serial':
-            device = self.config['serial']['device'],
-            buadrate = self.config['serial']['baudrate'],
+            device = self.config['serial']['device']
+            baudrate = self.config['serial']['baudrate']
 
             self._reader, self._writer = await serial_asyncio.open_serial_connection(
                 url=device,
