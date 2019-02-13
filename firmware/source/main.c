@@ -84,6 +84,12 @@ static void init_usart(void)
 	gpio_set_af(GPIOA, GPIO_AF7, GPIO9 | GPIO10);
 #else
 	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO_USART1_TX);
+
+	// On the V1 borads, the status LED of the bluepill board is connected to this pin
+	// => Switch on this LED
+	rcc_periph_clock_enable(RCC_GPIOC);
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
+	gpio_clear(GPIOC, GPIO13);
 #endif
 
 	usart_set_baudrate(USART_CLI, 115200);
