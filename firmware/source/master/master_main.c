@@ -10,6 +10,7 @@
 #include "cli.h"
 #include "commands_common.h"
 #include "tinyprintf.h"
+#include "host_watchdog.h"
 
 
 /*
@@ -49,8 +50,9 @@ const cli_command_t cli_commands[] = {
     { "rebuild_status_channel", "Request a node to rebuild the status channel", master_node_cmd_rebuild_status_channel },
     { "cfg_status_change_indicator", "Configure the status change indicator LEDs.", master_node_cmd_configure_status_change_indicator },
     { "routes",        "Sets the routes for the master node",  cmd_routes },
-    { "sx127x",           "RF modem debug",                    sx127x_test_cmd },
-    { "reboot",        "Reboots (resets) the MCU",  cmd_reboot },
+    { "sx127x",        "RF modem debug",                       sx127x_test_cmd },
+    { "feed_dog",      "Feeds the host wathdog",               host_watchdog_feed_cmd },
+    { "reboot",        "Reboots (resets) the MCU",             cmd_reboot },
     { NULL, NULL, NULL }
 };
 
@@ -58,6 +60,7 @@ const cli_command_t cli_commands[] = {
 // Defined in the common main
 void node_init(void)
 {
+	host_watchdog_init();
 	int mni = master_node_init();
 	if (mni != 0)
 	{
