@@ -166,8 +166,17 @@ class Master:
                 port = self.config['tcp']['port']
                 self.new_con_evt = asyncio.Event()
                 self.tcp_server = await asyncio.start_server(self.handle_tcp_con, '0.0.0.0', port)
+
             self.new_con_evt.clear()
             await self.new_con_evt.wait()
+
+            # reset the MCU and start forwarding
+            self._writer.write(b'reset\n')
+            await self._writer.drain()
+            await asyncio.sleep(1)
+            self._writer.write(b'forward\n')
+            await self._writer.drain()
+
 
         #await self.pluginmanager.call("on_serial_available")
 
