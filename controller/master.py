@@ -226,13 +226,13 @@ class Master:
                 if msg.msgtype == 'ack':
                     if not self.raw_mode:
                         if node.name() in self.last_node_commands:
-                            self.uplink.on_serial_status(node.name(), self.last_node_commands[node.name()])
+                            self.uplink.on_serial_status(node.name(), "ACK - " + self.last_node_commands[node.name()])
                         node.on_ack(int(msg.result))
                         self.allow_next_message = True
                 elif msg.msgtype == 'timeout':
                     if not self.raw_mode:
                         if node.name() in self.last_node_commands:
-                            self.uplink.on_serial_status(node.name(), self.last_node_commands[node.name()])
+                            self.uplink.on_serial_status(node.name(), "TIMEOUT - " + self.last_node_commands[node.name()])
                         node.on_timeout()
                         self.allow_next_message = True
                 elif msg.msgtype == 'status':
