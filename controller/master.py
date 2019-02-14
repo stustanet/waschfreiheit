@@ -222,18 +222,22 @@ class Master:
             if msg.node in self.id_to_node:
                 node = self.id_to_node[msg.node]
 
-                if node.name() in self.last_node_commands:
-                    self.uplink.on_serial_status(node.name(), self.last_node_commands[node.name()])
 
                 if msg.msgtype == 'ack':
                     if not self.raw_mode:
+                        if node.name() in self.last_node_commands:
+                            self.uplink.on_serial_status(node.name(), self.last_node_commands[node.name()])
                         node.on_ack(int(msg.result))
                         self.allow_next_message = True
                 elif msg.msgtype == 'timeout':
                     if not self.raw_mode:
+                        if node.name() in self.last_node_commands:
+                            self.uplink.on_serial_status(node.name(), self.last_node_commands[node.name()])
                         node.on_timeout()
                         self.allow_next_message = True
                 elif msg.msgtype == 'status':
+                    if node.name() in self.last_node_commands:
+                        self.uplink.on_serial_status(node.name(), packet)
                     self.status_for_node(node, int(msg.result))
                 else:
                     raise MasterCommandError("PANIC! We got an UNKNOWN response")
