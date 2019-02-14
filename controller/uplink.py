@@ -42,6 +42,12 @@ class WaschUplink:
         request = "{}/extralog/RAW_TX/{}/{}".format(self.url, data, self.key)
         self.queue.put_nowait(request)
 
+
+    def on_serial_status(self, node, data):
+        data = urllib.parse.quote(data)
+        request = "{}/extralog/{}/{}/{}".format(self.url, node, data, self.key)
+        self.queue.put_nowait(request)
+
     def send_alive_signal(self):
         request = "{}/lebt/{}".format(self.url, self.key)
         self.queue.put_nowait(request)

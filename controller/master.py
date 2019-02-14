@@ -34,6 +34,7 @@ class Master:
         self.initialized = False
         self.tcp_server = None
         self.new_con_evt = None
+        self.last_node_commands = {}
 
         self._reader, self._writer = (None, None)
 
@@ -101,6 +102,7 @@ class Master:
                         if self.allow_next_message and not self.raw_mode:
                             next = node.next_message()
                             if next is not None:
+                                self.last_node_commands[node.name()] = next.to_command()
                                 await self.send(next)
 
                     now = time.clock_gettime(time.CLOCK_MONOTONIC)
@@ -219,6 +221,9 @@ class Master:
 
             if msg.node in self.id_to_node:
                 node = self.id_to_node[msg.node]
+
+                if node.name() in self.last_node_commands:
+                    self.uplink.on_serial_status(node.name(), self.last_node_commands[node.name()])
 
                 if msg.msgtype == 'ack':
                     if not self.raw_mode:
