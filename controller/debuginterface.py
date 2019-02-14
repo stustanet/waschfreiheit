@@ -64,6 +64,8 @@ class DebugInterface:
             self.dumpstate("", reader, writer)
             while True:
                 line = await reader.readline()
+                if not line:
+                    continue
                 linestr = line.decode('ascii').strip()
                 if linestr == "":
                     continue
@@ -147,18 +149,20 @@ Restart the master now unless you are ABSOLUTELY SURE that the current state mat
     def check(self, line, reader, writer):
         parts = line.split()
         if len(parts) != 2:
-            writer.write(b"### invalid syntax\n")
+            writer.write(b"USAGE: check <node>\n")
+            return
+
         command = parts[0]
         nodestr = parts[1]
 
         try:
             node = self.master.resolve_node(nodestr)
         except KeyError:
-            writer.write(b"### could not find node!\n")
+            writer.write(b"could not find node!\n")
             return
 
         if node is None:
-            writer.write(b"### invalid node\n")
+            writer.write(b"invalid node\n")
             return
 
         writer.write(b"Request node check\n")
