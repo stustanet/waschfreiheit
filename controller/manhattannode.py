@@ -82,7 +82,7 @@ class ManhattanNode(BaseNode):
 
         if self._expected_led_state != self._status["LED_STATE"]:
             # Need to update the LEDs
-            self._status_on_ack = ("LED_STATE", self._expected_led_state, None)
+            self._status_on_ack = ("LED_STATE", list(self._expected_led_state), None)
             return self.__make_led_message()
 
         return None
