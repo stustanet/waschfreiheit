@@ -175,10 +175,16 @@ class BaseNode:
     def __make_route_msg(self):
         routes = []
         for dst, hop in self._config['routes']:
-            d = self._master.resolve_node(dst)
-            h = self._master.resolve_node(hop)
-            d = d.node_id() if d is not None else 0
-            h = h.node_id() if h is not None else 0
+            if dst.startswith('#'):
+                d = int(dst[1:])
+            else:
+                d = self._master.resolve_node(dst)
+                d = d.node_id() if d is not None else 0
+            if hop.startswith('#'):
+                h = int(hop[1:])
+            else:
+                h = self._master.resolve_node(hop)
+                h = h.node_id() if h is not None else 0
             routes += ["{}:{}".format(d, h)]
         routestr = ','.join(routes)
 
