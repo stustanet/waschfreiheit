@@ -52,6 +52,7 @@ class Master:
 
 
         last_alive_signal = 0
+        last_wdt_feed = 0
 
         if self.debug_interface is not None:
             await self.debug_interface.start()
@@ -73,6 +74,7 @@ class Master:
                 await self.send("reboot")
                 await asyncio.sleep(2)
                 await self.init_routes()
+                await asyncio.sleep(1)
 
                 while True:
                     # Receive serial packet
@@ -110,6 +112,11 @@ class Master:
                         if self.alive:
                             self.uplink.send_alive_signal()
                             last_alive_signal = now
+
+                    if last_wdt_feed + self.config['gateway_watchdog_interval'] < now:
+                        print("Feeding gateway watchdog")
+                        await self.send("wdt_feed", False)
+                        last_wdt_feed = now
 
                     if self.restart_requested:
                         self.restart_requested = False
