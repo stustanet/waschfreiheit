@@ -16,6 +16,7 @@
 #include "sensor_node.h"
 #include "sensor_config.h"
 #include "led_status.h"
+#include "watchdog.h"
 
 #ifdef WASCHV2
 #include "storage_manager.h"
@@ -89,6 +90,8 @@ static void cmd_led_test(int argc, char **argv)
 
 void node_init(void)
 {
+	// Start the watchdog, this needs to be fed min every 4 sec
+	watchdog_init();
 
 	led_status_init();
 

@@ -25,7 +25,6 @@
 #include "cli.h"
 #include "commands_common.h"
 #include "meshnw.h"
-#include "watchdog.h"
 
 #if !defined(MASTER) && defined(WASCHV2)
 #include "debug_command_queue.h"
@@ -150,10 +149,6 @@ static void cliTask(void *arg)
 
 int main(void)
 {
-	// Start the watchdog, this needs to be fed min every 4 sec
-	watchdog_init();
-
-
 	cm_disable_interrupts();
 #ifdef WASCHV2
 	rcc_clock_setup_hse_3v3(&CLOCK_SETTINGS);

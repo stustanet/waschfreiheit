@@ -1,4 +1,4 @@
-FILES += master_config master_sensorconnection master_node master_main host_watchdog
+FILES += master_config master_sensorconnection master_node master_main
 
 vpath %.c source/master
 
