@@ -40,7 +40,7 @@ def serial_reader(ser, q, sig, cancel):
 
     except serial.SerialException:
         print("Serial error")
-    sig.put(None)
+    sig[0] = True
 
 
 def serial_to_sock(q, sock, sig, cancel):
@@ -53,7 +53,7 @@ def serial_to_sock(q, sock, sig, cancel):
             sock.sendall(data)
     except socket.error:
         print("Socket error")
-    sig.put(None)
+    sig[0] = True
 
 
 def sock_to_serial(sock, ser, sig, cancel):
@@ -76,26 +76,36 @@ def sock_to_serial(sock, ser, sig, cancel):
     except socket.error:
         print("Socket error")
 
-    sig.put(None)
+    sig[0] = True
 
 
 def do_passthrough(ser, sock):
     sock.sendall(b'Starting passthrough mode\n')
     serial_queue = queue.Queue()
-    sig_queue = queue.Queue()
+    sig = [False]
 
     cancel = threading.Event()
 
-    ser_rd = threading.Thread(target=serial_reader, args=(ser, serial_queue, sig_queue, cancel))
-    ser_to_sock = threading.Thread(target=serial_to_sock, args=(serial_queue, sock, sig_queue, cancel))
-    sock_to_ser = threading.Thread(target=sock_to_serial, args=(sock, ser, sig_queue, cancel))
+    ser_rd = threading.Thread(target=serial_reader, args=(ser, serial_queue, sig, cancel))
+    ser_to_sock = threading.Thread(target=serial_to_sock, args=(serial_queue, sock, sig, cancel))
+    sock_to_ser = threading.Thread(target=sock_to_serial, args=(sock, ser, sig, cancel))
 
     ser_rd.start()
     sock_to_ser.start()
     ser_to_sock.start()
 
     print("Wait for signal")
-    sig_queue.get()
+    while not sig[0]:
+        time.sleep(1)
+        # check to watchdog prefail signal
+        if wiringpi.digitalRead(config['gpio_prefail']):
+            print("WATCHDOG PREFAIL SIGNAL")
+            try:
+                # NOTE: This may f*** up the STATUS or ACK messages from the node,
+                #       but a watchdog prefail is something that should NEVER happen!
+                sock.sendall(b'===== WATCHDOG PREFAIL SIGNAL ====')
+            except socket.error:
+                print("Socket error")
 
     cancel.set()
 
