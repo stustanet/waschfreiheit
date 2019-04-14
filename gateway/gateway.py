@@ -16,6 +16,19 @@ import wiringpi
 
 cfgpath = 'waschstreamer.conf'
 
+def reset_mcu(reset):
+    if reset:
+        # The mcu is reset when this pin is low
+        wiringpi.digitalWrite(config['gpio_reset'], 0)
+        # Set to output
+        wiringpi.pinMode(config['gpio_reset'], 1)
+    else:
+        # In normal operation mode, we must not force the reset line to 3V3
+        # Otherwise the software reset will no longer work!
+        # So we just set the pin to input and rely on the pullup to keep the pin high.
+        wiringpi.digitalWrite(config['gpio_reset'], 1)
+        wiringpi.pinMode(config['gpio_reset'], 0)
+
 
 def serial_reader(ser, q, sig, cancel):
     try:
@@ -115,6 +128,8 @@ def do_mcu_update(sock):
     # After the expected number of bytes have been received, the checksum of the tmp file is generated.
     # If this checksum matches, the mcu is booted into the bootloader mode and the flasher util is invoked.
 
+    print('Starting MCU update routine')
+
     sock.sendall(b'ACK Starting upgrade routine\n')
 
     sf = sock.makefile('rwb')
@@ -160,26 +175,30 @@ def do_mcu_update(sock):
         sf.flush()
         return
 
-    # Sequence to enter bootloader
-    wiringpi.digitalWrite(config['gpio_boot'], 0)
-    wiringpi.digitalWrite(config['gpio_reset'], 1)
-    time.sleep(0.1)
-    wiringpi.digitalWrite(config['gpio_reset'], 0)
-    time.sleep(0.2)
-    wiringpi.digitalWrite(config['gpio_boot'], 1)
 
+    print('Entering bootloader mode')
+
+    # Sequence to enter bootloader
+    wiringpi.digitalWrite(config['gpio_boot'], 1)
+    reset_mcu(True)
+    time.sleep(0.1)
+    reset_mcu(False)
+    time.sleep(0.2)
+    wiringpi.digitalWrite(config['gpio_boot'], 0)
+
+    print('Invoke flasher util')
     run_stm_flasher(sf)
 
     sf.flush()
 
-
-
     time.sleep(0.2)
+
+    print('Reset MCU after flashing')
 
     # Finally reset the mcu again to start the new firmware
-    wiringpi.digitalWrite(config['gpio_reset'], 1)
+    reset_mcu(True)
     time.sleep(0.2)
-    wiringpi.digitalWrite(config['gpio_reset'], 0)
+    reset_mcu(False)
 
 
 def handle_connection(ser, sock):
@@ -190,10 +209,13 @@ def handle_connection(ser, sock):
 
         cmd = cmd[:-1]
 
+        print('Received command "{}"'.format(cmd))
+
         if cmd == 'reset':
-            wiringpi.digitalWrite(config['gpio_reset'], 1)
+            print('Reset MCU')
+            reset_mcu(True)
             time.sleep(0.2)
-            wiringpi.digitalWrite(config['gpio_reset'], 0)
+            reset_mcu(False)
         elif cmd == 'forward':
             do_passthrough(ser, sock)
             return
@@ -203,17 +225,20 @@ def handle_connection(ser, sock):
             return
         else:
             sock.sendall(b'Invalid command')
+            print('Invalid command')
             return
 
 
 def mainloop():
     while True:
         try:
+            print("Opening serial port:", config['serial'])
             ser = serial.Serial(
                 port=config['serial'],
                 baudrate=int(config['baudrate']),
                 timeout=1)
 
+            print("Connect to {}:{}".format(config['host'], int(config['port'])))
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((config['host'], int(config['port'])))
 
@@ -233,15 +258,16 @@ def mainloop():
 def init_gpio():
     wiringpi.wiringPiSetupGpio()
 
-    # The boot pin needs to be high for normal operation
-    wiringpi.digitalWrite(config['gpio_boot'], 1)
+    # The boot pin needs to be low for normal operation
+    wiringpi.digitalWrite(config['gpio_boot'], 0)
     # Set to output
     wiringpi.pinMode(config['gpio_boot'], 1)
 
-    # The mcu is reset when this pin in high so it should normally low
-    wiringpi.digitalWrite(config['gpio_reset'], 0)
-    # Set to output
-    wiringpi.pinMode(config['gpio_reset'], 1)
+    reset_mcu(False)
+
+    # The 'prefail' input is set by the watchdog chip, if the watchdog reset is imminent
+    # Set to input
+    wiringpi.pinMode(config['gpio_prefail'], 0)
 
 
 with open(cfgpath) as cfgf:
