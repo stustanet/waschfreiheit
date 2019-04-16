@@ -22,17 +22,28 @@ class Configuration:
                  masterconfig=None,
                  subconfig=None,
                  configfile=None,
-                 fallback=None):
+                 fallback=None,
+                 pathprefix=None):
         if (not masterconfig and not configfile) or \
            (masterconfig and configfile):
             raise ValueError("Must set exactly one of masterconfig and configfile")
 
         self.filename = configfile
+        self.pathprefix = pathprefix
+
+        if not self.pathprefix and fallback:
+            self.pathprefix = fallback.pathprefix
+
+        if not self.pathprefix and masterconfig:
+            self.pathprefix = masterconfig.pathprefix
+
+        if self.pathprefix and configfile:
+            configfile = os.path.join(self.pathprefix, configfile)
 
         if configfile:
             self.fallback = None
             with open(configfile) as cfgf:
-                self.config = libconf.load(cfgf)
+                self.config = libconf.load(cfgf, includedir=self.pathprefix)
 
         if masterconfig:
             self.fallback = masterconfig
@@ -64,9 +75,7 @@ class Configuration:
             return Configuration(masterconfig=self,
                                  subconfig=name)
 
-        path = os.path.join(self["nodeconfigpath"], name + ".conf")
-        print("Loading new config file: ", path)
-        return Configuration(configfile=path,
+        return Configuration(configfile=name + ".conf",
                              fallback=self)
 
     def get_item(self, key, stack=None):
