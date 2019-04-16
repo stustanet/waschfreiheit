@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import asyncio
 import time
+import os
+import logging
 from pathlib import Path
 
 from master import Master
@@ -49,10 +51,15 @@ def load_nodes(config, master, uplink):
             raise KeyError("Unknown node type", t)
 
 
-def main(configfile):
+def main(configprefix):
+    logformat = '%(asctime)s | %(name)s | %(levelname)5s | %(message)s'
+    logging.basicConfig(format=logformat, filename='/var/log/wasch/activity.log', level=logging.DEBUG)
+    log = logging.getLogger('WiF')
+    log.info("starting wasch interface")
+
     loop = asyncio.get_event_loop()
 
-    config = Configuration(configfile=configfile)
+    config = Configuration(configfile='config.conf', pathprefix=configprefix)
 
     uplink = WaschUplink(config.subconfig('uplink'))
 
@@ -77,4 +84,4 @@ def main(configfile):
     loop.run_until_complete(master.run())
 
 if __name__ == "__main__":
-    main("./v2config.conf")
+    main("conf")

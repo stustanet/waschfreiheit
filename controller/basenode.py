@@ -3,6 +3,7 @@
 # Any other node types should be derived from this class
 
 import time
+import logging
 from exceptions import NodeStateError
 from message import MessageCommand
 
@@ -18,8 +19,10 @@ class BaseNode:
         self._max_rt = int(config['max_retransmissions'])
         self._check_interval = int(config['check_interval'])
         master.add_node(self)
+        self.log = logging.getLogger('node-{}'.format(name))
 
     def initialize(self):
+        self.log.info('initialize node')
         self._gateway = self._master.resolve_node(self._config['gateway'])
 
         self._status = {"CON" : False,
@@ -72,6 +75,7 @@ class BaseNode:
             return tmp
 
         if not self._status['CON']:
+            self.log.info('connecting to node')
             # Not connected, need to connect first
             self._status_on_ack = ("CON", True, BaseNode.__on_connected)
             gw = self._gateway._node_id if self._gateway is not None else 0
@@ -85,6 +89,7 @@ class BaseNode:
 
         if self._status['CHECK'] or self._last_ack + self._check_interval < now():
             # Do a ping check
+            self.log.debug('checking node still connected')
             self._status_on_ack = ("CHECK", False, None)
             return MessageCommand(self._node_id, "authping")
 
@@ -119,6 +124,7 @@ class BaseNode:
             # node timeouted
             if not self._status['CON']:
                 # Bad, timeouted but was not connected -> wait some time
+                self.log.warning('connection failed, wait {} sec before next attempt'.format(self._config['reconnect_delay']))
                 self._wait_until = now() + int(self._config['reconnect_delay'])
 
             # Need to reconnect
@@ -192,8 +198,10 @@ class BaseNode:
 
     def __on_connected(self, code):
         if self._status["INITDONE"] and code == 3:
+            self.log.info('reconnected to still configured node')
             self._status["REBUILD_SCH"] = True
         else:
+            self.log.info('connected')
             self._status["REBUILD_SCH"] = False
             self._status["ROUTES"] = False
             self._status["INITDONE"] = False

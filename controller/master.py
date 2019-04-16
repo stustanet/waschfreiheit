@@ -8,6 +8,7 @@ import asyncio
 import serial
 import serial_asyncio
 import socket
+import logging
 
 from exceptions import MasterCommandError
 from message import MessageCommand, MessageResponse
@@ -35,8 +36,10 @@ class Master:
         self.tcp_server = None
         self.new_con_evt = None
         self.last_node_commands = {}
+        self.message_pending = False
 
         self._reader, self._writer = (None, None)
+        self.log = logging.getLogger('master')
 
     def add_node(self, node):
         self.nodes[node.name()] = node
@@ -49,7 +52,6 @@ class Master:
         """
         Main run method, should be started as the main task from outside
         """
-
 
         last_alive_signal = 0
         last_wdt_feed = 0
@@ -83,7 +85,9 @@ class Master:
                         if not line:
                             print("Received empty data!")
                             break
-                        print("[M] RECF: ", line)
+
+                        print("RECV '{}'".format(line.decode("ascii").strip()))
+                        self.log.debug("RECV '{}'".format(line.decode("ascii").strip()))
                         if self.debug_interface is not None:
                             self.debug_interface.send_text(line.decode("ascii"), True)
 
@@ -114,7 +118,7 @@ class Master:
                             last_alive_signal = now
 
                     if last_wdt_feed + self.config['gateway_watchdog_interval'] < now:
-                        print("Feeding gateway watchdog")
+                        self.log.debug("Feeding gateway watchdog")
                         await self.send("wdt_feed", False)
                         last_wdt_feed = now
 
@@ -176,8 +180,12 @@ class Master:
                 self.new_con_evt = asyncio.Event()
                 self.tcp_server = await asyncio.start_server(self.handle_tcp_con, '0.0.0.0', port)
 
+            self.log.info("Waiting for connection on port {}".format(self.config['tcp']['port']))
+
             self.new_con_evt.clear()
             await self.new_con_evt.wait()
+
+            self.log.info("Got connection from {}".format(self._writer.get_extra_info('peername')))
 
             # reset the MCU and start forwarding
             self._writer.write(b'reset\n')
@@ -203,6 +211,7 @@ class Master:
             msg += "\n"
 
         print("[M] Sending \"{}\"".format(msg.encode('ascii')))
+        self.log.debug("SEND '{}'".format(msg))
         #await self.pluginmanager.call("on_serial_tx", data=msg)
         if self.debug_interface is not None:
             self.debug_interface.send_text("  -->" + msg, True)
@@ -224,6 +233,7 @@ class Master:
             msg = MessageResponse(packet)
 
             if msg.msgtype == 'err':
+                self.log.error("Got error response '{}'".format(packet))
                 raise MasterCommandError("PANIC! We got an ERR response")
 
             if msg.node in self.id_to_node:
@@ -247,6 +257,7 @@ class Master:
                         self.uplink.on_serial_status(node.name(), packet)
                     self.status_for_node(node, int(msg.result))
                 else:
+                    self.log.err("Got unknown response '{}'".format(packet))
                     raise MasterCommandError("PANIC! We got an UNKNOWN response")
 
         #else:
@@ -270,7 +281,7 @@ class Master:
         await self.send(routestr, False)
 
     def status_for_node(self, node, status):
-        print("Status for node \"{}\" is now {}".format(node.name(), status))
+        self.log.info("Status for node \"{}\" is now {}".format(node.name(), status))
 
         # Call the status change on ALL nodes, not just on the changed!
         for n in self.nodes.values():
