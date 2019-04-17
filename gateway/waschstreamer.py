@@ -14,7 +14,7 @@ import subprocess
 #       to set the pin value BEFORE configuring a pin as output.
 import wiringpi
 
-cfgpath = 'waschstreamer.conf'
+cfgpath = '/etc/waschstreamer/config.conf'
 
 def reset_mcu(reset):
     if reset:

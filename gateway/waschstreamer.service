@@ -1,0 +1,13 @@
+[Unit]
+Description=Network gateway for the wascheninfreiheit master node
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/waschstreamer.py
+Restart=on-failure
+User=waschfreiheit
+WorkingDirectory=PREFIX
+
+[Install]
+WantedBy=multi-user.target
