@@ -3,8 +3,8 @@ Description=Washing machine orchestrator for wascheninfreiheit
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 -m waschfreiheit
-Restart=on-failure
+ExecStart=/usr/bin/python3 main.py
+Restart=always
 User=waschfreiheit
 WorkingDirectory=PREFIX
 

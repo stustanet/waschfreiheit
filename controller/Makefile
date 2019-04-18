@@ -1,34 +1,33 @@
 PREFIX ?= /usr/local/bin
 ETCPREFIX ?= /etc/waschfreiheit
 SYSTEMDPREFIX ?= /etc/systemd/system
-DEFAULTTTY ?= /dev/ttyUSB0
 
-FILES = __init__.py\
-    __main__.py\
+FILES = basenode.py\
     debuginterface.py\
-    machinemanager.py\
-    sensor.py\
-    uplink.py\
-    wasch.py\
+    main.py\
+    master.py\
+    waschnode.py\
+    configuration.py\
+    exceptions.py\
+    manhattannode.py\
+    message.py\
+    uplink.py
 
-SYSTEMDFILES = wascheninfreiheit.service
-CONFIGFILES = nodes.json sensor_normal.json
+
+SYSTEMDFILES = waschcontroller.service
+CONFIGDIR = conf
 
 MAIN = $(PREFIX)/waschfreiheit/__main__.py
 
 install:
-	python3 ./testsetup.py
 	mkdir -p $(PREFIX)/waschfreiheit
 	cp $(FILES) $(PREFIX)/waschfreiheit
-	chmod +x $(PREFIX)/waschfreiheit/__main__.py
-	sed -i -e "s/DEBUG=True #SEDMARK/DEBUG=False/g" "$(MAIN)"
-	sed -i -e "s#ETCPREFIX#$(ETCPREFIX)#g" "$(MAIN)"
-	sed -i -e "s#DEFAULTTTY#$(DEFAULTTTY)#g" "$(MAIN)"
+	chmod +x $(PREFIX)/waschfreiheit/main.py
 	cp $(SYSTEMDFILES) $(SYSTEMDPREFIX)
-	sed -i -e "s#PREFIX#$(PREFIX)#g" $(SYSTEMDPREFIX)/$(SYSTEMDFILES)
+	sed -i -e "s#PREFIX#$(PREFIX)/waschfreiheit#g" $(SYSTEMDPREFIX)/$(SYSTEMDFILES)
 
 	mkdir -p $(ETCPREFIX)
-	cp $(CONFIGFILES) $(ETCPREFIX)
+	cp -r $(CONFIGDIR)/* $(ETCPREFIX)
 
 	useradd -c "Wascheninfreiheit user" -M -s /sbin/nologin waschfreiheit || true
 
