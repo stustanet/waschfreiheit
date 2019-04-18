@@ -184,6 +184,7 @@ Restart the master now unless you are ABSOLUTELY SURE that the current state mat
 
         if len(parts) < 2:
             writer.write(b"### missing node argument\n")
+            return
 
         command = parts[0]
         nodestr = parts[1]
