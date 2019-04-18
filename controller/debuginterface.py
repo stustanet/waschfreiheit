@@ -65,7 +65,7 @@ class DebugInterface:
             while True:
                 line = await reader.readline()
                 if not line:
-                    continue
+                    break
                 linestr = line.decode('ascii').strip()
                 if linestr == "":
                     continue
