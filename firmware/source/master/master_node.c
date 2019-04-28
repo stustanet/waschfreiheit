@@ -614,7 +614,8 @@ void master_node_cmd_configure_freq_sensor(int argc, char **argv)
 		printf("USAGE: cfg_freq_chn <NODE> <CHANNEL> <THRESHOLD> <SAMPLECOUNT> <NEG_THRESHOLD>.\n\n"
 			   "NODE           Address of the destination node\n"
 			   "CHANNEL        Channel to configure\n"
-			   "THRESHOLD      Number of edges per sample to accept the sample as positive\n"
+			   "THRESHOLD      Number of positive edges per sample to accept the sample as positive\n"
+			   "               Each sample is 10 sec long.\n"
 			   "SAMPLECOUNT    Number of samples in the window\n"
 			   "NEG_THRESHOLD  If more than this number of samples in the window are negative,\n"
 			   "               the channel is considered negative.\n");
