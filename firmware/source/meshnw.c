@@ -250,7 +250,7 @@ static void recv_thread(void *arg)
 
 	while (1)
 	{
-		vTaskDelay(30); // 30ms @ 1kHz tick rate
+		vTaskDelay(5); // 5ms @ 1kHz tick rate
 
 		xSemaphoreTake(context.mutex, portMAX_DELAY);
 		uint8_t len = sx127x_recv(recv_buffer, sizeof(recv_buffer));
