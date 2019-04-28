@@ -7,6 +7,7 @@
 #include <libopencm3/stm32/dma.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/spi.h>
+#include "led_status.h"
 
 // The PLL has an input frequency of 1 - 2 MHz (Usually 2MHz).
 // With this multiplier, the PLL Output frequency has to be set to a value
@@ -48,7 +49,7 @@
 #define I2RGB_TIMING WS2812
 
 // Num of LEDs
-#define I2RGB_NUM_OF_LEDS 6
+#define I2RGB_NUM_OF_LEDS NUM_OF_LEDS
 
 // Bytes per LED
 #define I2RGB_BYTES_PER_LED 3
