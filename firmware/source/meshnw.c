@@ -228,7 +228,7 @@ static void handle_rx_cplt(uint8_t *packet, uint8_t len)
 
 		// Add a small delay here so that the other receivers in range
 		// can read the old message from the buffer before the new messsage starts.
-		vTaskDelay(100);
+		vTaskDelay(30);
 		if (!forward_packet(packet, len))
 		{
 			printf("Failed to forward packet!\n");
