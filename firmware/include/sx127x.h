@@ -44,6 +44,8 @@ typedef struct _sx127x_rf_config
 	uint8_t lora_bandwidth;
 } sx127x_rf_config_t;
 
+// The pointer to the configuration is stored internally and used if a modem reset is required.
+// Therefore, it must point to a persistent memory location.
 bool sx127x_init(const sx127x_rf_config_t *cfg);
 
 /*

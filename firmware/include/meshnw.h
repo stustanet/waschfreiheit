@@ -39,6 +39,8 @@ typedef void (*mesh_nw_message_cb_t)(nodeid_t src, void *data, uint8_t len);
 /*
  * Initilizes the mesh network handler.
  * id         Address of the current node
+ * config     Network configuration
+ *            NOTE: The modem driver may store this pointer internally, so it must point to a persistent memory location.
  * cb         Receive callback handler
  * returns true on success
  * NOTE: At initial states there are no routes so all send calls will fail (route is unknown)

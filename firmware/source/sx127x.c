@@ -20,6 +20,8 @@ static const uint32_t LORA_BANDWIDTH_TABLE[] = {7800, 10400, 15600, 20800, 31200
 // 16ms: Above this symbol time, the LowDataRateOptimize mode should be set
 #define LORA_LOW_DR_OPT_THRESHOLD_US 16000
 
+const sx127x_rf_config_t *current_config = NULL;
+
 static void sx127x_read(uint8_t addr, uint8_t *data, size_t len)
 {
 	addr &= ~SX127x_WriteReg;
@@ -157,6 +159,11 @@ static bool init_rfm(const sx127x_rf_config_t *config)
 		return false;
 	}
 
+	// Reset the module
+	gpio_clear(SX127X_RESET_GPIO_PORT, SX127X_RESET_GPIO_PIN);
+	for (volatile uint32_t i = 0; i < 100; i++);
+	gpio_set(SX127X_RESET_GPIO_PORT, SX127X_RESET_GPIO_PIN);
+
 	// Set to LoRa mode
 	// -> Need to set device to sleep mode first
 	sx127x_set_reg(SX127x_RegOpMode, SX127x_RegOpMode_LongRangeMode);
@@ -238,12 +245,7 @@ static bool init_rfm(const sx127x_rf_config_t *config)
 bool sx127x_init(const sx127x_rf_config_t *cfg)
 {
 	init_io();
-
-	// Reset the module
-	gpio_clear(SX127X_RESET_GPIO_PORT, SX127X_RESET_GPIO_PIN);
-	for (volatile uint32_t i = 0; i < 100; i++);
-	gpio_set(SX127X_RESET_GPIO_PORT, SX127X_RESET_GPIO_PIN);
-
+	current_config = cfg;
 	return init_rfm(cfg);
 }
 
@@ -340,8 +342,18 @@ bool sx127x_send(const uint8_t *data, uint8_t len)
 
 bool sx127x_is_busy(void)
 {
-	uint8_t mode = sx127x_get_reg(SX127x_RegOpMode) & SX127x_RegOpMode_Mode_Mask;
-	if (mode == SX127x_RegOpMode_Mode_TX)
+	uint8_t mode = sx127x_get_reg(SX127x_RegOpMode);
+
+	if ((mode & SX127x_RegOpMode_LongRangeMode) == 0)
+	{
+		// Not sure what is going on here, but sometimes the modem drops out of LoRa mode.
+		// Because we don't known what is causing this,
+		// we just reset the modem completely to be sure, that all settings are correct again.
+		printf("!!! Modem is no longer in LoRa mode! Resetting modem...\n");
+		return !init_rfm(current_config);
+	}
+
+	if ((mode & SX127x_RegOpMode_Mode_Mask) == SX127x_RegOpMode_Mode_TX)
 	{
 		return true;
 	}
