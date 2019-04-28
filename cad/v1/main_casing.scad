@@ -1,4 +1,4 @@
-$fn = 20;
+$fn = 20 + 0;
 
 standheight = 3;
 
@@ -252,5 +252,5 @@ module top() {
 //sensorplug();
 //audioplug();
 
-top();
-//bottom();
+//top();
+bottom();
