@@ -1604,7 +1604,7 @@ static void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_t
 	for (uint8_t i = 0; i < NUM_OF_WASCH_CHANNELS; i++)
 	{
 		// I read the values directly from the se context.
-		printf("  Channel %u\n", i);
+		printf("  Channel %u  -- %s\n", i, (ctx.active_sensor_channels & (1 << i)) ? "ENABLED" : "DISABLED");
 		printf("    Input:    %5u\n", (uint16_t)(ctx.sensors[i].input_filter.current >> 2));
 		printf("    Filtered: %5u\n", stateest_get_current_rf_value(&ctx.sensors[i]) >> 1);
 		printf("    Status:   %5u\n", stateest_get_current_state(&ctx.sensors[i]));
@@ -1613,7 +1613,7 @@ static void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_t
 #if FREQUENCY_SENSOR_NUM_OF_CHANNELS > 0
 	for (uint8_t i = 0; i < FREQUENCY_SENSOR_NUM_OF_CHANNELS; i++)
 	{
-		printf("  Channel %u (FREQ %u)\n", i + NUM_OF_WASCH_CHANNELS, i);
+		printf("  Channel %u (FREQ %u) -- %s\n", i + NUM_OF_WASCH_CHANNELS, i, (ctx.active_sensor_channels & (1 << (i + NUM_OF_WASCH_CHANNELS))) ? "ENABLED" : "DISABLED");
 		printf("    Raw:    %5u\n", frequency_sensor_get_last_counter(i));
 		printf("    Neg:    %5u\n", frequency_sensor_get_negative_counter(i));
 	}
