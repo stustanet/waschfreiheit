@@ -41,15 +41,24 @@ class WaschNode(BaseNode):
         except KeyError:
             pass
 
-        configtest = [
-            (c['input_filter']['mid_adjustment_speed'],
-             c['input_filter']['lowpass_weight'],
-             c['input_filter']['frame_size'],
-             c['transition_matrix'],
-             c['window_sizes'],
-             c['reject_filter']['threshold'],
-             c['reject_filter']['consec_count'])
-                for c in self._channels]
+        # Ensure early fail, if the config is invalid
+        configtest = []
+        for c in self._channels:
+            configtest = c['index']
+            if c['type'] == 'wasch':
+                configtest = [int(c['input_filter']['mid_adjustment_speed']),
+                              int(c['input_filter']['lowpass_weight']),
+                              int(c['input_filter']['frame_size']),
+                              c['transition_matrix'],
+                              c['window_sizes'],
+                              int(c['reject_filter']['threshold']),
+                              int(c['reject_filter']['consec_count'])]
+            elif c['type'] == 'freq':
+                configtest = [int(c['threshold']),
+                              int(c['window']),
+                              int(c['wnd_max_neg'])]
+            else:
+                raise Exception("Unknown sensor type: {}".format(c['type']))
         del configtest
 
     def _initialize(self):
@@ -106,9 +115,14 @@ class WaschNode(BaseNode):
         return None
 
     def __make_calib_message(self, channel):
+        ch_cfg = self._channels[channel]
+        if ch_cfg['type'] == 'wasch':
+            return self.__make_calib_message_wasch(ch_cfg)
+        return self.__make_calib_message_freq(ch_cfg)
+
+    def __make_calib_message_wasch(self, ch_cfg):
         # Makes a channel config message for the speified channel
 
-        ch_cfg = self._channels[channel]
         input_filter = ','.join(str(e) for e in [
         ch_cfg['input_filter']['mid_adjustment_speed'],
         ch_cfg['input_filter']['lowpass_weight'],
@@ -132,8 +146,13 @@ class WaschNode(BaseNode):
             ch_cfg['reject_filter']['consec_count']])
 
         return MessageCommand(self._node_id, "cfg_sensor",
-                              channel, input_filter, transition_matrix, window_sizes,
+                              ch_cfg['index'], input_filter, transition_matrix, window_sizes,
                               reject_filter)
+
+    def __make_calib_message_freq(self, ch_cfg):
+        return MessageCommand(self._node_id, "cfg_freq_chn",
+                              ch_cfg['index'], ch_cfg['threshold'],
+                              ch_cfg['window'], ch_cfg['wnd_max_neg'])
 
     def __make_enable_sensor_message(self):
         """
