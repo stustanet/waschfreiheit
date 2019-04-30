@@ -80,7 +80,7 @@ module pcb_holes(diameter1 = 1.2, diameter2 = 1.2) {
 	translate([ 13.5 + 2.7 / 2, 25.5 + 2.7 / 2, 0 ])
 	    cylinder(h = 1, d1 = diameter1, d2 = diameter2);
 
-	translate([ 2 + 2.7 / 2, 51 + 2.7 / 2, 0 ])
+	translate([ 2 + 2.7 / 2, 50.25 + 2.7 / 2, 0 ])
 	    cylinder(h = 1, d1 = diameter1, d2 = diameter2);
 
 	translate([ 55 + 2.7 / 2, 48.4 + 2.7 / 2, 0 ])
@@ -205,7 +205,8 @@ module base() {
 				translate([ 0, 0, -2 ]) scale([ 1, 1, 5 ]) pcb_holes();
 
 				// Make a border to the antenna-area
-				translate([ -10, 0, 0 ]) cube([ 9, 75, 20 ]);
+				translate([ -10, 0, 0 ]) cube([ 8.5, 75, 20 ]);
+				translate([ -.5, 0, 0 ]) cube([ .5, 70, 20 ]); // This is a hacky .5mm spacer for the **ing usb port
 				translate([ -2, 0, 14 ]) cube([ 2, 75, 20 ]);
 				translate([ -2, 67, 0 ]) cube([ 2, 10, 20 ]);
 
@@ -439,8 +440,8 @@ module mountingplate() {
 	}
 }
 
-%top();
-!front();
-//base ();
+top();
+//front();
+!base ();
 //ledbar();
 //mountingplate();
