@@ -306,7 +306,7 @@ module front() {
 		union() {
 			cube([ outer_size[0] - sidewall * 2 - 0.4, sidewall, 13 ]);
 			translate([ -sidewall, 0, 13 ])
-			    cube([ outer_size[0], sidewall, 11 ]);
+			    cube([ outer_size[0], sidewall, 16 ]);
 
 			hull() {
 				translate([ -sidewall, 0, 13 ])
@@ -320,7 +320,6 @@ module front() {
 	}
 	difference() {
 		// Add the calbe holder
-		// TODO!!!
 		translate([ 10, outer_size[1] - 3, 3 ]) rotate([ 180, 0, 0 ])
 		    scale([ 1, 1, -1 ]) cableholder([ 4, 4, 4, 4, 4 ], 70, 0);
 
@@ -440,37 +439,8 @@ module mountingplate() {
 	}
 }
 
-// difference () {
-// base();
-// top();
-//}
-
-top();
-// front();
-// pcb();
-
-// base ();
-// ledbar();
-// mountingplate();
-
-/*union() {
-  %hook(1, 1, 2, 5, 15, 30);
-  hook(1, 3, 2, 5, 15, 30);
-  }*/
-
-/*
-  TODO:
-  Base:
-  verstärkung um wandmontage
-
-  Front:
-
-  Top:
-  LED-Holes (konfigurierbare Anzahl)
-  Branding
-
-*/
-
-// cableholder([4,4,4,4,2]);
-// hook(1, 1, 2, 5, 15, 30);
-// hook(1, 2, 2, 5, 15, 30);
+%top();
+!front();
+//base ();
+//ledbar();
+//mountingplate();
