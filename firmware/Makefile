@@ -41,6 +41,7 @@ else
 		#DEFS += -DLUSBH_USART_DEBUG
 		include i2s_rgb.mk
 		include libusbhost.mk
+		OPT ?= -Os
 	else
 		ifeq ($(NODE),MASTER)
 			LDSCRIPT = stm32f401rbt6.ld
