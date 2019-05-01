@@ -26,7 +26,7 @@
 
 #define NUM_SYSTEM_LEDS 2
 #define NUM_CHANNEL_LEDS 4
-#define NUM_EXTERNAL_LEDS 1
+#define NUM_EXTERNAL_LEDS 5
 
 #endif
 
