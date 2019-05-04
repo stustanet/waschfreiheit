@@ -70,6 +70,7 @@ class DebugInterface:
                     break
                 linestr = line.decode('ascii').strip()
                 if linestr == "":
+                    self.dumpstate("", reader, writer)
                     continue
 
                 cmdstr = linestr.split()[0]
