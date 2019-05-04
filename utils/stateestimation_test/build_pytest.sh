@@ -1,0 +1,1 @@
+gcc -shared -Wl,-soname,stateestimation.so -o stateestimation.so  -DENABLE_ASSERT -I../../firmware/include/sensor -I../../firmware/include/ ../../firmware/source/sensor/state_estimation.c se_pytester.c
