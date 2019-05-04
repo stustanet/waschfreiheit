@@ -171,12 +171,21 @@ class BaseNode:
             wa = "No"
         else:
             wa = str(int(self._wait_until - now())) + "s"
+
+        if not self._gateway:
+            ul = "Direct"
+        elif self._gateway.is_available():
+            ul = "Available"
+        else:
+            ul = "ROUTE OFFLINE"
+
         return """Node: {}
     id:              {}
     last_ack:        {}
     wait:            {}
+    route to node    {}
     retransmissions: {}
-    status:          {}""".format(self._name, self._node_id, la, wa, self._rt_count, self._status)
+    status:          {}""".format(self._name, self._node_id, la, wa, ul, self._rt_count, self._status)
 
     def __make_route_msg(self):
         routes = []
