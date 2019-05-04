@@ -131,6 +131,11 @@ int sensor_connection_get_raw_status(sensor_connection_t *con);
 int sensor_connection_configure_freq_channel(sensor_connection_t *con, uint8_t channel, uint16_t threshold, uint8_t num_samples, uint8_t negative_threshold);
 
 /*
+ * Configures the logger and gets the storage status
+ */
+int sensor_connection_storage_ctl(sensor_connection_t *con, uint8_t req, uint8_t *param, uint8_t param_len);
+
+/*
  * Gets the current status.
  * The status should only be read by calling this function and not by reading it directly from the context struct.
  */

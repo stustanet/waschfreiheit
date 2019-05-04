@@ -43,6 +43,7 @@ const cli_command_t cli_commands[] = {
     { "enable_sensor", "Sets the active sensor channels",       master_node_cmd_enable_sensor },
     { "raw_frames",    "[DEBUG ONLY] Request raw sensor data from a node",  master_node_cmd_raw_frames },
     { "raw_status",    "[DEBUG ONLY] Request raw node status",  master_node_cmd_raw_status },
+    { "storage_ctl",   "Configure the logger and get usb storage status",  master_node_cmd_storage_ctl },
     { "ping",          "Sends an echo reuest",                  cmd_ping },
     { "authping",      "Sends a conneted node is still alive",  master_node_cmd_authping },
     { "led",           "Set the LEDs of a node",                master_node_cmd_led },

@@ -316,3 +316,20 @@ void debug_file_logger_log_marker(const char *str)
 
 	xSemaphoreGive(log_mutex);
 }
+
+
+bool debug_file_logger_is_open(void)
+{
+	return logfile_is_open;
+}
+
+
+uint32_t debug_file_logger_get_opt(enum DEBUG_LOG_TYPE what)
+{
+	if (what >= DEBUG_LOG_TYPE_NUMOF)
+	{
+		return 0;
+	}
+
+	return log_options[what];
+}

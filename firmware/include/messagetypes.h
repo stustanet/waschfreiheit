@@ -263,6 +263,42 @@ typedef struct
 
 
 /*
+ * Request information about the connected storage and configures the logger.
+ * The node will change the logger config and respond with an unauthenticated MSG_TYPE_STORAGE_STATUS message.
+ */
+#define MSG_TYPE_STORAGE_CTL 15
+
+// Don't change any config
+// arg is ignored
+#define STORAGE_CTL_REQ_TYPE_NOP      0x00
+
+// Close the logfile
+// arg is ignored
+#define STORAGE_CTL_REQ_TYPE_CLOSE    0x01
+
+// Set a new log file
+// arg is the filename
+#define STORAGE_CTL_REQ_TYPE_SET_FILE_OVERWRITE 0x02
+#define STORAGE_CTL_REQ_TYPE_SET_FILE_APPEND    0x03
+
+// arg is the mark string
+#define STORAGE_CTL_REQ_TYPE_MARK     0x04
+
+// If this bit is set in the request field, this command will change
+// the bits of the logger group specified in the lower bits of the request.
+// In this case the arg is a 32 bit integer, that defines the parameter to set the logger group to.
+#define STORAGE_CTL_REQ_TYPE_GROUP 0x80
+typedef struct
+{
+	msg_type_t type;
+
+	uint8_t request;
+
+	uint8_t arg[0];
+} __attribute__((packed)) msg_storage_ctl_t;
+
+
+/*
  * Status update message sent by the node through the status channel to the master.
  */
 #define MSG_TYPE_STATUS_UPDATE             64
@@ -307,7 +343,8 @@ typedef struct
 /*
  * Packet containing raw status information
  * The number of channels is determined by the length of the packet.
- * Each channel data is 5 bytes long. The upper two bits in the channel data
+ * Each channel data is 5 bytes long.
+ * The upper two bits in the last byte of the channel data
  * define the type of the channel.
  */
 #define RAW_STATUS_CHANNEL_TYPE_WASCH 0x00
@@ -352,6 +389,31 @@ typedef struct
 	} __attribute__((packed)) channels[0];
 
 } __attribute__((packed)) msg_raw_status_t;
+
+
+/*
+ * Packet containing raw status information about the usb storage.
+ */
+#define MSG_TYPE_STORAGE_STATUS 132
+
+#define STORAGE_STATUS_MOUNTED 1
+#define STORAGE_STATUS_LOGGING_ACTIVE 2
+typedef struct
+{
+	msg_type_t type;
+
+	uint8_t status;
+
+	// logger option bits
+	uint32_t logger_opt_adc;
+	uint32_t logger_opt_stateest;
+	uint32_t logger_opt_network;
+
+	// Free space on the USB device in MB
+	uint32_t usb_free_mb;
+
+} __attribute__((packed)) msg_storage_status_t;
+
 
 typedef union
 {

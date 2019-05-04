@@ -110,6 +110,12 @@ static void mount_thread(void *arg)
 			{
 				printf("Mounted USB storage\n");
 
+				// call getfree once to build the cluster lists
+				DWORD free_clst = 0;
+				f_getfree("", &free_clst, NULL);
+
+				printf("Free space: %lu MB\n", storage_manager_get_free());
+
 				led_status_system(LED_STATUS_SYSTEM_USB_MOUNT_OK);
 				if (debug_command_queue_load(COMMAND_QUEUE_AUTOEXEC))
 				{
@@ -281,4 +287,22 @@ void storage_manager_cmd_umount(int argc, char **argv)
 
 	printf("Requesting unmount...\n");
 	usb_storage_disable = true;
+}
+
+
+bool storage_mounted(void)
+{
+	return usb_storage_mounted;
+}
+
+
+uint32_t storage_manager_get_free(void)
+{
+	if (!usb_storage_mounted)
+	{
+		return 0;
+	}
+
+	uint64_t free_bytes = (((uint64_t)usb_fat_fs.free_clst) * usb_fat_fs.csize * usb_fat_fs.ssize);
+	return (uint32_t)(free_bytes >> 20);
 }

@@ -651,6 +651,153 @@ void master_node_cmd_configure_freq_sensor(int argc, char **argv)
 }
 
 
+void master_node_cmd_storage_ctl(int argc, char **argv)
+{
+	if (argc < 2 || argc > 5)
+	{
+		printf("USAGE: storage_ctl <NODE>\n"
+			   "       storage_ctl <NODE> close\n"
+			   "       storage_ctl <NODE> append|overwrite <FILENAME>\n"
+			   "       storage_ctl <NODE> mark <TEXT>\n"
+			   "       storage_ctl <NODE> set_opt <OPT> <VALUE>\n"
+			   "NODE           Address of the destination node\n"
+			   "Actions:\n"
+			   "close     Closes the current log file\n"
+			   "append    Activate logger and append to given file\n"
+			   "overwrite Activate logger and overwrite to given file\n"
+			   "mark      Write a marker to the log\n"
+			   "set_opt   Set logging options\n\n"
+			   "Logging options:\n"
+			   "ADC  ADC raw data logging\n"
+			   "     OPTIONS is a bitfield to specify the logged channels\n"
+			   "SE   State estimation logging\n"
+			   "     OPTIONS is a bitfield to specify the logged channels\n"
+			   "NW   Network message logging\n"
+			   "     OPTIONS is a bitfield with the following values:\n"
+			   "        1 Log incoming messages\n"
+			   "        2 Log outgoing messages\n");
+
+		return;
+	}
+
+	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
+	if (dst == MESHNW_INVALID_NODE)
+	{
+		return;
+	}
+
+	sensor_connection_t *con = find_node(dst);
+	if (!con)
+	{
+		printf("Not connected!\n");
+		print_err_text();
+		return;
+	}
+
+	uint8_t req;
+	uint8_t *arg = NULL;
+	uint8_t arg_len = 0;
+	uint32_t arg_opt_buffer;
+
+	if (argc == 2)
+	{
+		req = STORAGE_CTL_REQ_TYPE_NOP;
+	}
+	else if (strcasecmp(argv[2], "close") == 0)
+	{
+		req = STORAGE_CTL_REQ_TYPE_CLOSE;
+		if (argc != 3)
+		{
+			printf("wrong number of arguments");
+			print_err_text();
+			return;
+		}
+	}
+	else if (strcasecmp(argv[2], "append") == 0 ||
+		     strcasecmp(argv[2], "overwrite") == 0 ||
+			 strcasecmp(argv[2], "mark") == 0)
+	{
+		if (argc != 4)
+		{
+			printf("wrong number of arguments");
+			print_err_text();
+			return;
+		}
+
+		arg_len = strlen(argv[3]);
+		arg = argv[3];
+
+		if (arg_len > 32)
+		{
+			printf("Max string argument length is 32!");
+			print_err_text();
+			return;
+		}
+
+		if (strcasecmp(argv[2], "mark") == 0)
+		{
+			req = STORAGE_CTL_REQ_TYPE_MARK;
+		}
+		else if (strcasecmp(argv[2], "apppend") == 0)
+		{
+			req = STORAGE_CTL_REQ_TYPE_SET_FILE_APPEND;
+		}
+		else
+		{
+			req = STORAGE_CTL_REQ_TYPE_SET_FILE_OVERWRITE;
+		}
+	}
+	else if (strcasecmp(argv[2], "set_opt") == 0)
+	{
+		if (argc != 5)
+		{
+			printf("wrong number of arguments");
+			print_err_text();
+			return;
+		}
+
+		if (strcasecmp(argv[3], "ADC") == 0)
+		{
+			req = 0;
+		}
+		else if (strcasecmp(argv[3], "SE") == 0)
+		{
+			req = 1;
+		}
+		else if (strcasecmp(argv[3], "NW") == 0)
+		{
+			req = 2;
+		}
+		else
+		{
+			printf("Invalid option type: \"%s\"\n", argv[3]);
+			print_err_text();
+			return;
+		}
+
+		req |= STORAGE_CTL_REQ_TYPE_GROUP;
+		arg_opt_buffer = strtoul(argv[4], NULL, 16);
+		arg = (uint8_t *)(&arg_opt_buffer);
+		arg_len = sizeof(arg_opt_buffer);
+	}
+	else
+	{
+		printf("Invalid request: \"%s\"\n", argv[2]);
+		print_err_text();
+		return;
+	}
+
+
+	int res = sensor_connection_storage_ctl(con, req, arg, arg_len);
+	if (res != 0)
+	{
+		printf("Failed to send storaage ctl to node %u with error %i\n", dst, res);
+		print_err_text();
+		return;
+	}
+}
+
+
 static void message_thread(void *arg)
 {
 	(void) arg;

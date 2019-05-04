@@ -242,12 +242,12 @@ static enum USB_RESULT usb_storage_tx(uint64_t start, uint32_t size, void *ptr, 
 	bool txres;
 	if (write)
 	{
-		printf("USB write: sector=%lu, size=%lu\n", (uint32_t)start, size);
+		//printf("USB write: sector=%lu, size=%lu\n", (uint32_t)start, size);
 		txres = bulkonly_storage_write(0, start, size, ptr);
 	}
 	else
 	{
-		printf("USB read: sector=%lu, size=%lu\n", (uint32_t)start, size);
+		//printf("USB read: sector=%lu, size=%lu\n", (uint32_t)start, size);
 		txres = bulkonly_storage_read(0, start, size, ptr);
 	}
 
@@ -270,7 +270,7 @@ static enum USB_RESULT usb_storage_tx(uint64_t start, uint32_t size, void *ptr, 
 	// The timeout is handled by the poll thd
 	xSemaphoreTake(usb_tx_semaphore, portMAX_DELAY);
 
-	printf("USB TX DONE\n");
+	//printf("USB TX DONE\n");
 
 	usb_msc_status.timeout = xTaskGetTickCount();
 

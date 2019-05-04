@@ -253,7 +253,7 @@ static void handle_raw_frames(sensor_connection_t *con, uint8_t *message, uint8_
 
 /*
  * -- Un-authenticated data --
- *  Processes raw status data sent be the sensor.
+ *  Processes raw status data sent by the sensor.
  */
 static void handle_raw_status(sensor_connection_t *con, uint8_t *message, uint8_t len)
 {
@@ -290,6 +290,31 @@ static void handle_raw_status(sensor_connection_t *con, uint8_t *message, uint8_
 			printf("    Neg:    %5u\n", raw->channels[i].freq.neg & 0x3f);
 		}
 	}
+}
+
+/*
+ * -- Un-authenticated data --
+ *  Processes storage status data sent by the sensor.
+ */
+static void handle_storage_status(sensor_connection_t *con, uint8_t *message, uint8_t len)
+{
+	if (len != sizeof(msg_storage_status_t))
+	{
+		printf("Received storage status message with wrong size: %u\n", len);
+		return;
+	}
+	msg_storage_status_t *s = (msg_storage_status_t *)message;
+
+	// print global data
+	printf("Storage status data for node %u\n", con->node_id);
+	printf("  Status: %02X\n", s->status);
+	printf("      Mounted: %s\n", (s->status & STORAGE_STATUS_MOUNTED) ? "TRUE" : "FALSE");
+	printf("      Logging: %s\n", (s->status & STORAGE_STATUS_LOGGING_ACTIVE) ? "TRUE" : "FALSE");
+	printf("  Logger options:\n");
+	printf("      ADC:         %08X\n", u32_from_unaligned(&s->logger_opt_adc));
+	printf("      State est.:  %08X\n", u32_from_unaligned(&s->logger_opt_stateest));
+	printf("      Network:     %08X\n", u32_from_unaligned(&s->logger_opt_network));
+	printf("  Free space: %lu MB\n", u32_from_unaligned(&s->usb_free_mb));
 }
 
 
@@ -500,6 +525,11 @@ void sensor_connection_handle_packet(sensor_connection_t *con, uint8_t *data, ui
 		case MSG_TYPE_RAW_STATUS:
 			handle_raw_status(con, data, len);
 			break;
+
+		case MSG_TYPE_STORAGE_STATUS:
+			handle_storage_status(con, data, len);
+			break;
+
 		default:
 			printf("Got message with unexpected code %u from %u\n", msg->type, con->node_id);
 	}
@@ -968,6 +998,42 @@ int sensor_connection_configure_freq_channel(sensor_connection_t *con, uint8_t c
 	if (res != 0)
 	{
 		printf("Failed to sign configure frequency channel request for node %u with error %i\n", con->node_id, res);
+		return 1;
+	}
+
+	return 0;
+}
+
+
+int sensor_connection_storage_ctl(sensor_connection_t *con, uint8_t req, uint8_t *param, uint8_t param_len)
+{
+	if (con->ack_outstanding)
+	{
+		printf("Can't send storage ctl request to %u, ACK for last command is still outstanding.\n", con->node_id);
+		return -EBUSY;
+	}
+
+	msg_storage_ctl_t *sctl = (msg_storage_ctl_t *)con->last_sent_message;
+	sctl->type = MSG_TYPE_STORAGE_CTL;
+	sctl->request = req;
+
+	if (sizeof(con->last_sent_message) < sizeof(*sctl) + param_len)
+	{
+		printf("Parameter too long!\n");
+		return -EINVAL;
+	}
+
+	if (param_len > 0)
+	{
+		memcpy(sctl->arg, param, param_len);
+	}
+
+	// sign and send
+	int res = sign_and_send_msg(con, sizeof(*sctl) + param_len);
+
+	if (res != 0)
+	{
+		printf("Failed to sign storage ctl request for node %u with error %i\n", con->node_id, res);
 		return 1;
 	}
 

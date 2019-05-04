@@ -30,3 +30,4 @@ void master_node_cmd_led(int argc, char **argv);
 void master_node_cmd_rebuild_status_channel(int argc, char **argv);
 void master_node_cmd_configure_status_change_indicator(int argc, char **argv);
 void master_node_cmd_configure_freq_sensor(int argc, char **argv);
+void master_node_cmd_storage_ctl(int argc, char **argv);

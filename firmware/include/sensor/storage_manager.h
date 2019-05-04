@@ -4,6 +4,7 @@
  * in the LICENSE file.
  */
 
+#include <stdbool.h>
 #include <FreeRTOS.h>
 #include <semphr.h>
 
@@ -19,3 +20,6 @@ void storage_manager_init(void);
 
 void storage_manager_cmd_configure_logger(int argc, char **argv);
 void storage_manager_cmd_umount(int argc, char **argv);
+
+bool storage_mounted(void);
+uint32_t storage_manager_get_free(void);

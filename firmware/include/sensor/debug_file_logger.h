@@ -56,3 +56,6 @@ void debug_file_logger_log_marker(const char *str);
 
 // Flush the internal log buffer
 void debug_file_logger_flush(void);
+
+bool debug_file_logger_is_open(void);
+uint32_t debug_file_logger_get_opt(enum DEBUG_LOG_TYPE what);

@@ -33,6 +33,7 @@
 #include "debug_file_logger.h"
 #include "frequency_sensor.h"
 #include "test_switch.h"
+#include "storage_manager.h"
 #else
 #define FREQUENCY_SENSOR_NUM_OF_CHANNELS 0
 #endif
@@ -197,6 +198,13 @@ struct
 	 * Set this to ~0 to print the status on the serial console.
 	 */
 	uint8_t debug_raw_status_requested;
+
+#ifdef WASCHV2
+	/*
+	 * Like debug_raw_status_requested, but for the storage status
+	 */
+	uint8_t storage_status_requested;
+#endif
 
 	/*
 	 * Set to nonzero if a valid ack message was receiced on the status channel,
@@ -1187,6 +1195,126 @@ static void handle_configure_freq_channel_request(nodeid_t src, void *data, uint
 
 
 /*
+ * -- Config channel --
+ * Configure the logger and request information about the connected storage.
+ */
+static void handle_storage_ctl_request(nodeid_t src, void *data, uint8_t len)
+{
+	uint32_t msglen = len;
+	if (check_auth_message(src, data, &msglen) != 0)
+	{
+		// something is wrong with the auth, can't proceed
+		return;
+	}
+
+#ifndef WASCHV2
+	send_ack(ACK_NOTSUP);
+	return;
+#else
+
+	msg_storage_ctl_t *sctl = (msg_storage_ctl_t *)data;
+	if (msglen < sizeof(*sctl))
+	{
+		// Wrong size
+		printf("Received too small storage ctl message with size %lu\n", msglen);
+
+		send_ack(ACK_WRONGSIZE);
+		return;
+	}
+
+	ctx.storage_status_requested = ctx.status_retransmission_base_delay + 1;
+
+	if (sctl->request == STORAGE_CTL_REQ_TYPE_NOP)
+	{
+		send_ack(ACK_OK);
+		return;
+	}
+
+	if (!storage_mounted())
+	{
+		printf("Reject storage ctl request because storage is not mounted\n");
+		send_ack(ACK_BADSTATE);
+		return;
+	}
+
+	if (sctl->request & STORAGE_CTL_REQ_TYPE_GROUP)
+	{
+		if (msglen != sizeof(*sctl) + sizeof(uint32_t))
+		{
+			// Wrong size
+			printf("Received logger group config message with wrong size %lu\n", msglen);
+
+			send_ack(ACK_WRONGSIZE);
+			return;
+		}
+
+		uint32_t opt = u32_from_unaligned((uint32_t*)sctl->arg);
+		printf("Storage ctl set logging option %u to 0x%lX\n", sctl->request & 0xf, opt);
+		debug_file_logger_configure(sctl->request & 0xf, opt);
+
+		send_ack(ACK_OK);
+		return;
+	}
+
+	if (sctl->request == STORAGE_CTL_REQ_TYPE_CLOSE)
+	{
+		// Close the logging file
+		printf("Closing logfile by network request\n");
+		debug_file_logger_set_file(NULL, false);
+
+		send_ack(ACK_OK);
+		return;
+	}
+	else if (sctl->request != STORAGE_CTL_REQ_TYPE_SET_FILE_APPEND &&
+	         sctl->request != STORAGE_CTL_REQ_TYPE_SET_FILE_OVERWRITE &&
+			 sctl->request != STORAGE_CTL_REQ_TYPE_MARK)
+	{
+		printf("Unsupported storage ctl request type: %u\n", sctl->request);
+
+		send_ack(ACK_NOTSUP);
+		return;
+	}
+
+	char string_buffer[32];
+
+	// set file or mark request have a string parameter
+	uint8_t string_len = msglen - sizeof(*sctl);
+
+	if (string_len == 0 || string_len >= sizeof(string_buffer))
+	{
+		printf("String param must not be empty!\n");
+		send_ack(ACK_BADPARAM);
+		return;
+	}
+
+	memcpy(string_buffer, sctl->arg, string_len);
+	string_buffer[string_len] = 0; // null-terminate string
+
+	if (sctl->request == STORAGE_CTL_REQ_TYPE_SET_FILE_OVERWRITE ||
+		sctl->request == STORAGE_CTL_REQ_TYPE_SET_FILE_APPEND)
+	{
+		printf("Set log file to \"%s\" by network request\n", string_buffer);
+		if (debug_file_logger_set_file(string_buffer, sctl->request == STORAGE_CTL_REQ_TYPE_SET_FILE_APPEND))
+		{
+			send_ack(ACK_OK);
+			return;
+		}
+		else
+		{
+			send_ack(ACK_BADSTATE);
+			return;
+		}
+	}
+
+	// Set mark
+	printf("Set log marker \"%s\" by network request\n", string_buffer);
+	debug_file_logger_log_marker(string_buffer);
+	send_ack(ACK_OK);
+#endif
+}
+
+
+/*
  * -- Generic --
  * Proceses a echo request.
  */
@@ -1274,6 +1402,9 @@ static void mesh_message_received(nodeid_t id, void *data, uint8_t len)
 			break;
 		case MSG_TYPE_CONFIGURE_FREQ_CHANNEL:
 			handle_configure_freq_channel_request(id, data, len);
+			break;
+		case MSG_TYPE_STORAGE_CTL:
+			handle_storage_ctl_request(id, data, len);
 			break;
 		case MSG_TYPE_ECHO_REQUEST:
 			handle_echo_request(id, data, len);
@@ -1620,6 +1751,45 @@ static void print_raw_status(uint32_t rt_counter, uint32_t uptime, uint32_t rt_t
 #endif
 }
 
+
+#ifdef WASCHV2
+static void send_storage_status_message(void)
+{
+	msg_storage_status_t *s;
+
+	// Buffer for the message
+	uint8_t out_buffer[sizeof(*s)];
+	_Static_assert(MESHNW_MAX_PACKET_SIZE > sizeof(out_buffer), "storage status message too large");
+
+	s = (msg_storage_status_t *)out_buffer;
+
+	s->type = MSG_TYPE_STORAGE_STATUS;
+
+	s->status = 0;
+	if (storage_mounted())
+	{
+		s->status |= STORAGE_STATUS_MOUNTED;
+	}
+
+	if (debug_file_logger_is_open())
+	{
+		s->status |= STORAGE_STATUS_LOGGING_ACTIVE;
+	}
+
+	u32_to_unaligned(&s->logger_opt_adc, debug_file_logger_get_opt(DEBUG_LOG_TYPE_ADC));
+	u32_to_unaligned(&s->logger_opt_stateest, debug_file_logger_get_opt(DEBUG_LOG_TYPE_STATEEST));
+	u32_to_unaligned(&s->logger_opt_network, debug_file_logger_get_opt(DEBUG_LOG_TYPE_NETWORK));
+
+	u32_to_unaligned(&s->usb_free_mb, storage_manager_get_free());
+
+	if (!meshnw_send(ctx.master_node, out_buffer, sizeof(out_buffer)))
+	{
+		printf("sending storage status failed.\n");
+	}
+}
+#endif
+
+
 static void do_led_animation(uint32_t ticks)
 {
 	// Show init progress with LEDs
@@ -1891,6 +2061,17 @@ static void message_thread(void *arg)
 				}
 			}
 		}
+
+#ifdef WASCHV2
+		if (ctx.storage_status_requested)
+		{
+			ctx.storage_status_requested--;
+			if (ctx.storage_status_requested == 0)
+			{
+				send_storage_status_message();
+			}
+		}
+#endif
 
 
 		if (ctx.status & STATUS_SENSOR_TEST)
