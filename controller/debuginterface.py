@@ -2,6 +2,7 @@
 Do the magic debugging stuff
 """
 import asyncio
+import shlex
 
 class DebugInterface:
     """
@@ -35,6 +36,7 @@ class DebugInterface:
             'check': self.check,
             'dumpstate': self.dumpstate,
             'restart': self.restart,
+            'storage_ctl': self.storagectl,
         }
 
         self.server = None
@@ -136,6 +138,9 @@ Restart the master now unless you are ABSOLUTELY SURE that the current state mat
         self.send_command(line, reader, writer)
 
     def frames(self, line, reader, writer):
+        if len(line.split()) != 4:
+            writer.write(b"Expected 4 arguments for frames command\n")
+            return
         command = ' '.join(line.split()[1:])
         self.send_command('raw_frames ' + command, reader, writer)
 
@@ -174,6 +179,31 @@ Restart the master now unless you are ABSOLUTELY SURE that the current state mat
     def restart(self, line, reader, writer):
         self.send_text("MASTER RESTART")
         self.master.request_restart()
+
+    def storagectl(self, line, reader, writer):
+        parts = shlex.split(line)
+        if len(parts) > 2:
+            if parts[2] == 'close':
+                if len(parts) != 3:
+                    writer.write(b"no extra args expected for 'close' action\n")
+                    return
+            elif parts[2] == 'mark' or parts[2] == 'overwrite' or parts[2] == 'append':
+                if len(parts) != 4:
+                    writer.write(b"expected 4 args\n")
+                    return
+            elif parts[2] == 'set_opt':
+                if len(parts) != 5:
+                    writer.write(b"expected 5 args\n")
+                    return
+                if parts[3] != 'ADC' and parts[3] != 'SE' and parts[3] != 'NW':
+                    writer.write(b'Unexppected option name, expected: "ADC", "SE", or "NW"\n')
+                    return
+            else:
+                writer.write(b'Wrong action, expected one of the following: "close", "mark", "overwrite", "append", "set_opt"\n')
+                return
+
+        command = ' '.join(line.split()[1:])
+        self.send_command('storage_ctl ' + command, reader, writer)
 
 
     def send_command(self, line, r, writer, direct=False):
