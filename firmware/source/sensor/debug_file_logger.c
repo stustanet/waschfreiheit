@@ -18,7 +18,7 @@
 #include "ff.h"
 #include "storage_manager.h"
 
-#define LOG_BUFFER_SIZE 512
+#define LOG_BUFFER_SIZE 4096
 
 static bool     logfile_is_open = false;
 static FIL      logfile;
@@ -47,6 +47,8 @@ static void flush_buffer(void)
 		printf("Failed to flush log buffer, result=%i; bw=%u; used=%u\n", res, bw, log_buffer_used);
 		logfile_is_open = false;
 	}
+
+	f_sync(&logfile);
 
 	log_buffer_used = 0;
 }
