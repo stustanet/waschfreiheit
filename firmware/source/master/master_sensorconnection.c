@@ -833,9 +833,6 @@ int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds)
 	for (int i = 0; i < num_leds; i++)
 	{
 		int v = atoi(leds[i]);
-
-		printf("Color of LED %i is %i\n", i, v);
-
 		if (i & 1)
 		{
 			// odd -> use second nibble
@@ -846,8 +843,6 @@ int sensor_connection_led(sensor_connection_t *con, int num_leds, char **leds)
 			// even -> use first nibble
 			ledmsg->data[i >> 1] |= (v & 0x0f) << 4;
 		}
-
-		printf("Value source for %i: %u\n", i, ledmsg->data[i >> 1]);
 	}
 
 	// sign and send
