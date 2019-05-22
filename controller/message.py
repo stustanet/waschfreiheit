@@ -13,13 +13,14 @@ class MessageResponse:
         self.result = None
         self.node = None
         self.is_error = False
+        self.is_pend = False
         self.raw = response
 
         if response:
             self._parse_response(response)
 
     def _parse_response(self, response):
-        match = re.search(r"###(?P<type>ACK|STATUS|ERR|TIMEOUT)[ -]?(?P<node>\d+)"
+        match = re.search(r"###(?P<type>ACK|STATUS|ERR|TIMEOUT|PEND)[ -]?(?P<node>\d+)"
                           r"(?:[ -](?P<result>\d+))?", response)
 
         if not match:
@@ -32,6 +33,8 @@ class MessageResponse:
             self.result = match.group("result")
         elif self.msgtype == "err":
             self.is_error = True
+        elif self.msgtype == "pend":
+            self.is_pend = True
 
         self.node = int(match.group("node"))
 

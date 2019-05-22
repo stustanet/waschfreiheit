@@ -78,7 +78,7 @@ Fragt Sensordaten von einem Knoten an. Das ist nur zum Kalibrieren des Sensors g
 Fragt an ob ein Knoten noch aktiv ist.
 * NODE\_ID Adresse des Knotens.
 
-### Updates
+### Updates / Signale
 Updates haben das Prefix ### um diese leicht zu parsen.
 #### ACK\<ID\>-\<CODE\>
 Eine Netzwerk-Anfrage an Knoten ID wurde bestätigt. CODE ist der ACK-Code, dieser ist Abhängig vom Request. 0 oder 128 bedeuten, dass die Anfrage erfolgreich war.
@@ -89,3 +89,5 @@ Der letzte Befehl war ungültig. Es braucht nicht auf ein ACK gewartet werden.
 Es ist ein Timeout aufgetreten. Es sollte deshalb bei Zeiten für diesen Knoten einen retransmit Aufruf geben. Dieser kann entweder direkt nach dem Timeout kommen oder zwischen durch kann auch noch anderes gemacht werden.
 #### STATUS\<ID\>-\<STATUS\>
 Statusupdate von Knoten ID. Status ist ein Bitfeld, ein gesetztes Bit steht für eine Aktive Maschine.
+#### PEND\<ID\>
+Ein PEND Signal kommt als direkte Antwort auf einen Befehl, falls ein Packet versendet wurde welches bestätigt werden muss. Daher folgt auf ein PEND immer ein ACK oder ein TIMEOUT.

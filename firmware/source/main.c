@@ -25,6 +25,7 @@
 #include "cli.h"
 #include "commands_common.h"
 #include "meshnw.h"
+#include "isrsafe_printf.h"
 
 #if !defined(MASTER) && defined(WASCHV2)
 #include "debug_command_queue.h"
@@ -136,6 +137,9 @@ static void cliTask(void *arg)
 				buffer[buffer_pos] = 0;
 				cli_evaluate(buffer);
 				buffer_pos = 0;
+#ifdef CLI_PROMPT
+				ISRSAFE_PRINTF(CLI_PROMPT);
+#endif
 			}
 		}
 		else

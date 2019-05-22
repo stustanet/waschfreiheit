@@ -29,14 +29,20 @@ class Master:
         self.restart_requested = False
         self.debug_interface = None
 
-        self.allow_next_message = True
         self.alive = False
         self.last_cmd = None
         self.initialized = False
         self.tcp_server = None
         self.new_con_evt = None
         self.last_node_commands = {}
+
+        # Set when received a PEND signal
+        # Cleared when received ACK or TIMEOUT signal
         self.message_pending = False
+
+        # Set when a command is sent to the master
+        # Cleared when the command prompt is read and the master node is ready for the next command
+        self.wait_for_prompt = False
 
         self._reader, self._writer = (None, None)
         self.log = logging.getLogger('master')
@@ -64,7 +70,8 @@ class Master:
                 n.initialize()
             self.injected_command = None
             self.raw_mode = False
-            self.allow_next_message = True
+            self.message_pending = False
+            self.wait_for_prompt = False
 
             self.initialized = True
 
@@ -77,6 +84,11 @@ class Master:
                 await asyncio.sleep(2)
                 await self.init_routes()
                 await asyncio.sleep(1)
+
+                self.message_pending = False
+                self.wait_for_prompt = False
+
+                startup_time = time.monotonic()
 
                 while True:
                     # Receive serial packet
@@ -95,9 +107,30 @@ class Master:
                     except asyncio.TimeoutError:
                         pass
 
+                    if self.restart_requested:
+                        self.restart_requested = False
+                        # just break, the outer loop will do the restart
+                        break
+
                     if self.injected_command is not None:
-                        await self.send(self.injected_command, False)
+                        await self.send(self.injected_command)
                         self.injected_command = None
+
+                    now = time.monotonic()
+
+                    if now < startup_time + 1:
+                        # Wait for 1 sec at start to discard any messsaages from the initialization
+                        # before beginning to send messages to the nodes
+                        continue
+
+                    if last_wdt_feed + self.config['gateway_watchdog_interval'] < now:
+                        self.log.debug("Feeding gateway watchdog")
+                        await self.send("wdt_feed")
+                        last_wdt_feed = now
+
+                    if not self.raw_mode and (self.wait_for_prompt or self.message_pending):
+                        # Waiting for the last message to be processed or for the timeout / ack for the last command
+                        continue
 
                     #print(self.debug_state())
                     self.alive = False
@@ -105,27 +138,18 @@ class Master:
                         if node.is_available():
                             self.alive = True
 
-                        if self.allow_next_message and not self.raw_mode:
+                        if not self.raw_mode:
                             next = node.next_message()
                             if next is not None:
                                 self.last_node_commands[node.name()] = next.to_command()
                                 await self.send(next)
+                                break
 
-                    now = time.clock_gettime(time.CLOCK_MONOTONIC)
                     if last_alive_signal + self.config['alive_signal_interval'] < now:
                         if self.alive:
                             self.uplink.send_alive_signal()
                             last_alive_signal = now
 
-                    if last_wdt_feed + self.config['gateway_watchdog_interval'] < now:
-                        self.log.debug("Feeding gateway watchdog")
-                        await self.send("wdt_feed", False)
-                        last_wdt_feed = now
-
-                    if self.restart_requested:
-                        self.restart_requested = False
-                        # just break, the outer loop will do the restart
-                        break
 
                     await asyncio.sleep(0.001)
 
@@ -197,12 +221,13 @@ class Master:
 
         #await self.pluginmanager.call("on_serial_available")
 
-    async def send(self, msg, expect_response=True):
+    async def send(self, msg):
         """
         Send a message to the serial device.
         Does _NOT_ wait for any kind of result!
         """
-        self.message_pending = True
+
+        self.wait_for_prompt = True
 
         if isinstance(msg, MessageCommand):
             msg = msg.to_command()
@@ -216,7 +241,6 @@ class Master:
         if self.debug_interface is not None:
             self.debug_interface.send_text("  -->" + msg, True)
 
-        self.allow_next_message = not expect_response
         self.last_cmd = msg[:-1]
         self._writer.write(msg.encode('ascii'))
         await self._writer.drain()
@@ -226,36 +250,47 @@ class Master:
         Prepare the message line for the message parser, removing any possible
         offsets and unnecessary whitespaces
         """
+
         packet = packet.decode('ascii').strip()
+
+        if packet.find("MASTER>") >= 0:
+            self.wait_for_prompt = False
+            return
+
         cmdoffset = packet.find("###")
         if cmdoffset >= 0:
             packet = packet[cmdoffset:]
             msg = MessageResponse(packet)
 
-            if msg.msgtype == 'err':
+            if msg.msgtype == 'err' and not self.raw_mode:
                 self.log.error("Got error response '{}'".format(packet))
                 raise MasterCommandError("PANIC! We got an ERR response")
 
             if msg.node in self.id_to_node:
                 node = self.id_to_node[msg.node]
 
-
                 if msg.msgtype == 'ack':
                     if not self.raw_mode:
                         if node.name() in self.last_node_commands:
                             self.uplink.on_serial_status(node.name(), "ACK - " + self.last_node_commands[node.name()])
                         node.on_ack(int(msg.result))
-                        self.allow_next_message = True
+                        self.message_pending = False
                 elif msg.msgtype == 'timeout':
                     if not self.raw_mode:
                         if node.name() in self.last_node_commands:
                             self.uplink.on_serial_status(node.name(), "TIMEOUT - " + self.last_node_commands[node.name()])
                         node.on_timeout()
-                        self.allow_next_message = True
+                        self.message_pending = False
                 elif msg.msgtype == 'status':
                     if node.name() in self.last_node_commands:
                         self.uplink.on_serial_status(node.name(), packet)
                     self.status_for_node(node, int(msg.result))
+                elif msg.msgtype == 'pend':
+                    # once we get a PEND event, we block the execution until we get a timeout or a ack
+                    if not self.wait_for_prompt:
+                        self.log.warning("Received unexpected pending signal")
+
+                    self.message_pending = True
                 else:
                     self.log.err("Got unknown response '{}'".format(packet))
                     raise MasterCommandError("PANIC! We got an UNKNOWN response")
@@ -278,7 +313,7 @@ class Master:
             routes += ["{}:{}".format(d, h)]
 
         routestr = 'routes ' + ','.join(routes)
-        await self.send(routestr, False)
+        await self.send(routestr)
 
     def status_for_node(self, node, status):
         self.log.info("Status for node \"{}\" is now {}".format(node.name(), status))
@@ -292,8 +327,9 @@ class Master:
 raw:         {}
 last_cmd:    {}
 msg_pending: {}
+wait_prompt: {}
 
-""".format(self.alive, self.raw_mode, self.last_cmd, not self.allow_next_message)
+""".format(self.alive, self.raw_mode, self.last_cmd, self.message_pending, self.wait_for_prompt)
         for node in self.nodes.values():
             state += node.debug_state() + "\n"
         return state

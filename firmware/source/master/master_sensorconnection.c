@@ -16,6 +16,10 @@
 #include "tinyprintf.h"
 #include "isrsafe_printf.h"
 
+static void print_pending_msg(uint8_t id)
+{
+	ISRSAFE_PRINTF("###PEND%u\n", id);
+}
 
 /*
  * -- Config channel --
@@ -412,6 +416,8 @@ static int sign_and_send_msg(sensor_connection_t *con, uint32_t len)
 	con->last_sent_message_len = packet_len;
 	con->ack_outstanding = 1;
 
+	print_pending_msg(con->node_id);
+
 	send_last_packet(con);
 	return 0;
 }
@@ -483,6 +489,8 @@ int sensor_connection_init(sensor_connection_t *con, nodeid_t node, nodeid_t nod
 
 	con->last_sent_message_len = msg_len;
 	con->ack_outstanding = 1;
+
+	print_pending_msg(con->node_id);
 
 	send_last_packet(con);
 	return 0;
@@ -574,9 +582,12 @@ int sensor_connection_retransmit(sensor_connection_t *con)
 		return 1;
 	}
 
+	print_pending_msg(con->node_id);
+
 	// re-send the message, this also resets the timer
 	printf("Do retransmission to node %u\n", con->node_id);
 	send_last_packet(con);
+
 	return 0;
 }
 

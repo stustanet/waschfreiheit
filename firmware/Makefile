@@ -61,6 +61,10 @@ else
 
 endif
 
+ifeq ($(NODE),MASTER)
+	DEFS += -DCLI_PROMPT="\"MASTER>\\n\""
+endif
+
 ifeq ($(NODE),BOOTLOADER)
 	include bootloader/bootloader.mk
 else
