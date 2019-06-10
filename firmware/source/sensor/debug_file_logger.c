@@ -239,7 +239,7 @@ void debug_file_logger_log_filtered_adc(const uint16_t *vals, uint8_t cnt)
 	xSemaphoreTake(log_mutex, portMAX_DELAY);
 
 	write_log_entry_begin('F');
-	write_uint16_kv(vals, cnt, log_options[DEBUG_LOG_TYPE_STATEEST] >> 16);
+	write_uint16_kv(vals, cnt, log_options[DEBUG_LOG_TYPE_ADC] >> 16);
 
 	xSemaphoreGive(log_mutex);
 }
