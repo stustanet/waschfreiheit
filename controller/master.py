@@ -346,3 +346,7 @@ wait_prompt: {}
 
     def request_restart(self):
         self.restart_requested = True
+
+    def reset_timeouts(self):
+        for n in self.nodes.values():
+            n.reset_timeout()

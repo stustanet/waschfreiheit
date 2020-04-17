@@ -225,6 +225,9 @@ class BaseNode:
         if self.can_inject_command():
             self._injected_command = MessageCommand(self._node_id, cmd, args)
 
+    def reset_timeout(self):
+        self._wait_until = 0
+
     def _initialize(self):
         return None
 

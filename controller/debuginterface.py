@@ -36,6 +36,7 @@ class DebugInterface:
             'dumpstate': self.dumpstate,
             'restart': self.restart,
             'storage_ctl': self.storagectl,
+            'retry': self.reset_timeouts
         }
 
         self.server = None
@@ -177,6 +178,9 @@ Restart the master now unless you are ABSOLUTELY SURE that the current state mat
         command = ' '.join(line.split()[1:])
         self.send_command('storage_ctl ' + command, reader, writer)
 
+    def reset_timeouts(self, line, reader, writer):
+        writer.write(b"Resetting timeouts\n")
+        self.master.reset_timeouts()
 
     def send_command(self, line, r, writer, direct=False):
         """
