@@ -55,3 +55,7 @@ class WaschUplink:
     def on_status_change(self, node, state):
         request = "{}/machine/{}/{}/{}".format(self.url, node, state, self.key)
         self.queue.put_nowait(request)
+
+    def on_node_alive_changed(self, node, state):
+        request = "{}/node_alive/{}/{}/{}".format(self.url, node, state, self.key)
+        self.queue.put_nowait(request)

@@ -91,6 +91,7 @@ class WaschNode(BaseNode):
             pass
 
     def _on_connected(self, code):
+        self._uplink.on_node_alive_changed(self.name(), "1")
         if not self._status["INITDONE"]:
             # not or no longer initialized -> reset
             self._status["CH_INIT"] = 0
@@ -113,6 +114,10 @@ class WaschNode(BaseNode):
             return self.__make_led_message()
 
         return None
+
+
+    def _on_connection_failed(self):
+        self._uplink.on_node_alive_changed(self.name(), "0")
 
     def __make_calib_message(self, channel):
         ch_cfg = self._channels[channel]

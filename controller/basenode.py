@@ -126,6 +126,7 @@ class BaseNode:
                 # Bad, timeouted but was not connected -> wait some time
                 self.log.warning('connection failed, wait {} sec before next attempt'.format(self._config['reconnect_delay']))
                 self._wait_until = now() + int(self._config['reconnect_delay'])
+                self._on_connection_failed()
 
             # Need to reconnect
             self._status['CON'] = False
@@ -232,6 +233,9 @@ class BaseNode:
 
     def _next_message(self):
         return None
+
+    def _on_connection_failed(self):
+        pass
 
     def on_node_status_changed(self, node, status):
         pass
