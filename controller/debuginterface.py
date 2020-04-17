@@ -29,7 +29,6 @@ class DebugInterface:
             'unraw': self.disable_raw,
             'mute': self.mute,
             'unmute': self.unmute,
-            'led': self.led,
             'frames': self.frames,
             'status': self.status,
             'ping': self.ping,
@@ -42,7 +41,6 @@ class DebugInterface:
         self.server = None
         self.master.set_debug_interface(self)
 
-    # LED \send led
     # raw_frames \send raw_frames
     # raw_status \send raw_status
     # shutdown (wartung)
@@ -133,10 +131,6 @@ Restart the master now unless you are ABSOLUTELY SURE that the current state mat
     def unmute(self, _, r, writer):
         writer.write(b"Un-muted raw output\n")
         self.all_sockets[writer] = False
-
-    def led(self, line, reader, writer):
-        print(line)
-        self.send_command(line, reader, writer)
 
     def frames(self, line, reader, writer):
         if len(line.split()) != 4:
