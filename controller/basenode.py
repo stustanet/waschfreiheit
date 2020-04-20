@@ -190,6 +190,13 @@ class BaseNode:
 
     def __make_route_msg(self):
         routes = []
+
+        # Add the gateway route
+        if self._gateway is not None:
+            routes = ["0:{}".format(self._gateway.node_id())]
+        else:
+            routes = ["0:0"]
+
         for dst, hop in self._config['routes']:
             if dst.startswith('#'):
                 d = int(dst[1:])
