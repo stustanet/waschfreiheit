@@ -60,7 +60,7 @@ class BaseNode:
             # Need to send retransmit
             self._status['RT'] = False
             self._rt_count += 1
-            return MessageCommand(self._node_id, "retransmit")
+            return MessageCommand(self, "retransmit")
 
         if self._status_on_ack is not None:
             # Some command is pending, nothing to do right now
@@ -79,7 +79,7 @@ class BaseNode:
             # Not connected, need to connect first
             self._status_on_ack = ("CON", True, BaseNode.__on_connected)
             gw = self._gateway._node_id if self._gateway is not None else 0
-            return MessageCommand(self._node_id, "connect", gw, int(self._config['hop_timeout']) * self.route_length())
+            return MessageCommand(self, "connect", gw, int(self._config['hop_timeout']) * self.route_length())
 
 
         if not self._status['ROUTES']:
@@ -91,12 +91,12 @@ class BaseNode:
             # Do a ping check
             self.log.debug('checking node still connected')
             self._status_on_ack = ("CHECK", False, None)
-            return MessageCommand(self._node_id, "authping")
+            return MessageCommand(self, "authping")
 
         if self._status['REBUILD_SCH']:
             # Rebuild the status channel
             self._status_on_ack = ("REBUILD_SCH", False, None)
-            return MessageCommand(self._node_id, "rebuild_status_channel")
+            return MessageCommand(self, "rebuild_status_channel")
 
         return self._next_message()
 
@@ -173,6 +173,11 @@ class BaseNode:
         else:
             wa = str(int(self._wait_until - now())) + "s"
 
+        if self._status_on_ack is None:
+            cp = "False"
+        else:
+            cp = "True"
+
         if not self._gateway:
             ul = "Direct"
         elif self._gateway.is_available():
@@ -184,9 +189,10 @@ class BaseNode:
     id:              {}
     last_ack:        {}
     wait:            {}
+    cmd pending:     {}
     route to node    {}
     retransmissions: {}
-    status:          {}""".format(self._name, self._node_id, la, wa, ul, self._rt_count, self._status)
+    status:          {}""".format(self._name, self._node_id, la, wa, cp, ul, self._rt_count, self._status)
 
     def __make_route_msg(self):
         routes = []
@@ -211,7 +217,7 @@ class BaseNode:
             routes += ["{}:{}".format(d, h)]
         routestr = ','.join(routes)
 
-        return MessageCommand(self._node_id, "reset_routes", routestr)
+        return MessageCommand(self, "reset_routes", routestr)
 
     def __on_connected(self, code):
         if self._status["INITDONE"] and code == 3:
@@ -230,7 +236,14 @@ class BaseNode:
 
     def inject_command(self, cmd, args):
         if self.can_inject_command():
-            self._injected_command = MessageCommand(self._node_id, cmd, args)
+            self._injected_command = MessageCommand(self, cmd, args)
+
+    def command_aborted(self):
+        if self._status_on_ack != (None, None, None):
+            self.log.error("Aborting non-void command, status: '{}'".format(self._status_on_ack))
+            raise NodeStateError("PANIC! Non void commands should never be aborted!")
+
+        self._status_on_ack = None
 
     def reset_timeout(self):
         self._wait_until = 0

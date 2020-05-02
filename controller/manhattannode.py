@@ -68,7 +68,7 @@ class ManhattanNode(BaseNode):
         if self._status["CH_INIT"] < manhattan_sensor_channels:
             # init a channel
             self._status_on_ack = ("CH_INIT", self._status["CH_INIT"] + 1, None)
-            return MessageCommand(self._node_id, "cfg_sensor", self._status["CH_INIT"], *manhattan_sensor_config)
+            return MessageCommand(self, "cfg_sensor", self._status["CH_INIT"], *manhattan_sensor_config)
 
         if not self._status["CSSI"]:
             # Configure the blnking LEDs on status change
@@ -78,7 +78,7 @@ class ManhattanNode(BaseNode):
         if not self._status["INITDONE"]:
             # The last step of the initialization is to activate the configured sensor channels
             self._status_on_ack = ("INITDONE", True, None)
-            return MessageCommand(self._node_id, "enable_sensor", 3, manhattan_sensor_samplerate)
+            return MessageCommand(self, "enable_sensor", 3, manhattan_sensor_samplerate)
 
         if self._expected_led_state != self._status["LED_STATE"]:
             # Need to update the LEDs
@@ -90,7 +90,7 @@ class ManhattanNode(BaseNode):
 
     def __make_cssi_message(self):
         ssistr = "0,0,{} 1,1,{}".format(self._config['color_pending'], self._config['color_pending'])
-        return MessageCommand(self._node_id, "cfg_status_change_indicator", ssistr)
+        return MessageCommand(self, "cfg_status_change_indicator", ssistr)
 
 
     def __make_led_message(self):
@@ -98,4 +98,4 @@ class ManhattanNode(BaseNode):
         Enable all configured sensors on the node
         """
         ledstring = ' '.join([str(l) for l in self._expected_led_state])
-        return MessageCommand(self._node_id, "led", ledstring)
+        return MessageCommand(self, "led", ledstring)

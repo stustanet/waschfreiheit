@@ -150,12 +150,12 @@ class WaschNode(BaseNode):
             ch_cfg['reject_filter']['threshold'],
             ch_cfg['reject_filter']['consec_count']])
 
-        return MessageCommand(self._node_id, "cfg_sensor",
+        return MessageCommand(self, "cfg_sensor",
                               ch_cfg['index'], input_filter, transition_matrix, window_sizes,
                               reject_filter)
 
     def __make_calib_message_freq(self, ch_cfg):
-        return MessageCommand(self._node_id, "cfg_freq_chn",
+        return MessageCommand(self, "cfg_freq_chn",
                               ch_cfg['index'], ch_cfg['threshold'],
                               ch_cfg['window'], ch_cfg['wnd_max_neg'])
 
@@ -167,7 +167,7 @@ class WaschNode(BaseNode):
             mask = self._config['channel_mask']
         except KeyError:
             mask = 2 ** (len(self._config['channels']))-1
-        return MessageCommand(self._node_id, "enable_sensor", str(mask), self._config['samplerate'])
+        return MessageCommand(self, "enable_sensor", str(mask), self._config['samplerate'])
 
 
     def __make_led_message(self):
@@ -175,4 +175,4 @@ class WaschNode(BaseNode):
         Enable all configured sensors on the node
         """
         ledstring = ' '.join([str(l) for l in self._expected_led_state])
-        return MessageCommand(self._node_id, "led", ledstring)
+        return MessageCommand(self, "led", ledstring)

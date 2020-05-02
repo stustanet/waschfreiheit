@@ -20,7 +20,12 @@ class MessageResponse:
             self._parse_response(response)
 
     def _parse_response(self, response):
-        match = re.search(r"###(?P<type>ACK|STATUS|ERR|TIMEOUT|PEND)[ -]?(?P<node>\d+)"
+
+        if "###ERR" in response:
+            self.is_error = True
+            return
+
+        match = re.search(r"###(?P<type>ACK|STATUS|TIMEOUT|PEND)[ -]?(?P<node>\d+)"
                           r"(?:[ -](?P<result>\d+))?", response)
 
         if not match:
@@ -31,8 +36,6 @@ class MessageResponse:
 
         if self.msgtype in ["ack", "status"]:
             self.result = match.group("result")
-        elif self.msgtype == "err":
-            self.is_error = True
         elif self.msgtype == "pend":
             self.is_pend = True
 
@@ -42,13 +45,14 @@ class MessageCommand:
     """
     A message going to the serial connection
     """
-    def __init__(self, nodeid, command, *args, seperator=" "):
-        self.nodeid = nodeid
+    def __init__(self, node, command, *args, seperator=" "):
+        self.nodeid = node.node_id()
+        self.node = node.name()
         if args:
             strargs = seperator.join([str(arg) for arg in args])
         else:
             strargs = ""
-        self.cmd = "{} {} {}\n".format(command, nodeid, strargs).strip()
+        self.cmd = "{} {} {}\n".format(command, self.nodeid, strargs).strip()
 
     def __str__(self):
         return self.cmd

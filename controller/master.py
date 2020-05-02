@@ -40,9 +40,9 @@ class Master:
         # Cleared when received ACK or TIMEOUT signal
         self.message_pending = False
 
-        # Set when a command is sent to the master
-        # Cleared when the command prompt is read and the master node is ready for the next command
-        self.wait_for_prompt = False
+        # Set to the name of the node when a command is sent
+        # Cleared to None when the command prompt is read and the master node is ready for the next command
+        self.wait_for_prompt = None
 
         self._reader, self._writer = (None, None)
         self.log = logging.getLogger('master')
@@ -71,7 +71,7 @@ class Master:
             self.injected_command = None
             self.raw_mode = False
             self.message_pending = False
-            self.wait_for_prompt = False
+            self.wait_for_prompt = None
 
             self.initialized = True
 
@@ -86,7 +86,7 @@ class Master:
                 await asyncio.sleep(1)
 
                 self.message_pending = False
-                self.wait_for_prompt = False
+                self.wait_for_prompt = None
 
                 startup_time = time.monotonic()
 
@@ -128,7 +128,7 @@ class Master:
                         await self.send("wdt_feed")
                         last_wdt_feed = now
 
-                    if not self.raw_mode and (self.wait_for_prompt or self.message_pending):
+                    if not self.raw_mode and (self.wait_for_prompt is not None or self.message_pending):
                         # Waiting for the last message to be processed or for the timeout / ack for the last command
                         continue
 
@@ -227,10 +227,12 @@ class Master:
         Does _NOT_ wait for any kind of result!
         """
 
-        self.wait_for_prompt = True
 
         if isinstance(msg, MessageCommand):
+            self.wait_for_prompt = msg.node
             msg = msg.to_command()
+        else:
+            self.wait_for_prompt = "MASTER"
 
         if msg[-1] != "\n":
             msg += "\n"
@@ -254,7 +256,7 @@ class Master:
         packet = packet.decode('ascii').strip()
 
         if packet.find("MASTER>") >= 0:
-            self.wait_for_prompt = False
+            self.wait_for_prompt = None
             return
 
         cmdoffset = packet.find("###")
@@ -262,9 +264,15 @@ class Master:
             packet = packet[cmdoffset:]
             msg = MessageResponse(packet)
 
-            if msg.msgtype == 'err' and not self.raw_mode:
-                self.log.error("Got error response '{}'".format(packet))
-                raise MasterCommandError("PANIC! We got an ERR response")
+            if msg.is_error and not self.raw_mode:
+                if self.wait_for_prompt is None:
+                    self.log.error("Got error response '{}'".format(packet))
+                    raise MasterCommandError("PANIC! We got an out-of-order ERR response")
+                nd = self.resolve_node(self.wait_for_prompt)
+                if nd is not None:
+                    nd.command_aborted()
+
+                return
 
             if msg.node in self.id_to_node:
                 node = self.id_to_node[msg.node]
@@ -287,7 +295,7 @@ class Master:
                     self.status_for_node(node, int(msg.result))
                 elif msg.msgtype == 'pend':
                     # once we get a PEND event, we block the execution until we get a timeout or a ack
-                    if not self.wait_for_prompt:
+                    if self.wait_for_prompt is None:
                         self.log.warning("Received unexpected pending signal")
 
                     self.message_pending = True
