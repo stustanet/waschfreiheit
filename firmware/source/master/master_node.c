@@ -148,18 +148,21 @@ void master_node_cmd_connect(int argc, char **argv)
 			   "NODE      The address of the node\n"
 			   "FIRST_HOP First hop in the answer path of the node\n"
 			   "TIMEOUT   Timeout for this connection\n");
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
 	nodeid_t hop = utils_parse_nodeid(argv[2], 0);
 	if (hop == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -195,12 +198,14 @@ void master_node_cmd_retransmit(int argc, char **argv)
 		printf("USAGE: retransmit <NODE>\n\n"
 			   "NODE      The address of the node\n"
 			   "This command can only be used if a TIMEOUT occured for this node!\n");
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -219,7 +224,6 @@ void master_node_cmd_retransmit(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 
@@ -240,12 +244,14 @@ void master_node_cmd_node_routes(int argc, char **argv)
 			   "DSTn:HOPn Packets with destination address DSTn will be sent to HOPn\n\n"
 			   "The reset_routes command will reset the node and than add new routes while the\n"
 			   "set_routes command updates the current routes\n");
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -270,7 +276,6 @@ void master_node_cmd_node_routes(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 
@@ -295,12 +300,14 @@ void master_node_cmd_configure_sensor(int argc, char **argv)
 			   "          <REJECT_THRESHOLD>,<REJECT_CONSEC>\n"
 			   "See the documentation for details on the parameters.\n");
 
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -321,7 +328,6 @@ void master_node_cmd_configure_sensor(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 
@@ -338,12 +344,14 @@ void master_node_cmd_enable_sensor(int argc, char **argv)
 			   "CHANNELS  Active channels\n"
 			   "SPS       Samples per second\n");
 
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -369,7 +377,6 @@ void master_node_cmd_enable_sensor(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 
@@ -387,12 +394,14 @@ void master_node_cmd_raw_frames(int argc, char **argv)
 			   "CHANNEL   Channel to measure\n"
 			   "COUNT     Number of frames to send\n");
 
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -414,7 +423,6 @@ void master_node_cmd_raw_frames(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 
@@ -430,12 +438,14 @@ void master_node_cmd_raw_status(int argc, char **argv)
 	{
 		printf("USAGE: raw_status <NODE>\n\n"
 			   "NODE      Address of the destination node\n");
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -454,7 +464,6 @@ void master_node_cmd_raw_status(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 
@@ -468,12 +477,14 @@ void master_node_cmd_authping(int argc, char **argv)
 	{
 		printf("USAGE: authping <NODE>\n\n"
 			   "NODE      Address of the destination node\n");
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -492,7 +503,6 @@ void master_node_cmd_authping(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 
@@ -504,12 +514,14 @@ void master_node_cmd_led(int argc, char **argv)
 			   "NODE      Address of the destination node\n"
 			   "LEDx      Color mode of the LED.\n"
 			   "          See the color table of the node for details.\n");
+		print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+		print_err_text();
 		return;
 	}
 
@@ -528,7 +540,6 @@ void master_node_cmd_led(int argc, char **argv)
 		print_err_text();
 		return;
 	}
-	return;
 }
 
 /*
@@ -542,12 +553,14 @@ void master_node_cmd_rebuild_status_channel(int argc, char **argv)
         printf("USAGE: rebuild_status_channel <NODE>\n\n"
 			   "NODE      Address of the destination node\n\n"
 			   "This needs to be called if it is not reset after reconnecting.\n");
+		print_err_text();
         return;
     }
 
     nodeid_t dst = utils_parse_nodeid(argv[1], 1);
     if (dst == MESHNW_INVALID_NODE)
     {
+		print_err_text();
         return;
     }
 
@@ -566,7 +579,6 @@ void master_node_cmd_rebuild_status_channel(int argc, char **argv)
         print_err_text();
         return;
     }
-    return;
 }
 
 
@@ -580,12 +592,14 @@ void master_node_cmd_configure_status_change_indicator(int argc, char **argv)
 			   "            <CHANNEL>,<LED>,<COLOR>\n"
 			   "            When a status change on the CHANNEL is detected, the\n"
 			   "            LED is set to blink in the specified COLOR.\n");
+        print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+        print_err_text();
 		return;
 	}
 
@@ -619,12 +633,14 @@ void master_node_cmd_configure_freq_sensor(int argc, char **argv)
 			   "SAMPLECOUNT    Number of samples in the window\n"
 			   "NEG_THRESHOLD  If more than this number of samples in the window are negative,\n"
 			   "               the channel is considered negative.\n");
+        print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+        print_err_text();
 		return;
 	}
 
@@ -677,12 +693,14 @@ void master_node_cmd_storage_ctl(int argc, char **argv)
 			   "        1 Log incoming messages\n"
 			   "        2 Log outgoing messages\n");
 
+        print_err_text();
 		return;
 	}
 
 	nodeid_t dst = utils_parse_nodeid(argv[1], 1);
 	if (dst == MESHNW_INVALID_NODE)
 	{
+        print_err_text();
 		return;
 	}
 
